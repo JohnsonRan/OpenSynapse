@@ -1,6 +1,7 @@
 {
   "name": "opensynapse",
   "private": true,
+  "license": "GPL-2.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "mygo dev",
