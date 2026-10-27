@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"unsafe"
+
+	"golang.org/x/sys/windows"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -35,8 +38,10 @@ func osdOn() bool {
 func osdView(c *ui.Context) {
 	c.Root().Background(ui.Transparent)
 	root := ui.Row(c).Fill().Center()
-	if !c.Vibrancy() { // without the glass theme's material, a panel of its own
-		root.Radius(14).Background(ui.RGBA(20, 20, 20, 0.94)).Border(1, ui.RGBA(68, 214, 44, 0.5))
+	// Windows 11 rounds the window and draws its border (green, see greenBorder):
+	// the panel fills it square, so nothing of its own shows at the corners.
+	if !c.Vibrancy() {
+		root.Background(ui.RGBA(20, 20, 20, 0.94))
 	}
 	root.Children(func() {
 		ui.Text(c, osd.text).FontSize(26).Bold().TextColor(ui.Hex("#44d62c"))
@@ -56,11 +61,12 @@ func showDPI(s razer.DPIStage) {
 			osd.win = mygo.NewWindow(mygo.WindowOptions{
 				Title: "OpenSynapse DPI", Width: osdWidth, Height: osdHeight,
 				Frameless: true, Transparent: true, AlwaysOnTop: true, SkipTaskbar: true,
-				DisableResize: true, Hidden: true, CornerRadius: 14,
+				DisableResize: true, Hidden: true, CornerRadius: 8,
 				Vibrancy: glassVibrancy(glass),
 				Content:  ui.View(osdView),
 			})
 			osd.win.OnClosed(func() { osd.win = nil })
+			greenBorder(osd.win.NativeHandle())
 		}
 		wa := mygo.Screen.PrimaryDisplay().WorkArea
 		osd.win.SetPosition(wa.X+(wa.Width-osdWidth)/2, wa.Y+wa.Height-osdHeight-96)
@@ -112,4 +118,13 @@ func (Settings) SetDPIDisplay(on bool) error {
 	cfg.DPIDisplay = on
 	cfgMu.Unlock()
 	return saveConfig()
+}
+
+var procDwmSetWindowAttribute = windows.NewLazySystemDLL("dwmapi.dll").NewProc("DwmSetWindowAttribute")
+
+// greenBorder colors the border Windows 11 draws around the window, as MyGo
+// does for its menus (DWMWA_BORDER_COLOR); older Windows ignores it.
+func greenBorder(hwnd uintptr) {
+	color := uint32(0x002CD644) // COLORREF of #44D62C
+	procDwmSetWindowAttribute.Call(hwnd, 34, uintptr(unsafe.Pointer(&color)), 4)
 }
