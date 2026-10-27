@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 func TestInputLayout(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // Lighting is a whole-device lighting choice.

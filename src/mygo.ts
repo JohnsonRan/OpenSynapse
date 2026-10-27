@@ -26,6 +26,7 @@ export interface ButtonInfo {
   macro: string;
 }
 
+/** DPIStage is one sensitivity stage. */
 export interface DPIStage {
   x: number;
   y: number;
@@ -68,6 +69,7 @@ export interface DeviceState {
   lighting: Lighting;
 }
 
+/** Features lists the controls the device declares. */
 export interface Features {
   dpi: boolean;
   dpiStages: boolean;
@@ -93,8 +95,10 @@ export interface Lighting {
   color: RGB;
 }
 
+/** LightingCaps describes what the device's lighting can do as a whole. */
 export interface LightingCaps {
   effects: string[];
+  /** static and breathing take a color */
   color: boolean;
   brightness: boolean;
 }
@@ -119,6 +123,7 @@ export interface MacroEvent {
   delay: number;
 }
 
+/** RGB is a color. */
 export interface RGB {
   r: number;
   g: number;
@@ -312,7 +317,7 @@ export const Settings = {
   setAutostart(on: boolean): Promise<void> {
     return call("Settings.SetAutostart", on);
   },
-  /** SetLanguage sets "zh-CN", "en", or "" to follow the system. */
+  /** SetLanguage sets "zh-CN", "en", "ja", or "" to follow the system. */
   setLanguage(lang: string): Promise<void> {
     return call("Settings.SetLanguage", lang);
   },

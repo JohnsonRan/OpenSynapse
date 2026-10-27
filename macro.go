@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // Macros run on the PC. While OpenSynapse runs, a bound mouse button is

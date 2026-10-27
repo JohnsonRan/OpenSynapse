@@ -1,4 +1,4 @@
-module opensynapse
+module github.com/JohnsonRan/OpenSynapse
 
 go 1.27.3
 

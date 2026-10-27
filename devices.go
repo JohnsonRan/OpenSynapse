@@ -10,7 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // hub owns the connected devices; the UI and the smart switcher share it.

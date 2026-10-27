@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 func main() {

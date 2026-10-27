@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 func dev(id, name string, answered bool) *razer.Device {

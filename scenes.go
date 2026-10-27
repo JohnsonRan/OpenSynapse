@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"opensynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // gpuGameThreshold is the 3D-engine load (percent) that marks a fullscreen
