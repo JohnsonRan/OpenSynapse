@@ -70,7 +70,7 @@ OpenSynapse 与 Razer Inc. 无关联。
 - **低电量通知:** 无线设备电量降到提醒阈值 (设备没有阈值时按 20%) 时，会弹出 Windows 通知。每次放电只通知一次。
 - 将鼠标悬停在托盘图标上，可查看当前情景和各设备的电量。
 - **开机启动**会在你登录 Windows 时在托盘中启动 OpenSynapse。
-- 界面提供中文和英文，默认跟随 Windows 显示语言。可在**设置** > **语言**中更改。
+- 界面提供简体中文、英文和日文，默认跟随 Windows 显示语言。可在**设置** > **语言**中更改。
 
 ## 支持的设备
 
@@ -123,3 +123,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 - 协议资料和设备列表来自 [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0)。协议在本项目中重新实现，未复制 openrazer 的任何代码。
 - 按键重映射命令是通过研究 Razer Synapse 4 自带的设备脚本确定的。
 - 界面仅借鉴了 Razer Synapse 的整体风格 (深色主题、绿色强调色)。所有图标和图片均为原创。
+
+## 许可证
+
+GPL-2.0-or-later，详见 [LICENSE](LICENSE)。

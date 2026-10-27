@@ -70,7 +70,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - **Low-battery notification:** a Windows notification when a wireless device reaches its warning level (20% if the device has none). You're notified once per discharge.
 - Hover over the tray icon to see the active scene and the battery level of each device.
 - **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
-- The app is available in English and Chinese, and follows your Windows language by default. Change it under **Settings** > **Language**.
+- The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
 
 ## Supported devices
 
@@ -123,3 +123,7 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
 - The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
 - The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
+
+## License
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).
