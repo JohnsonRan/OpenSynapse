@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/egoist/mygo"
@@ -37,6 +36,36 @@ func setWindow(w *mygo.Window) {
 	windowMu.Lock()
 	shownWin = w
 	windowMu.Unlock()
+}
+
+// OpenTarget tells an open window to show a device (its ID) or "scenes".
+var OpenTarget = mygo.NewEvent[string]("openTarget")
+
+var (
+	targetMu      sync.Mutex
+	pendingTarget string // for a window that is still loading
+)
+
+// openTarget opens the window on a device page or the scenes page.
+func openTarget(target string) {
+	if window != nil {
+		openWindow()
+		_ = OpenTarget.Emit(window, target)
+		return
+	}
+	targetMu.Lock()
+	pendingTarget = target
+	targetMu.Unlock()
+	openWindow()
+}
+
+// TakeTarget returns, once, the page a tray click asked a new window to show.
+func (Devices) TakeTarget() string {
+	targetMu.Lock()
+	defer targetMu.Unlock()
+	t := pendingTarget
+	pendingTarget = ""
+	return t
 }
 
 func openWindow() {
@@ -68,15 +97,27 @@ func openWindow() {
 func trayMenu() *mygo.Menu {
 	var items []*mygo.MenuItem
 	trayMu.Lock()
-	for _, line := range strings.Split(trayBattery, "\n") {
-		if line != "" {
-			items = append(items, &mygo.MenuItem{Label: line, Disabled: true})
-		}
-	}
-	if trayAuto != "" {
-		items = append(items, &mygo.MenuItem{Label: trayAuto, Disabled: true})
-	}
+	devs, auto := trayDevs, trayAuto
 	trayMu.Unlock()
+	// Enabled rows: a device opens its page, the status opens the scenes page.
+	const shown = 4 // more devices go to a submenu
+	row := func(d trayDevice) *mygo.MenuItem {
+		return &mygo.MenuItem{Label: d.Label, Click: func(*mygo.MenuItem, *mygo.Window) { openTarget(d.ID) }}
+	}
+	for i, d := range devs {
+		if i == shown {
+			var more []*mygo.MenuItem
+			for _, d := range devs[shown:] {
+				more = append(more, row(d))
+			}
+			items = append(items, &mygo.MenuItem{Label: tr("tray.moreDevices", len(more)), Submenu: more})
+			break
+		}
+		items = append(items, row(d))
+	}
+	if auto != "" {
+		items = append(items, &mygo.MenuItem{Label: auto, Click: func(*mygo.MenuItem, *mygo.Window) { openTarget("scenes") }})
+	}
 	if len(items) > 0 {
 		items = append(items, mygo.Separator())
 	}

@@ -199,6 +199,10 @@ export const Devices = {
   state(id: string): Promise<DeviceState> {
     return call("Devices.State", id);
   },
+  /** TakeTarget returns, once, the page a tray click asked a new window to show. */
+  takeTarget(): Promise<string> {
+    return call("Devices.TakeTarget");
+  },
 } as const;
 
 /** Scenes switches device settings by the foreground program. */
@@ -259,4 +263,6 @@ export const Settings = {
 export const events = {
   /** DevicesChanged tells the window that devices were plugged or unplugged. */
   devicesChanged: event<DeviceInfo[]>("devicesChanged"),
+  /** OpenTarget tells an open window to show a device (its ID) or "scenes". */
+  openTarget: event<string>("openTarget"),
 } as const;

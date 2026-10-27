@@ -715,5 +715,18 @@ langSel.onchange = () => attempt(() => Settings.setLanguage(langSel.value)).then
 // ---------- start ----------
 
 await loadDevices();
+
+// Tray clicks: a device row opens its page, the status row the scenes page.
+function goTo(target: string) {
+  if (target === "scenes") return showView("scenes");
+  const d = list.find((x) => x.id === target);
+  if (d) openDevice(d);
+}
+events.openTarget.on(async (target) => {
+  await loadDevices();
+  goTo(target);
+});
+const target = await Devices.takeTarget().catch(() => "");
+if (target) goTo(target);
 setInterval(() => refreshState(false), 20_000); // battery; the window exists only while open
 setInterval(autoStatus, 1_500);

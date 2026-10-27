@@ -43,3 +43,18 @@ func TestConnectedPairsWiredAndWireless(t *testing.T) {
 		t.Errorf("a lone silent device must stay listed: %v", got)
 	}
 }
+
+func TestTrayLabel(t *testing.T) {
+	cases := []struct {
+		got, want string
+	}{
+		{trayLabel("Razer DeathAdder V4 Pro", true, false, 95, true), "DeathAdder V4 Pro · " + tr("tray.wired") + " · 95% ⚡"},
+		{trayLabel("Razer DeathAdder V4 Pro", false, true, 40, false), "DeathAdder V4 Pro · " + tr("tray.wireless") + " · 40%"},
+		{trayLabel("Razer BlackWidow V3", false, false, -1, false), "BlackWidow V3"},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("got %q, want %q", c.got, c.want)
+		}
+	}
+}
