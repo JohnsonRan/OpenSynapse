@@ -13,6 +13,11 @@
   --danger: #ff4d4f;
 }
 
+/* Japanese glyphs, not the Chinese forms of Microsoft YaHei. */
+:root:lang(ja) {
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -978,7 +983,8 @@ h3 {
   margin-top: 14px;
 }
 
-.macro-side {
+.macro-side,
+#macro-list {
   display: grid;
   gap: 6px;
 }

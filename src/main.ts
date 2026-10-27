@@ -19,7 +19,10 @@ import {
 import { setLang, t, translateDom } from "./i18n";
 
 // Language first: everything below renders text.
-const lang = await Settings.language().catch(() => ({ choice: "", effective: navigator.language.startsWith("zh") ? "zh-CN" : "en" }));
+const lang = await Settings.language().catch(() => ({
+  choice: "",
+  effective: navigator.language.startsWith("zh") ? "zh-CN" : navigator.language.startsWith("ja") ? "ja" : "en",
+}));
 setLang(lang.effective);
 translateDom();
 
@@ -953,6 +956,7 @@ langSel.innerHTML = [
   ["", t("settings.langSystem")],
   ["zh-CN", "简体中文"],
   ["en", "English"],
+  ["ja", "日本語"],
 ]
   .map(([v, label]) => option(v!, label!, v === lang.choice))
   .join("");

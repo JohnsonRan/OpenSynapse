@@ -73,10 +73,42 @@ var messages = map[string]map[string]string{
 		"err.leftButton":   "The left button can't play a macro",
 		"err.noTrigger":    "At most %d buttons can play macros",
 	},
+	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
+	"ja": {
+		"tray.open":        "OpenSynapse を開く",
+		"tray.smart":       "スマートポーリングレート",
+		"tray.scenes":      "シーン",
+		"tray.quit":        "終了",
+		"tray.wired":       "有線",
+		"tray.wireless":    "ワイヤレス",
+		"tray.rate":        "ポーリングレート: %s",
+		"tray.scene":       "シーン: %s",
+		"tray.moreDevices": "その他のデバイス (%d)",
+		"rate.highest":     "最高",
+		"scene.game":       "ゲーム",
+		"scene.desktop":    "デスクトップ",
+		"battery.title":    "バッテリー低下: %s",
+		"battery.body":     "残り %d%% です。早めに充電してください。",
+		"err.sceneName":    "すべてのシーンに名前を付けてください",
+		"err.dpi":          "%s: DPI は 100 から 50000 の範囲で指定してください",
+		"err.effect":       "%s: エフェクトが無効です",
+		"err.brightness":   "%s: 明るさは 0 から 100 の範囲で指定してください",
+		"err.rate":         "ポーリングレートが無効です",
+		"err.ruleRate":     "%s: ポーリングレートが無効です",
+		"err.language":     "この言語はサポートされていません",
+		"err.macroName":    "マクロに名前を付けてください",
+		"err.macroCount":   "%s: 回数は 1 から 999 の範囲で指定してください",
+		"err.macroLong":    "%s: ステップは 2000 個までです",
+		"err.macroEvent":   "%s: 無効なステップがあります",
+		"err.macroBound":   "このマクロはボタンに割り当てられています。先に割り当てを解除してください。",
+		"err.macroMissing": "マクロが見つかりません",
+		"err.leftButton":   "左ボタンにはマクロを割り当てられません",
+		"err.noTrigger":    "マクロを割り当てられるボタンは %d 個までです",
+	},
 }
 
 // language resolves the configured language; "" follows the system: Chinese
-// for any Chinese display language, English otherwise.
+// for any Chinese display language, Japanese for Japanese, English otherwise.
 func language() string {
 	cfgMu.Lock()
 	l := cfg.Language
@@ -90,6 +122,9 @@ func language() string {
 	for _, p := range langs {
 		if strings.HasPrefix(strings.ToLower(p), "zh") {
 			return "zh-CN"
+		}
+		if strings.HasPrefix(strings.ToLower(p), "ja") {
+			return "ja"
 		}
 		if strings.HasPrefix(strings.ToLower(p), "en") {
 			return "en"
@@ -120,7 +155,7 @@ func (Settings) Language() LanguageInfo {
 	return LanguageInfo{c, language()}
 }
 
-// SetLanguage sets "zh-CN", "en", or "" to follow the system.
+// SetLanguage sets "zh-CN", "en", "ja", or "" to follow the system.
 func (Settings) SetLanguage(lang string) error {
 	if _, ok := messages[lang]; !ok && lang != "" {
 		return errors.New(tr("err.language"))
