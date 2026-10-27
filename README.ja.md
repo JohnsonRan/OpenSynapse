@@ -132,7 +132,7 @@ go run ./cmd/probe # デバイスの状態を表示（読み取りのみ）
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
 
-リリースするには、`CHANGELOG.md` にそのバージョンのセクションを追加し、`package.json` の `version` を更新して、タグ `v<バージョン>` をプッシュします。リリース ワークフローがインストーラーとポータブル版の zip をビルドし、`MYGO_UPDATER_PRIVATE_KEY` シークレットで更新に署名して、リリースを公開します。
+リリースするには、`CHANGELOG.md` にそのバージョンのセクション（簡体字中国語、英語、日本語）を追加し、`package.json` の `version` を更新して、タグ `v<バージョン>` をプッシュします。リリース ワークフローがインストーラーとポータブル版の zip をビルドし、`MYGO_UPDATER_PRIVATE_KEY` シークレットで更新に署名して、リリースを公開します。
 
 本アプリは Go で書かれており、ウィンドウには [MyGo](https://github.com/egoist/mygo) と WebView2 を使っています。`internal/razer/data/devices.json` のデバイス一覧は、`scripts/gendevices.py` で openrazer から生成しています。
 

@@ -132,7 +132,7 @@ go run ./cmd/probe # 打印设备状态 (只读)
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
 
-发布新版本时，在 `CHANGELOG.md` 中添加该版本的小节，将 `package.json` 中的 `version` 改为新版本号，然后推送标签 `v<版本号>`。发布工作流会构建安装版和便携版 zip，用 `MYGO_UPDATER_PRIVATE_KEY` 密钥为更新签名，并发布 Release。
+发布新版本时，在 `CHANGELOG.md` 中添加该版本的小节 (简体中文、英文和日文)，将 `package.json` 中的 `version` 改为新版本号，然后推送标签 `v<版本号>`。发布工作流会构建安装版和便携版 zip，用 `MYGO_UPDATER_PRIVATE_KEY` 密钥为更新签名，并发布 Release。
 
 本程序使用 Go 编写，窗口基于 [MyGo](https://github.com/egoist/mygo) 和 WebView2。`internal/razer/data/devices.json` 中的设备列表由 `scripts/gendevices.py` 从 openrazer 生成。
 

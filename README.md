@@ -132,7 +132,7 @@ go run ./cmd/probe # print device state (read-only)
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
 
-To release, add a section for the version to `CHANGELOG.md`, set `version` in `package.json`, and push the tag `v<version>`. The release workflow builds the installer and the portable zip, signs the updates with the `MYGO_UPDATER_PRIVATE_KEY` secret, and publishes the release.
+To release, add a section for the version to `CHANGELOG.md` (in Simplified Chinese, English and Japanese), set `version` in `package.json`, and push the tag `v<version>`. The release workflow builds the installer and the portable zip, signs the updates with the `MYGO_UPDATER_PRIVATE_KEY` secret, and publishes the release.
 
 The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2 window. The device list in `internal/razer/data/devices.json` is generated from openrazer by `scripts/gendevices.py`.
 
