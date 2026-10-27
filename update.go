@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
 )
@@ -10,20 +12,64 @@ import (
 // it replaces the files of the app's folder, so it updates the installed
 // version (%LOCALAPPDATA%\Programs) and a writable portable folder alike.
 
-// AppInfo is the running version and how it was installed.
+// AppInfo is what the About page shows.
 type AppInfo struct {
-	Version  string `json:"version"`
-	Portable bool   `json:"portable"`
+	Version   string `json:"version"`
+	Portable  bool   `json:"portable"`
+	CanUpdate bool   `json:"canUpdate"` // false for development builds and read-only folders
+	AutoCheck bool   `json:"autoCheck"` // background update checks
+	LastCheck int64  `json:"lastCheck"` // Unix ms of the last successful check, 0 if none
 }
 
-// App returns the running version.
-func (Settings) App() AppInfo { return AppInfo{mygo.App.Version(), portableDir != ""} }
+// AboutChanged tells the window that a check ran or an update preference changed.
+var AboutChanged = mygo.NewEvent[AppInfo]("aboutChanged")
 
-// AutoUpdate reports whether OpenSynapse checks for updates in the background.
-func (Settings) AutoUpdate() bool { return updater.AutomaticChecks() }
+// watchUpdater keeps an open About page current; the plugin calls on the main thread.
+func watchUpdater() {
+	updater.OnChange(func() {
+		if w := currentWindow(); w != nil {
+			_ = AboutChanged.Emit(w, Settings{}.App())
+		}
+	})
+}
+
+// App returns the running version and the update state.
+func (Settings) App() AppInfo {
+	info := AppInfo{
+		Version:   mygo.App.Version(),
+		Portable:  portableDir != "",
+		CanUpdate: mygo.Updater.Enabled(),
+		AutoCheck: updater.AutomaticChecks(),
+	}
+	if t := updater.LastCheck(); !t.IsZero() {
+		info.LastCheck = t.UnixMilli()
+	}
+	return info
+}
 
 // SetAutoUpdate turns background update checks on or off.
 func (Settings) SetAutoUpdate(on bool) { updater.SetAutomaticChecks(on) }
 
 // CheckForUpdates checks now; the update window shows the result.
 func (Settings) CheckForUpdates() { updater.CheckForUpdates() }
+
+const repoURL = "https://github.com/JohnsonRan/OpenSynapse"
+
+// links the page may open; it names one instead of passing a URL.
+var links = map[string]string{
+	"repo":      repoURL,
+	"releases":  repoURL + "/releases",
+	"changelog": repoURL + "/blob/master/CHANGELOG.md",
+	"issues":    repoURL + "/issues",
+	"license":   repoURL + "/blob/master/LICENSE",
+	"openrazer": "https://github.com/openrazer/openrazer",
+}
+
+// OpenLink opens one of the project's pages in the browser.
+func (Settings) OpenLink(name string) error {
+	u, ok := links[name]
+	if !ok {
+		return errors.New("unknown link")
+	}
+	return mygo.Shell.OpenExternal(u)
+}

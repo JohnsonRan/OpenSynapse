@@ -4,10 +4,16 @@ import { call, event } from "mygo-runtime";
 
 // ---- Types ----
 
-/** AppInfo is the running version and how it was installed. */
+/** AppInfo is what the About page shows. */
 export interface AppInfo {
   version: string;
   portable: boolean;
+  /** false for development builds and read-only folders */
+  canUpdate: boolean;
+  /** background update checks */
+  autoCheck: boolean;
+  /** Unix ms of the last successful check, 0 if none */
+  lastCheck: number;
 }
 
 /** AutoStatus is what the switchers see right now. */
@@ -307,13 +313,9 @@ export const Scenes = {
 
 /** Settings holds app-level options. */
 export const Settings = {
-  /** App returns the running version. */
+  /** App returns the running version and the update state. */
   app(): Promise<AppInfo> {
     return call("Settings.App");
-  },
-  /** AutoUpdate reports whether OpenSynapse checks for updates in the background. */
-  autoUpdate(): Promise<boolean> {
-    return call("Settings.AutoUpdate");
   },
   /** Autostart reports whether OpenSynapse starts (to the tray) at login. */
   autostart(): Promise<boolean> {
@@ -330,6 +332,10 @@ export const Settings = {
   /** Notify reports whether low-battery notifications are on. */
   notify(): Promise<boolean> {
     return call("Settings.Notify");
+  },
+  /** OpenLink opens one of the project's pages in the browser. */
+  openLink(name: string): Promise<void> {
+    return call("Settings.OpenLink", name);
   },
   /** SetAutoUpdate turns background update checks on or off. */
   setAutoUpdate(on: boolean): Promise<void> {
@@ -357,4 +363,6 @@ export const events = {
   devicesChanged: event<DeviceInfo[]>("devicesChanged"),
   /** OpenTarget tells an open window to show a device (its ID) or "scenes". */
   openTarget: event<string>("openTarget"),
+  /** AboutChanged tells the window that a check ran or an update preference changed. */
+  aboutChanged: event<AppInfo>("aboutChanged"),
 } as const;

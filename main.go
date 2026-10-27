@@ -191,6 +191,7 @@ func main() {
 			})
 		}
 		go runBattery() // after the tray exists, so the first reading reaches its tooltip
+		watchUpdater()  // the plugin is set up once the app is ready
 		if !slices.Contains(os.Args[1:], "--tray") || err != nil {
 			openWindow()
 		}

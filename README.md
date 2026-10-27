@@ -78,7 +78,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 
 ### Updates
 
-The installed and the portable version update themselves. With **Check for updates automatically** on (under **Settings**), OpenSynapse checks for a new version in the background and shows it in a window with its release notes, where you can install it, skip it or be reminded later. That window can also install updates without asking; they take effect the next time OpenSynapse starts. Select **Check for updates** to check right away.
+The installed and the portable version update themselves. When **Check for updates automatically** is on (on the **About** page), OpenSynapse checks for a new version in the background and shows it in a window with its release notes, where you can install it, skip it or be reminded later. That window can also install updates without asking; they take effect the next time OpenSynapse starts. Select **Check for updates** to check right away.
 
 Updates are signed, and OpenSynapse installs only updates signed by this project.
 

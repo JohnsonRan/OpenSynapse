@@ -117,7 +117,8 @@ func refreshHooks() {
 
 func keyboardProc(code, wparam, lparam uintptr) uintptr {
 	if int32(code) == 0 {
-		k := *(**kbdHookData)(unsafe.Pointer(&lparam)) // lparam points at memory Windows owns
+		// lparam points at memory Windows owns.
+		k := *(**kbdHookData)(unsafe.Pointer(&lparam))
 		if k.flags&llkhfInjected == 0 { // never react to our own playback
 			down := wparam == wmKeyDown || wparam == wmSysKeyDown
 			if onTriggerKey(int(k.vk), down) {

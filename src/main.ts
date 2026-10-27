@@ -5,6 +5,7 @@ import {
   Macros,
   Settings,
   Scenes,
+  type AppInfo,
   type ButtonInfo,
   type Macro,
   type MacroEvent,
@@ -99,6 +100,7 @@ function showView(name: string) {
   if (name === "devices") loadDevices();
   if (name === "scenes") loadScenes();
   if (name === "macros") loadMacros();
+  if (name === "about") loadAbout();
 }
 
 document.querySelectorAll<HTMLButtonElement>(".nav").forEach((b) => (b.onclick = () => showView(b.dataset.view!)));
@@ -951,10 +953,30 @@ $<HTMLInputElement>("#notify").onchange = (e) => {
   attempt(() => Settings.setNotify(on), t(on ? "settings.notifyOn" : "settings.notifyOff"));
 };
 
-Settings.app().then((a) => ($("#update-version").textContent = t("update.version", { version: a.version }) + (a.portable ? ` · ${t("update.portable")}` : "")));
-Settings.autoUpdate().then((on) => ($<HTMLInputElement>("#auto-update").checked = on));
+// ---------- about ----------
+
+const dateTime = new Intl.DateTimeFormat(lang.effective, { dateStyle: "medium", timeStyle: "short" });
+
+function renderAbout(a: AppInfo) {
+  $("#about-version").textContent = t("about.version", { version: a.version });
+  $("#about-edition").textContent = t(a.portable ? "about.portable" : "about.installed");
+  $("#update-title").textContent = t("about.updates");
+  $("#update-status").textContent = !a.canUpdate
+    ? t("about.cantUpdate")
+    : a.lastCheck
+      ? t("about.lastCheck", { time: dateTime.format(a.lastCheck) })
+      : t("about.neverChecked");
+  $<HTMLButtonElement>("#update-check").disabled = !a.canUpdate;
+  const auto = $<HTMLInputElement>("#auto-update");
+  auto.checked = a.canUpdate && a.autoCheck;
+  auto.disabled = !a.canUpdate;
+}
+
+const loadAbout = () => Settings.app().then(renderAbout).catch(() => {});
+events.aboutChanged.on(renderAbout);
 $<HTMLInputElement>("#auto-update").onchange = (e) => attempt(() => Settings.setAutoUpdate((e.target as HTMLInputElement).checked));
 $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); // MyGo's update window shows the result
+document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
 
 const langSel = $<HTMLSelectElement>("#language");
 langSel.innerHTML = [

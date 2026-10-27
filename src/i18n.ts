@@ -19,6 +19,7 @@ const zh = {
   "nav.scenesTitle": "情景模式",
   "nav.settings": "设置",
   "nav.macros": "宏",
+  "nav.about": "关于",
 
   "overview.eyebrow": "已连接",
   "overview.title": "设备",
@@ -199,13 +200,20 @@ const zh = {
   "settings.notifyOff": "已关闭低电量通知",
   "update.auto": "自动检查更新",
   "update.autoHint": "在后台定期检查新版本，发现后弹窗提示；弹窗中可设为自动下载并安装",
-  "update.version": "版本 {version}",
-  "update.portable": "便携版",
   "update.check": "检查更新",
-  "update.checkHint": "立即检查是否有新版本",
-  "settings.about": "关于",
-  "settings.aboutText":
-    "OpenSynapse 是一款开源、轻量的 Razer 设备设置工具，与 Razer Inc. 无关联<br />关闭窗口后程序留在托盘，右键托盘图标可退出；请勿与 Razer Synapse 同时运行，否则两者会互相覆盖设置<br />协议资料来自 openrazer 项目的公开文档",
+  "about.updates": "软件更新",
+  "about.tagline": "开源、轻量的 Razer 设备设置工具",
+  "about.version": "版本 {version}",
+  "about.installed": "安装版",
+  "about.portable": "便携版",
+  "about.lastCheck": "上次检查: {time}",
+  "about.neverChecked": "尚未检查",
+  "about.cantUpdate": "此版本无法自动更新 (开发版本，或所在文件夹不可写入)",
+  "about.changelog": "更新日志",
+  "about.issues": "反馈问题",
+  "about.license": "许可证",
+  "about.notice": "与 Razer Inc. 无关联。请勿与 Razer Synapse 同时运行，否则两者会互相覆盖设置",
+  "about.credits": "协议资料和设备列表来自 openrazer；按键重映射命令来自对 Razer Synapse 4 设备脚本的分析",
 
 };
 
@@ -217,6 +225,7 @@ const en: Record<Key, string> = {
   "nav.scenesTitle": "Scenes",
   "nav.settings": "Settings",
   "nav.macros": "Macros",
+  "nav.about": "About",
 
   "overview.eyebrow": "Connected",
   "overview.title": "Devices",
@@ -397,13 +406,20 @@ const en: Record<Key, string> = {
   "settings.notifyOff": "Low-battery notifications off",
   "update.auto": "Check for updates automatically",
   "update.autoHint": "Checks for new versions in the background and offers them in a window, which can also install them automatically",
-  "update.version": "Version {version}",
-  "update.portable": "portable",
   "update.check": "Check for updates",
-  "update.checkHint": "Look for a new version now",
-  "settings.about": "About",
-  "settings.aboutText":
-    "OpenSynapse is an open-source, lightweight settings app for Razer devices, not affiliated with Razer Inc.<br />Closing the window leaves it in the tray, right-click the tray icon to quit; do not run it together with Razer Synapse, or the two overwrite each other's settings<br />Protocol details come from the public documentation of the openrazer project",
+  "about.updates": "Software update",
+  "about.tagline": "An open-source, lightweight settings app for Razer devices",
+  "about.version": "Version {version}",
+  "about.installed": "Installed",
+  "about.portable": "Portable",
+  "about.lastCheck": "Last checked: {time}",
+  "about.neverChecked": "Not checked yet",
+  "about.cantUpdate": "This copy can't update itself (a development build, or its folder isn't writable)",
+  "about.changelog": "Changelog",
+  "about.issues": "Report an issue",
+  "about.license": "License",
+  "about.notice": "Not affiliated with Razer Inc. Don't run it together with Razer Synapse, or the two overwrite each other's settings.",
+  "about.credits": "Protocol details and the device list come from openrazer; the button remapping commands come from examining Razer Synapse 4's device scripts.",
 };
 
 const ja: Record<Key, string> = {
@@ -412,6 +428,7 @@ const ja: Record<Key, string> = {
   "nav.scenesTitle": "シーン",
   "nav.settings": "設定",
   "nav.macros": "マクロ",
+  "nav.about": "情報",
 
   "overview.eyebrow": "接続済み",
   "overview.title": "デバイス",
@@ -598,13 +615,20 @@ const ja: Record<Key, string> = {
   "settings.notifyOff": "バッテリー低下の通知をオフにしました",
   "update.auto": "更新を自動的に確認",
   "update.autoHint": "バックグラウンドで新しいバージョンを確認し、見つかるとウィンドウで知らせます。そのウィンドウで自動インストールも設定できます。",
-  "update.version": "バージョン {version}",
-  "update.portable": "ポータブル版",
   "update.check": "更新を確認",
-  "update.checkHint": "新しいバージョンがあるか今すぐ確認します。",
-  "settings.about": "このアプリについて",
-  "settings.aboutText":
-    "OpenSynapse は Razer デバイス向けのオープンソースで軽量な設定アプリで、Razer Inc. とは関係ありません。<br />ウィンドウを閉じてもトレイに残ります。終了するにはトレイ アイコンを右クリックしてください。Razer Synapse と同時に実行すると互いの設定が上書きされるため、同時に実行しないでください。<br />プロトコルの情報は openrazer プロジェクトの公開資料に基づいています。",
+  "about.updates": "ソフトウェア更新",
+  "about.tagline": "Razer デバイス向けのオープンソースで軽量な設定アプリ",
+  "about.version": "バージョン {version}",
+  "about.installed": "インストール版",
+  "about.portable": "ポータブル版",
+  "about.lastCheck": "最終確認: {time}",
+  "about.neverChecked": "まだ確認していません",
+  "about.cantUpdate": "このコピーは自動更新できません (開発ビルド、またはフォルダーに書き込めません)",
+  "about.changelog": "変更履歴",
+  "about.issues": "問題を報告",
+  "about.license": "ライセンス",
+  "about.notice": "Razer Inc. とは関係ありません。Razer Synapse と同時に実行すると互いの設定が上書きされるため、同時に実行しないでください。",
+  "about.credits": "プロトコルの情報とデバイス一覧は openrazer に基づいています。ボタンの割り当て変更に使うコマンドは、Razer Synapse 4 のデバイス スクリプトを調べて特定しました。",
 };
 
 const dicts: Record<string, Record<Key, string>> = { "zh-CN": zh, en, ja };
