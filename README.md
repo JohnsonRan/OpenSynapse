@@ -40,7 +40,7 @@ Closing the window keeps OpenSynapse running in the notification area (system tr
 - **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
 - **Lift-off distance:** low, medium or high, or separate distances for lifting and landing (asymmetric).
 - **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. These are stored in the mouse and work without OpenSynapse. Buttons can also play [macros](#macros).
-- **Info:** the firmware version and serial number, with links to Razer's firmware updater and, for mice with a receiver, its pairing guide.
+- **Info:** the firmware version and serial number, with links to Razer's firmware updater and, for mice with a receiver, a search for its pairing utility. Pairing itself needs a Razer pairing utility or Razer Synapse.
 
 Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.
 

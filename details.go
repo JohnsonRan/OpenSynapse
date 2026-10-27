@@ -35,7 +35,8 @@ var firmwarePages = map[string]string{
 	"Razer DeathAdder V4 Pro": "https://mysupport.razer.com/app/answers/detail/a_id/20103",
 }
 
-const pairingPage = "https://mysupport.razer.com/app/answers/detail/a_id/6143" // HyperPolling dongle pairing
+// Pairing: Razer's guide (a_id 6143) goes through Synapse, and no standalone
+// utility for every mouse is known, so the link searches Razer support for one.
 
 // OpenSupport opens Razer's firmware updater ("firmware") or receiver
 // pairing ("pairing") page for the device in the browser.
@@ -52,7 +53,7 @@ func (Devices) OpenSupport(id, kind string) error {
 		}
 		return mygo.Shell.OpenExternal(u)
 	case "pairing":
-		return mygo.Shell.OpenExternal(pairingPage)
+		return mygo.Shell.OpenExternal("https://mysupport.razer.com/app/answers/list/kw/" + url.PathEscape(d.Family()+" pairing utility"))
 	}
 	return errors.New("unknown support page")
 }
