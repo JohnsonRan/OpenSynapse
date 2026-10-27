@@ -1,22 +1,152 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mygo-tpl</title>
+    <title>OpenSynapse</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
+    <nav class="rail">
+      <img class="logo" src="/logo.png" alt="" />
+      <button class="nav active" data-view="devices" title="设备">
+        <svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6v8a6 6 0 0 0 12 0V8a6 6 0 0 0-6-6zm0 2v5M6 10h12" /></svg>
+        <span>设备</span>
+      </button>
+      <button class="nav" data-view="smart" title="智能回报率">
+        <svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>
+        <span>智能</span>
+      </button>
+      <button class="nav" data-view="settings" title="设置">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M4.9 19.1 7 17m10-10 2.1-2.1" /></svg>
+        <span>设置</span>
+      </button>
+    </nav>
+
     <main>
-      <h1>mygo-tpl</h1>
-      <p class="muted">Go ↔ TypeScript, fully typed.</p>
-      <form id="greet">
-        <input id="name" placeholder="Your name" autocomplete="off" autofocus />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greeting" class="card"></p>
-      <p class="muted"><span id="info"></span> · <span id="clock">--:--:--</span></p>
+      <!-- Devices -->
+      <section id="view-devices" class="view">
+        <header class="device-head">
+          <div>
+            <div class="eyebrow">鼠标</div>
+            <h1 id="dev-name">正在查找设备…</h1>
+          </div>
+          <div class="head-right">
+            <span id="dev-conn" class="pill"></span>
+            <span id="dev-battery" class="pill battery" hidden></span>
+            <button id="rescan" class="ghost" title="重新扫描">
+              <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <div id="no-device" class="empty" hidden>
+          <p>没有找到受支持的设备。</p>
+          <p class="muted">请确认鼠标已开机且接收器已插入，然后退出 Razer Synapse 并点击右上角重新扫描。</p>
+        </div>
+
+        <div id="device-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="perf">性能</button>
+            <button class="tab" data-tab="power">电源</button>
+          </div>
+
+          <div id="tab-perf" class="tab-body">
+            <div class="card">
+              <div class="card-head">
+                <h2>灵敏度</h2>
+                <span class="muted">当前 <b id="cur-dpi" class="accent">—</b> DPI</span>
+              </div>
+              <p class="muted small">点击档位切换当前灵敏度；鼠标底部按钮按顺序循环这些档位。</p>
+              <div id="stages" class="stages"></div>
+              <div class="row">
+                <button id="add-stage" class="ghost">＋ 添加档位</button>
+                <label class="check"><input id="xy-link" type="checkbox" checked /> X/Y 同步</label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h2>回报率</h2><span class="muted small" id="poll-hint"></span></div>
+              <div id="poll" class="seg"></div>
+            </div>
+          </div>
+
+          <div id="tab-power" class="tab-body" hidden>
+            <div class="card battery-card">
+              <div class="battery-big"><span id="bat-num">—</span><small>%</small></div>
+              <div class="bat-bar"><i id="bat-fill"></i></div>
+              <div class="muted" id="bat-state"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>休眠</h2><span class="accent"><b id="idle-val">—</b> 分钟</span></div>
+              <p class="muted small">鼠标闲置多久后进入休眠。</p>
+              <input id="idle" type="range" min="1" max="15" step="1" />
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>低电量提醒</h2><span class="accent"><b id="low-val">—</b>%</span></div>
+              <p class="muted small">电量低于此值时进入省电模式并闪烁提醒。</p>
+              <input id="low" type="range" min="5" max="30" step="5" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Smart polling -->
+      <section id="view-smart" class="view" hidden>
+        <header class="device-head">
+          <div>
+            <div class="eyebrow">性能</div>
+            <h1>智能回报率</h1>
+          </div>
+          <label class="switch"><input id="smart-on" type="checkbox" /><i></i></label>
+        </header>
+        <p class="muted">指定程序在前台时自动切换到高回报率，其他时间回落以省电省 CPU。切换有约 2 秒防抖，后台常驻不占用 WebView。</p>
+
+        <div class="card">
+          <div class="card-head"><h2>其他程序</h2></div>
+          <div id="smart-default" class="seg"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>程序规则</h2>
+            <button id="add-rule" class="ghost">＋ 添加</button>
+          </div>
+          <div id="rules"></div>
+        </div>
+
+        <div class="status-line">
+          <span class="dot"></span>
+          <span id="smart-status" class="muted">—</span>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="view-settings" class="view" hidden>
+        <header class="device-head">
+          <div><div class="eyebrow">OpenSynapse</div><h1>设置</h1></div>
+        </header>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>开机启动</h2>
+              <p class="muted small">登录时以托盘方式启动，仅保持轻量后台。</p>
+            </div>
+            <label class="switch"><input id="autostart" type="checkbox" /><i></i></label>
+          </div>
+        </div>
+        <div class="card">
+          <h2>关于</h2>
+          <p class="muted small">
+            OpenSynapse 是一个开源、轻量的 Razer 外设设置工具，与 Razer Inc. 无关联。<br />
+            关闭窗口后程序留在托盘；右键托盘图标可退出。请勿与 Razer Synapse 同时运行，否则两者会互相覆盖设置。<br />
+            协议资料来自 openrazer 项目的公开文档。
+          </p>
+        </div>
+      </section>
     </main>
+
+    <div id="toast" hidden></div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

@@ -1,66 +1,130 @@
+// OpenSynapse is a lightweight replacement for Razer Synapse.
+//
+// The resident process is Go only: HID, the smart polling-rate switcher and a
+// tray icon. The WebView2 settings window exists only while it is open, so the
+// app costs a few MB in the background instead of hundreds.
 package main
 
 import (
+	_ "embed"
 	"log"
-	"runtime"
-	"time"
+	"os"
+	"slices"
 
 	"github.com/egoist/mygo"
+	"golang.org/x/sys/windows/registry"
 )
 
-// Greeter is callable from the frontend: `mygo generate` turns its methods
-// into typed TypeScript functions in src/mygo.ts.
-type Greeter struct{}
+//go:embed resources/tray.png
+var trayIcon []byte
 
-// Greet returns a greeting for name.
-func (Greeter) Greet(name string) string {
-	if name == "" {
-		name = "stranger"
+var window *mygo.Window
+
+func openWindow() {
+	if window != nil {
+		window.Restore()
+		window.Focus()
+		return
 	}
-	return "Hello, " + name + "! This message comes from Go."
+	window = mygo.NewWindow(mygo.WindowOptions{
+		Title:           "OpenSynapse",
+		Width:           1180,
+		Height:          760,
+		MinWidth:        960,
+		MinHeight:       620,
+		BackgroundColor: "#0a0a0a",
+		StateKey:        "main",
+		URL:             "/",
+	})
+	// Closing destroys the webview and its browser processes; the tray keeps running.
+	window.OnClosed(func() { window = nil })
 }
 
-// SystemInfo describes the machine the app runs on.
-type SystemInfo struct {
-	OS        string `json:"os"`
-	Arch      string `json:"arch"`
-	GoVersion string `json:"goVersion"`
+func trayMenu() *mygo.Menu {
+	return mygo.NewMenu([]*mygo.MenuItem{
+		{Label: "打开 OpenSynapse", Click: func(*mygo.MenuItem, *mygo.Window) { openWindow() }},
+		{Label: "智能回报率", Type: mygo.MenuItemCheckbox, Checked: Smart{}.Config().Enabled,
+			Click: func(it *mygo.MenuItem, _ *mygo.Window) {
+				c := Smart{}.Config()
+				c.Enabled = it.Checked
+				if err := (Smart{}).SetConfig(c); err != nil {
+					log.Println("smart:", err)
+				}
+			}},
+		mygo.Separator(),
+		{Label: "退出", Role: mygo.RoleQuit},
+	})
 }
-
-// Info returns information about the system.
-func (Greeter) Info() SystemInfo {
-	return SystemInfo{OS: runtime.GOOS, Arch: runtime.GOARCH, GoVersion: runtime.Version()}
-}
-
-// Tick is sent to the page every second.
-var Tick = mygo.NewEvent[time.Time]("tick")
 
 func main() {
-	mygo.Bind(Greeter{})
+	if !mygo.App.RequestSingleInstanceLock() {
+		return // the running instance opens its window
+	}
+	loadConfig()
+	if err := devices.rescan(); err != nil {
+		log.Println("scan:", err)
+	}
+	go runSmart()
 
+	mygo.Bind(Devices{})
+	mygo.Bind(Smart{})
+	mygo.Bind(Settings{})
+
+	mygo.App.OnSecondInstance(func([]string, string) { openWindow() })
+	mygo.App.OnWindowAllClosed(func() {}) // keep running in the tray
 	mygo.App.WhenReady(func() {
-		win := mygo.NewWindow(mygo.WindowOptions{
-			Title:           "mygo-tpl",
-			Width:           960,
-			Height:          640,
-			MinWidth:        480,
-			MinHeight:       360,
-			BackgroundColor: "light-dark(#f6f7f9, #0f1115)", // the page's --bg in src/style.css
-			// Opens where the user left it last time.
-			StateKey: "main",
-			// The frontend: devUrl during `mygo dev`, frontendDist
-			// embedded by `mygo build` otherwise (see mygo.json).
-			URL: "/",
-		})
-		go func() {
-			for t := range time.Tick(time.Second) {
-				if Tick.Emit(win, t) != nil {
-					return // the window was closed
-				}
-			}
-		}()
+		tray, err := mygo.NewTray(mygo.TrayOptions{ID: "opensynapse", Icon: trayIcon, ToolTip: "OpenSynapse"})
+		if err != nil {
+			log.Println("tray:", err)
+		} else {
+			tray.OnClick(openWindow)
+			tray.OnRightClick(func() {
+				tray.SetMenu(trayMenu()) // rebuilt each time so the checkbox is current
+				tray.PopUpMenu()
+				tray.SetMenu(nil)
+			})
+		}
+		if !slices.Contains(os.Args[1:], "--tray") || err != nil {
+			openWindow()
+		}
 	})
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
+
+// Settings holds app-level options.
+type Settings struct{}
+
+// Autostart reports whether OpenSynapse starts (to the tray) at login.
+func (Settings) Autostart() bool {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE)
+	if err != nil {
+		return false
+	}
+	defer k.Close()
+	_, _, err = k.GetStringValue("OpenSynapse")
+	return err == nil
+}
+
+// SetAutostart turns starting at login on or off.
+func (Settings) SetAutostart(on bool) error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close()
+	if !on {
+		if err := k.DeleteValue("OpenSynapse"); err != nil && err != registry.ErrNotExist {
+			return err
+		}
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return k.SetStringValue("OpenSynapse", `"`+exe+`" --tray`)
 }
