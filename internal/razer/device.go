@@ -3,48 +3,92 @@ package razer
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 )
 
-// Model describes one supported product. Add a row to support another device
-// that uses the same command set.
-type Model struct {
-	PID       uint16
-	Name      string
-	TxID      byte
-	MaxDPI    int
-	PollRates []int
-	// Wireless: the HyperPolling receiver keeps its own poll-rate copy (target 0x01).
-	Wireless bool
-}
-
-// Models is the device table. Values from openrazer's DeathAdder V4 Pro entries.
-var Models = []Model{
-	{PID: 0x00BE, Name: "Razer DeathAdder V4 Pro (Wired)", TxID: 0x1F, MaxDPI: 45000, PollRates: []int{125, 500, 1000, 2000, 4000, 8000}},
-	{PID: 0x00BF, Name: "Razer DeathAdder V4 Pro", TxID: 0x1F, MaxDPI: 45000, PollRates: []int{125, 500, 1000, 2000, 4000, 8000}, Wireless: true},
-}
-
-func findModel(pid uint16) *Model {
-	for i := range Models {
-		if Models[i].PID == pid {
-			return &Models[i]
-		}
-	}
-	return nil
-}
-
 // Device is a connected supported device.
 type Device struct {
-	Model
+	*Model
 	ID         string
 	candidates []*conn // feature collections; the first that answers wins
 	mu         sync.Mutex
 	active     *conn
+	txOK       map[string]byte              // transaction id that worked, per command
+	sendFn     func(Report) (Report, error) // tests replace the HID transport
+	// Answered: the device replied when scanned. A wireless receiver stays
+	// attached while its mouse is off or on a cable, but cannot reply for it.
+	Answered bool
 }
 
-func (d *Device) query(class, cmd, size byte, args ...byte) (Report, error) {
-	req := NewReport(d.TxID, class, cmd, size, args...)
+// probe asks something only the device itself can answer (a receiver may
+// answer firmware queries on its own), which also pins the HID collection.
+func (d *Device) probe() error {
+	if d.has("misc_get_dpi_xy") {
+		_, err := d.DPI()
+		return err
+	}
+	_, err := d.query("standard_get_firmware_version", 0x00, 0x81, 0x02)
+	return err
+}
+
+// Family names the product without its connection, so the wired and wireless
+// IDs of one mouse can be paired.
+func (m *Model) Family() string {
+	n := m.Name
+	for _, suffix := range []string{" (Wired)", " (Wireless)", " (Receiver)", " (Bluetooth)"} {
+		n = strings.TrimSuffix(n, suffix)
+	}
+	return n
+}
+
+// Wired reports whether this ID is the cable connection of a wireless product.
+func (m *Model) Wired() bool { return strings.HasSuffix(m.Name, " (Wired)") }
+
+// txCandidates: the driver's id first, then the ids devices commonly answer,
+// in case the driver's default branch hid the real one: 0x1F (current
+// devices), 0xFF (older ones), 0x3F and 0x9F (some keyboards and receivers).
+func (d *Device) txCandidates(name string) []byte {
+	if t, ok := d.txOK[name]; ok {
+		return []byte{t}
+	}
+	out := []byte{d.tx[name]}
+	for _, t := range []byte{0x1F, 0xFF, 0x3F, 0x9F} {
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// query runs the named openrazer command. Commands the device does not declare
+// are never sent.
+func (d *Device) query(name string, class, cmd, size byte, args ...byte) (Report, error) {
+	if !d.has(name) {
+		return Report{}, ErrUnsupported
+	}
+	var err error
+	for _, tx := range d.txCandidates(name) {
+		var r Report
+		if r, err = d.send(NewReport(tx, class, cmd, size, args...)); err == nil {
+			d.mu.Lock()
+			d.txOK[name] = tx
+			d.mu.Unlock()
+			return r, nil
+		}
+		if !errors.Is(err, ErrNoAnswer) {
+			return r, err
+		}
+	}
+	return Report{}, err
+}
+
+func (d *Device) send(req Report) (Report, error) {
+	if d.sendFn != nil {
+		return d.sendFn(req)
+	}
 	d.mu.Lock()
 	c := d.active
 	d.mu.Unlock()
@@ -76,9 +120,51 @@ func (d *Device) Close() {
 	}
 }
 
+// Features lists the controls the device declares.
+type Features struct {
+	DPI          bool          `json:"dpi"`
+	DPIStages    bool          `json:"dpiStages"`
+	PollRate     bool          `json:"pollRate"`
+	Battery      bool          `json:"battery"`
+	Charging     bool          `json:"charging"`
+	IdleTime     bool          `json:"idleTime"`
+	LowBattery   bool          `json:"lowBattery"`
+	ReceiverLEDs bool          `json:"receiverLeds"`
+	Lighting     *LightingCaps `json:"lighting"`
+}
+
+func (m *Model) Features() Features {
+	return Features{
+		DPI:          m.has("misc_get_dpi_xy") && m.has("misc_set_dpi_xy"),
+		DPIStages:    m.has("misc_get_dpi_stages") && m.has("misc_set_dpi_stages"),
+		PollRate:     m.pollV2() || m.has("misc_set_polling_rate"),
+		Battery:      m.has("misc_get_battery_level"),
+		Charging:     m.has("misc_get_charging_status"),
+		IdleTime:     m.has("misc_get_idle_time") && m.has("misc_set_idle_time"),
+		LowBattery:   m.has("misc_get_low_battery_threshold") && m.has("misc_set_low_battery_threshold"),
+		ReceiverLEDs: m.receivers,
+		Lighting:     m.lightingCaps(),
+	}
+}
+
+// SupportedPollRates is what the UI may offer.
+func (m *Model) SupportedPollRates() []int {
+	switch {
+	case len(m.PollRates) > 0:
+		return m.PollRates
+	case m.pollV2():
+		return []int{125, 500, 1000, 2000, 4000, 8000}
+	case m.has("misc_set_polling_rate"):
+		return []int{125, 500, 1000}
+	}
+	return nil
+}
+
+func (m *Model) pollV2() bool { return m.has("misc_set_polling_rate2") }
+
 // DPI returns the current X/Y sensitivity.
 func (d *Device) DPI() (DPIStage, error) {
-	r, err := d.query(0x04, 0x85, 0x07, noStore)
+	r, err := d.query("misc_get_dpi_xy", 0x04, 0x85, 0x07, noStore)
 	if err != nil {
 		return DPIStage{}, err
 	}
@@ -92,20 +178,27 @@ func (d *Device) SetDPI(x, y int) error {
 	}
 	args := append([]byte{varStore}, put16(x)...)
 	args = append(args, put16(y)...)
-	_, err := d.query(0x04, 0x05, 0x07, append(args, 0, 0)...)
+	_, err := d.query("misc_set_dpi_xy", 0x04, 0x05, 0x07, append(args, 0, 0)...)
 	return err
 }
 
+func (d *Device) maxDPI() int {
+	if d.MaxDPI > 0 {
+		return d.MaxDPI
+	}
+	return 16000
+}
+
 func (d *Device) checkDPI(x, y int) error {
-	if x < 100 || y < 100 || x > d.MaxDPI || y > d.MaxDPI {
-		return fmt.Errorf("DPI must be 100–%d", d.MaxDPI)
+	if x < 100 || y < 100 || x > d.maxDPI() || y > d.maxDPI() {
+		return fmt.Errorf("DPI must be 100–%d", d.maxDPI())
 	}
 	return nil
 }
 
 // DPIStages returns stages and the 1-based active stage.
 func (d *Device) DPIStages() ([]DPIStage, int, error) {
-	r, err := d.query(0x04, 0x86, 0x26, varStore)
+	r, err := d.query("misc_get_dpi_stages", 0x04, 0x86, 0x26, varStore)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -123,37 +216,74 @@ func (d *Device) SetDPIStages(stages []DPIStage, active int) error {
 			return err
 		}
 	}
-	_, err := d.query(0x04, 0x06, 0x26, encodeStages(stages, active)...)
+	_, err := d.query("misc_set_dpi_stages", 0x04, 0x06, 0x26, encodeStages(stages, active)...)
 	return err
 }
 
+// Codes of the original polling-rate command (devices up to 1000 Hz).
+var pollCodesV1 = map[int]byte{1000: 0x01, 500: 0x02, 125: 0x08}
+
 func (d *Device) PollRate() (int, error) {
-	r, err := d.query(0x00, 0xC0, 0x01)
+	if d.pollV2() {
+		r, err := d.query("misc_get_polling_rate2", 0x00, 0xC0, 0x01)
+		if err != nil {
+			return 0, err
+		}
+		return pollFromCode(r.Args()[1]), nil
+	}
+	r, err := d.query("misc_get_polling_rate", 0x00, 0x85, 0x01)
 	if err != nil {
 		return 0, err
 	}
-	return pollFromCode(r.Args()[1]), nil
+	for hz, c := range pollCodesV1 {
+		if c == r.Args()[0] {
+			return hz, nil
+		}
+	}
+	return 0, nil
+}
+
+// NearestPollRate is the highest supported rate not above hz (or the lowest).
+func (m *Model) NearestPollRate(hz int) int {
+	rates := slices.Sorted(slices.Values(m.SupportedPollRates()))
+	if len(rates) == 0 {
+		return 0
+	}
+	best := rates[0]
+	for _, r := range rates {
+		if r <= hz {
+			best = r
+		}
+	}
+	return best
 }
 
 func (d *Device) SetPollRate(hz int) error {
-	code, ok := pollCodes[hz]
-	if !ok || !contains(d.PollRates, hz) {
+	if !slices.Contains(d.SupportedPollRates(), hz) {
 		return fmt.Errorf("unsupported polling rate %d", hz)
 	}
-	// Target 0x00 is the mouse, 0x01 the receiver; Synapse writes both.
-	if _, err := d.query(0x00, 0x40, 0x02, 0x00, code); err != nil {
+	if !d.pollV2() {
+		_, err := d.query("misc_set_polling_rate", 0x00, 0x05, 0x01, pollCodesV1[hz])
 		return err
 	}
-	if d.Wireless {
-		_, err := d.query(0x00, 0x40, 0x02, 0x01, code)
+	code := pollCodes[hz]
+	if len(d.pollSeq) == 0 {
+		_, err := d.query("misc_set_polling_rate2", 0x00, 0x40, 0x02, 0x00, code)
 		return err
+	}
+	// Receivers keep their own copy: target 0x00 is the device, 0x01 the receiver.
+	for _, s := range d.pollSeq {
+		r := NewReport(parseTx(s.TransactionID), 0x00, 0x40, 0x02, parseTx(s.FixedArgument0), code)
+		if _, err := d.send(r); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // Battery returns 0–100.
 func (d *Device) Battery() (int, error) {
-	r, err := d.query(0x07, 0x80, 0x02)
+	r, err := d.query("misc_get_battery_level", 0x07, 0x80, 0x02)
 	if err != nil {
 		return 0, err
 	}
@@ -161,13 +291,13 @@ func (d *Device) Battery() (int, error) {
 }
 
 func (d *Device) Charging() (bool, error) {
-	r, err := d.query(0x07, 0x84, 0x02)
+	r, err := d.query("misc_get_charging_status", 0x07, 0x84, 0x02)
 	return err == nil && r.Args()[1] == 1, err
 }
 
-// IdleTime is the seconds before the mouse sleeps (60–900).
+// IdleTime is the seconds before the device sleeps (60–900).
 func (d *Device) IdleTime() (int, error) {
-	r, err := d.query(0x07, 0x83, 0x02)
+	r, err := d.query("misc_get_idle_time", 0x07, 0x83, 0x02)
 	if err != nil {
 		return 0, err
 	}
@@ -178,13 +308,13 @@ func (d *Device) SetIdleTime(sec int) error {
 	if sec < 60 || sec > 900 {
 		return errors.New("idle time must be 60–900 s")
 	}
-	_, err := d.query(0x07, 0x03, 0x02, put16(sec)...)
+	_, err := d.query("misc_set_idle_time", 0x07, 0x03, 0x02, put16(sec)...)
 	return err
 }
 
 // LowBattery returns the low-battery warning threshold in percent.
 func (d *Device) LowBattery() (int, error) {
-	r, err := d.query(0x07, 0x81, 0x01)
+	r, err := d.query("misc_get_low_battery_threshold", 0x07, 0x81, 0x01)
 	if err != nil {
 		return 0, err
 	}
@@ -197,17 +327,14 @@ func (d *Device) SetLowBattery(pct int) error {
 	if pct < 5 || pct > 30 {
 		return errors.New("threshold must be 5–30%")
 	}
-	_, err := d.query(0x07, 0x01, 0x01, byte((pct*255+50)/100))
+	_, err := d.query("misc_set_low_battery_threshold", 0x07, 0x01, 0x01, byte((pct*255+50)/100))
 	return err
 }
 
 // ReceiverLEDs returns what the HyperPolling receiver's left, middle and right
 // indicators show: 0 off, 1 battery, 2 connection, 3 polling rate, 4 DPI.
 func (d *Device) ReceiverLEDs() ([3]int, error) {
-	if !d.Wireless {
-		return [3]int{}, ErrUnsupported
-	}
-	r, err := d.query(0x07, 0x95, 0x03)
+	r, err := d.query("misc_get_hyperpolling_wireless_dongle_multi_indicator_led_modes", 0x07, 0x95, 0x03)
 	if err != nil {
 		return [3]int{}, err
 	}
@@ -216,39 +343,28 @@ func (d *Device) ReceiverLEDs() ([3]int, error) {
 }
 
 func (d *Device) SetReceiverLEDs(m [3]int) error {
-	if !d.Wireless {
-		return ErrUnsupported
-	}
 	for _, v := range m {
 		if v < 0 || v > 4 {
 			return errors.New("LED mode must be 0–4")
 		}
 	}
-	_, err := d.query(0x07, 0x15, 0x03, byte(m[0]), byte(m[1]), byte(m[2]))
+	_, err := d.query("misc_set_hyperpolling_wireless_dongle_multi_indicator_led_modes", 0x07, 0x15, 0x03, byte(m[0]), byte(m[1]), byte(m[2]))
 	return err
 }
 
-func contains(s []int, v int) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
-// Scan finds connected supported devices.
+// Scan finds connected supported devices and picks the HID collection that answers.
 func Scan() ([]*Device, error) {
 	paths, err := hidPaths()
 	if err != nil {
 		return nil, err
 	}
-	byPID := map[uint16]*Device{}
 	keys := make([]string, 0, len(paths))
 	for p := range paths {
 		keys = append(keys, p)
 	}
 	sort.Strings(keys) // stable order: MI_00 collections first
+	// shortcut: one Device per product id; two identical keyboards show as one until IDs include the serial.
+	byPID := map[uint16]*Device{}
 	for _, p := range keys {
 		m := findModel(paths[p])
 		if m == nil {
@@ -256,15 +372,31 @@ func Scan() ([]*Device, error) {
 		}
 		d := byPID[m.PID]
 		if d == nil {
-			d = &Device{Model: *m, ID: fmt.Sprintf("1532:%04X", m.PID)}
+			d = &Device{Model: m, ID: fmt.Sprintf("1532:%04X", m.PID), txOK: map[string]byte{}}
 			byPID[m.PID] = d
 		}
 		d.candidates = append(d.candidates, &conn{path: p})
 	}
 	out := make([]*Device, 0, len(byPID))
+	var wg sync.WaitGroup
 	for _, d := range byPID {
 		out = append(out, d)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			d.Answered = d.probe() == nil
+		}()
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	wg.Wait()
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Category != out[j].Category {
+			return categoryOrder(out[i].Category) < categoryOrder(out[j].Category)
+		}
+		return out[i].ID < out[j].ID
+	})
 	return out, nil
+}
+
+func categoryOrder(c string) int {
+	return slices.Index([]string{"mouse", "keyboard", "mouse-mat", "accessory", "monitor"}, c)
 }

@@ -35,6 +35,7 @@ func main() {
 		show("lowbattery", l, e)
 		leds, e := d.ReceiverLEDs()
 		show("receiverLED", leds, e)
+		fmt.Printf("  features     %+v\n", d.Features())
 		d.Close()
 	}
 }

@@ -5,34 +5,94 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+
+	"opensynapse/internal/razer"
 )
 
-// Rule raises the polling rate while an app is in the foreground.
+// Lighting is a whole-device lighting choice.
+type Lighting struct {
+	Effect string    `json:"effect"` // off, static, breathing, spectrum, wave
+	Color  razer.RGB `json:"color"`
+}
+
+// Scene is a set of device settings used while its programs are in front.
+// Zero/nil fields leave that setting alone.
+type Scene struct {
+	Name       string    `json:"name"`
+	Apps       []string  `json:"apps"` // program file names, e.g. cs2.exe
+	DPI        int       `json:"dpi"`
+	Lighting   *Lighting `json:"lighting"`   // every device with lighting
+	Brightness *int      `json:"brightness"` // 0–100
+}
+
+// ScenesConfig: the first custom scene listing the foreground program wins,
+// then Game (auto-detected games, plus the programs it lists), then Desktop.
+type ScenesConfig struct {
+	Enabled bool    `json:"enabled"`
+	Game    Scene   `json:"game"`
+	Desktop Scene   `json:"desktop"`
+	Scenes  []Scene `json:"scenes"` // custom, by program
+}
+
+// Rule is a per-program polling rate (0 = the mouse's highest).
 type Rule struct {
-	Exe  string `json:"exe"` // file name, e.g. cs2.exe (case-insensitive)
+	Exe  string `json:"exe"`
 	Rate int    `json:"rate"`
 }
 
-// SmartConfig is the smart polling-rate switching setup.
-type SmartConfig struct {
-	Enabled     bool   `json:"enabled"`
-	DefaultRate int    `json:"defaultRate"` // used when no rule matches
-	Rules       []Rule `json:"rules"`
-	// AutoDetect treats a fullscreen/borderless app with real GPU load as a game.
-	AutoDetect bool `json:"autoDetect"`
-	AutoRate   int  `json:"autoRate"`
+// SmartPoll switches mouse polling rates: high while a game is in front,
+// lower otherwise to save CPU and battery. Rates of 0 mean each mouse's
+// highest; a rate above what a mouse supports becomes its highest.
+type SmartPoll struct {
+	Enabled    bool   `json:"enabled"`
+	GameRate   int    `json:"gameRate"`
+	NormalRate int    `json:"normalRate"`
+	Exceptions []Rule `json:"exceptions"` // checked first
 }
 
 type config struct {
-	Smart SmartConfig `json:"smart"`
+	Smart    SmartPoll           `json:"smartPoll"`
+	Scenes   ScenesConfig        `json:"scenes"`
+	Lighting map[string]Lighting `json:"lighting"` // by device ID; devices cannot report their effect
+	Notify   bool                `json:"notify"`   // low-battery notifications
+	Language string              `json:"language"` // "" follows the system
 }
 
 var (
 	cfgMu sync.Mutex
-	cfg   = config{Smart: SmartConfig{DefaultRate: 1000, AutoDetect: true, AutoRate: 8000, Rules: []Rule{{Exe: "cs2.exe", Rate: 8000}}}}
+	cfg   = config{
+		Notify: true,
+		Smart:  SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{}},
+		Scenes: ScenesConfig{
+			Game:    Scene{Name: "game", Apps: []string{}},
+			Desktop: Scene{Name: "desktop", Apps: []string{}},
+			Scenes:  []Scene{},
+		},
+	}
 )
+
+func lightingFor(d *razer.Device) Lighting {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if l, ok := cfg.Lighting[d.ID]; ok {
+		return l
+	}
+	return Lighting{Effect: "", Color: razer.RGB{R: 0x44, G: 0xD6, B: 0x2C}}
+}
+
+// rememberLighting records the effect a device shows, in memory; it is saved
+// with the next config write.
+func rememberLighting(id string, l Lighting) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if cfg.Lighting == nil {
+		cfg.Lighting = map[string]Lighting{}
+	}
+	cfg.Lighting[id] = l
+}
 
 func configPath() string {
 	dir, err := os.UserConfigDir()
@@ -42,6 +102,30 @@ func configPath() string {
 	return filepath.Join(dir, "OpenSynapse", "config.json")
 }
 
+// legacySmart is the config of the smart polling-rate page that scenes replaced.
+type legacySmart struct {
+	Enabled     bool `json:"enabled"`
+	DefaultRate int  `json:"defaultRate"`
+	Rules       []struct {
+		Exe  string `json:"exe"`
+		Rate int    `json:"rate"`
+	} `json:"rules"`
+	AutoDetect bool `json:"autoDetect"`
+	AutoRate   int  `json:"autoRate"`
+}
+
+// smartPoll converts the first smart polling-rate config.
+func (l legacySmart) smartPoll() SmartPoll {
+	if l.AutoRate == 0 {
+		l.AutoRate = 8000 // the first version had no auto-detection fields
+	}
+	c := SmartPoll{Enabled: l.Enabled, GameRate: l.AutoRate, NormalRate: l.DefaultRate, Exceptions: []Rule{}}
+	for _, r := range l.Rules {
+		c.Exceptions = append(c.Exceptions, Rule{r.Exe, r.Rate})
+	}
+	return c
+}
+
 func loadConfig() {
 	b, err := os.ReadFile(configPath())
 	if err != nil {
@@ -49,7 +133,44 @@ func loadConfig() {
 	}
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
-	_ = json.Unmarshal(b, &cfg)
+	cfg = parseConfig(b, cfg)
+}
+
+// parseConfig overlays the saved keys on the defaults. Each key is decoded on
+// its own: decoding into the defaults would reuse their slice elements, so a
+// saved scene would inherit fields it omits.
+func parseConfig(b []byte, defaults config) config {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(b, &raw) != nil {
+		return defaults
+	}
+	c := defaults
+	if v, ok := raw["scenes"]; ok {
+		var s ScenesConfig
+		if json.Unmarshal(v, &s) == nil {
+			_ = s.normalize() // fills names and lists an older save lacks
+			c.Scenes = s
+		}
+	}
+	if v, ok := raw["smartPoll"]; ok {
+		var s SmartPoll
+		if json.Unmarshal(v, &s) == nil {
+			c.Smart = s
+		}
+	} else if v, ok := raw["smart"]; ok {
+		var l legacySmart
+		if json.Unmarshal(v, &l) == nil {
+			c.Smart = l.smartPoll()
+			_ = c.Smart.normalize()
+		}
+	}
+	if v, ok := raw["lighting"]; ok {
+		_ = json.Unmarshal(v, &c.Lighting)
+	}
+	if v, ok := raw["notify"]; ok {
+		_ = json.Unmarshal(v, &c.Notify)
+	}
+	return c
 }
 
 func saveConfig() error {
@@ -68,31 +189,87 @@ func saveConfig() error {
 }
 
 func validRate(hz int) bool {
-	switch hz {
-	case 125, 500, 1000, 2000, 4000, 8000:
-		return true
-	}
-	return false
+	return slices.Contains([]int{125, 500, 1000, 2000, 4000, 8000}, hz)
 }
 
-func (s *SmartConfig) normalize() error {
-	if !validRate(s.DefaultRate) || !validRate(s.AutoRate) {
-		return errors.New("invalid rate")
+var validEffects = []string{razer.EffectOff, razer.EffectStatic, razer.EffectBreathing, razer.EffectSpectrum, razer.EffectWave}
+
+func (s *Scene) normalize() error {
+	s.Name = strings.TrimSpace(s.Name)
+	if s.Name == "" {
+		return errors.New(tr("err.sceneName"))
 	}
-	out := s.Rules[:0]
-	for _, r := range s.Rules {
-		r.Exe = strings.ToLower(strings.TrimSpace(r.Exe))
-		if r.Exe == "" {
+	if s.DPI != 0 && (s.DPI < 100 || s.DPI > 50000) {
+		return errors.New(tr("err.dpi", s.Name))
+	}
+	if s.Lighting != nil && !slices.Contains(validEffects, s.Lighting.Effect) {
+		return errors.New(tr("err.effect", s.Name))
+	}
+	if s.Brightness != nil && (*s.Brightness < 0 || *s.Brightness > 100) {
+		return errors.New(tr("err.brightness", s.Name))
+	}
+	apps := []string{}
+	for _, a := range s.Apps {
+		a = normExe(a)
+		if a != "" && !slices.Contains(apps, a) {
+			apps = append(apps, a)
+		}
+	}
+	s.Apps = apps
+	return nil
+}
+
+func (c *SmartPoll) normalize() error {
+	if !rateOrMax(c.GameRate) || !rateOrMax(c.NormalRate) {
+		return errors.New(tr("err.rate"))
+	}
+	out := []Rule{}
+	for _, r := range c.Exceptions {
+		r.Exe = normExe(r.Exe)
+		if r.Exe == "" || slices.ContainsFunc(out, func(o Rule) bool { return o.Exe == r.Exe }) {
 			continue
 		}
-		if strings.ContainsAny(r.Exe, `\/`) {
-			r.Exe = filepath.Base(r.Exe)
-		}
-		if !validRate(r.Rate) {
-			return errors.New("invalid rate for " + r.Exe)
+		if !rateOrMax(r.Rate) {
+			return errors.New(tr("err.ruleRate", r.Exe))
 		}
 		out = append(out, r)
 	}
-	s.Rules = out
+	c.Exceptions = out
 	return nil
+}
+
+func rateOrMax(hz int) bool { return hz == 0 || validRate(hz) }
+
+func normExe(a string) string {
+	a = strings.ToLower(strings.TrimSpace(a))
+	if strings.ContainsAny(a, `\/`) {
+		a = filepath.Base(a)
+	}
+	return a
+}
+
+func (c *ScenesConfig) normalize() error {
+	c.Game.Name, c.Desktop.Name, c.Desktop.Apps = "game", "desktop", nil
+	if err := c.Game.normalize(); err != nil {
+		return err
+	}
+	if err := c.Desktop.normalize(); err != nil {
+		return err
+	}
+	if c.Scenes == nil {
+		c.Scenes = []Scene{}
+	}
+	for i := range c.Scenes {
+		if err := c.Scenes[i].normalize(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c ScenesConfig) clone() ScenesConfig {
+	b, _ := json.Marshal(c)
+	var out ScenesConfig
+	_ = json.Unmarshal(b, &out)
+	return out
 }

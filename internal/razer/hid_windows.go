@@ -28,6 +28,22 @@ type hidpCaps struct {
 	_                                                                  [10]uint16
 }
 
+// PresentPaths lists the HID interface paths of attached Razer devices without
+// opening them, so polling it to notice plug and unplug is cheap.
+func PresentPaths() ([]string, error) {
+	all, err := windows.CM_Get_Device_Interface_List("", &hidGUID, windows.CM_GET_DEVICE_INTERFACE_LIST_PRESENT)
+	if err != nil {
+		return nil, err
+	}
+	out := all[:0]
+	for _, p := range all {
+		if strings.Contains(strings.ToLower(p), "vid_1532&pid_") {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
 // hidPaths lists HID collection paths of Razer devices with a 91-byte feature report.
 func hidPaths() (map[string]uint16, error) {
 	all, err := windows.CM_Get_Device_Interface_List("", &hidGUID, windows.CM_GET_DEVICE_INTERFACE_LIST_PRESENT)

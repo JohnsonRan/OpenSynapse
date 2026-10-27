@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,163 +12,213 @@
       <span class="wordmark">OPEN<b>SYNAPSE</b></span>
     </header>
     <nav class="rail">
-      <button class="nav active" data-view="devices" title="设备">
+      <button class="nav active" data-view="devices" data-i18n-title="nav.devices">
         <svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6v8a6 6 0 0 0 12 0V8a6 6 0 0 0-6-6zm0 2v5M6 10h12" /></svg>
-        <span>设备</span>
+        <span data-i18n="nav.devices"></span>
       </button>
-      <button class="nav" data-view="smart" title="智能回报率">
-        <svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>
-        <span>智能</span>
+      <button class="nav" data-view="scenes" data-i18n-title="nav.scenesTitle">
+        <svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5" /></svg>
+        <span data-i18n="nav.scenes"></span>
       </button>
-      <button class="nav" data-view="settings" title="设置">
+      <button class="nav" data-view="settings" data-i18n-title="nav.settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.20 9.58L21.85 10.28L21.85 13.72L19.20 14.42L18.81 15.38L20.18 17.75L17.75 20.18L15.38 18.81L14.42 19.20L13.72 21.85L10.28 21.85L9.58 19.20L8.62 18.81L6.25 20.18L3.82 17.75L5.19 15.38L4.80 14.42L2.15 13.72L2.15 10.28L4.80 9.58L5.19 8.62L3.82 6.25L6.25 3.82L8.62 5.19L9.58 4.80L10.28 2.15L13.72 2.15L14.42 4.80L15.38 5.19L17.75 3.82L20.18 6.25L18.81 8.62Z" /></svg>
-        <span>设置</span>
+        <span data-i18n="nav.settings"></span>
       </button>
     </nav>
 
     <main>
-      <!-- Devices -->
+      <!-- Device overview -->
       <section id="view-devices" class="view">
         <header class="device-head">
           <div>
-            <div class="eyebrow">鼠标</div>
-            <h1 id="dev-name">正在查找设备…</h1>
+            <div class="eyebrow" data-i18n="overview.eyebrow"></div>
+            <h1 data-i18n="overview.title"></h1>
+          </div>
+          <button id="rescan" class="ghost icon" data-i18n-title="overview.rescan">
+            <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg>
+          </button>
+        </header>
+        <div id="device-grid" class="device-grid"></div>
+        <div id="no-device" class="empty" hidden>
+          <p data-i18n="overview.none"></p>
+          <p class="muted" data-i18n="overview.noneHint"></p>
+        </div>
+      </section>
+
+      <!-- One device -->
+      <section id="view-device" class="view" hidden>
+        <button id="back" class="back" data-i18n="device.back"></button>
+        <header class="device-head">
+          <div>
+            <div class="eyebrow" id="dev-cat"></div>
+            <h1 id="dev-name"></h1>
           </div>
           <div class="head-right">
             <span id="dev-conn" class="pill"></span>
             <span id="dev-battery" class="pill battery" hidden></span>
-            <button id="rescan" class="ghost" title="重新扫描">
-              <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg>
-            </button>
           </div>
         </header>
 
-        <div id="no-device" class="empty" hidden>
-          <p>没有找到受支持的设备。</p>
-          <p class="muted">请确认鼠标已开机且接收器已插入，然后退出 Razer Synapse 并点击右上角重新扫描。</p>
+        <div class="tabs">
+          <button class="tab" data-tab="perf" data-i18n="tab.perf"></button>
+          <button class="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
+          <button class="tab" data-tab="power" data-i18n="tab.power"></button>
+          <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
         </div>
 
-        <div id="device-body">
-          <div class="tabs">
-            <button class="tab active" data-tab="perf">性能</button>
-            <button class="tab" data-tab="power">电源</button>
-            <button class="tab" data-tab="receiver" id="receiver-tab" hidden>接收器</button>
-          </div>
-
-          <div id="tab-perf" class="tab-body">
-            <div class="card">
-              <div class="card-head">
-                <h2>灵敏度</h2>
-                <span class="muted">当前 <b id="cur-dpi" class="accent">—</b> DPI</span>
-              </div>
-              <p class="muted small">点击档位切换当前灵敏度；鼠标底部按钮按顺序循环这些档位。</p>
-              <div id="stages" class="stages"></div>
-              <div class="row">
-                <button id="add-stage" class="ghost">＋ 添加档位</button>
-                <label class="check"><input id="xy-link" type="checkbox" checked /> X/Y 同步</label>
-              </div>
+        <div id="tab-perf" class="tab-body">
+          <div class="card" id="card-stages">
+            <div class="card-head">
+              <h2 data-i18n="dpi.title"></h2>
+              <span class="muted"><span data-i18n="dpi.current"></span> <b id="cur-dpi" class="accent">—</b> DPI</span>
             </div>
-
-            <div class="card">
-              <div class="card-head"><h2>回报率</h2><span class="muted small" id="poll-hint"></span></div>
-              <div id="poll" class="seg"></div>
+            <p class="muted small" data-i18n="dpi.stagesHint"></p>
+            <div id="stages" class="stages"></div>
+            <div class="row">
+              <button id="add-stage" class="ghost" data-i18n="dpi.addStage"></button>
+              <label class="check"><input id="xy-link" type="checkbox" checked /> <span data-i18n="dpi.xyLink"></span></label>
             </div>
           </div>
 
-          <div id="tab-power" class="tab-body" hidden>
-            <div class="card battery-card">
-              <div class="battery-big"><span id="bat-num">—</span><small>%</small></div>
-              <div class="bat-bar"><i id="bat-fill"></i></div>
-              <div class="muted" id="bat-state"></div>
-            </div>
-            <div class="card">
-              <div class="card-head"><h2>休眠</h2><span class="accent"><b id="idle-val">—</b> 分钟</span></div>
-              <p class="muted small">鼠标闲置多久后进入休眠。</p>
-              <input id="idle" type="range" min="1" max="15" step="1" />
-            </div>
-            <div class="card">
-              <div class="card-head"><h2>低电量提醒</h2><span class="accent"><b id="low-val">—</b>%</span></div>
-              <p class="muted small">电量低于此值时进入省电模式并闪烁提醒。</p>
-              <input id="low" type="range" min="5" max="30" step="5" />
-            </div>
+          <div class="card" id="card-dpi">
+            <div class="card-head"><h2 data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> DPI</span></div>
+            <input id="dpi" type="range" min="100" step="50" />
           </div>
 
-          <div id="tab-receiver" class="tab-body" hidden>
-            <div class="card">
-              <div class="card-head"><h2>指示灯</h2></div>
-              <p class="muted small">HyperPolling 接收器上的三颗指示灯各自显示什么。灯的颜色由固件决定，公开协议不支持修改。</p>
-              <div class="leds">
-                <label><span class="led-dot"></span>左<select data-led="0"></select></label>
-                <label><span class="led-dot"></span>中<select data-led="1"></select></label>
-                <label><span class="led-dot"></span>右<select data-led="2"></select></label>
-              </div>
+          <div class="card" id="card-poll">
+            <div class="card-head"><h2 data-i18n="poll.title"></h2><span class="muted small" id="poll-hint"></span></div>
+            <div id="poll" class="seg"></div>
+          </div>
+        </div>
+
+        <div id="tab-lighting" class="tab-body" hidden>
+          <div class="card">
+            <div class="card-head"><h2 data-i18n="light.effect"></h2></div>
+            <div id="effects" class="seg"></div>
+            <div id="color-row" class="color-row">
+              <span class="muted small" data-i18n="light.color"></span>
+              <div id="swatches" class="swatches"></div>
+              <input id="color" type="color" data-i18n-title="light.customColor" />
+            </div>
+          </div>
+          <div class="card" id="card-brightness">
+            <div class="card-head"><h2 data-i18n="light.brightness"></h2><span class="accent"><b id="bright-val">—</b>%</span></div>
+            <input id="brightness" type="range" min="0" max="100" step="5" />
+          </div>
+        </div>
+
+        <div id="tab-power" class="tab-body" hidden>
+          <div class="card battery-card" id="card-battery">
+            <div class="battery-big"><span id="bat-num">—</span><small>%</small></div>
+            <div class="bat-bar"><i id="bat-fill"></i></div>
+            <div class="muted" id="bat-state"></div>
+          </div>
+          <div class="card" id="card-idle">
+            <div class="card-head"><h2 data-i18n="power.sleep"></h2><span class="accent"><b id="idle-val">—</b> <span data-i18n="power.minutes"></span></span></div>
+            <p class="muted small" data-i18n="power.sleepHint"></p>
+            <input id="idle" type="range" min="1" max="15" step="1" />
+          </div>
+          <div class="card" id="card-low">
+            <div class="card-head"><h2 data-i18n="power.low"></h2><span class="accent"><b id="low-val">—</b>%</span></div>
+            <p class="muted small" data-i18n="power.lowHint"></p>
+            <input id="low" type="range" min="5" max="30" step="5" />
+          </div>
+        </div>
+
+        <div id="tab-receiver" class="tab-body" hidden>
+          <div class="card">
+            <div class="card-head"><h2><span data-i18n="receiver.leds"></span><span class="info" tabindex="0" data-i18n-title="receiver.ledsMore">i</span></h2></div>
+            <p class="muted small" data-i18n="receiver.ledsHint"></p>
+            <div class="leds">
+              <label><span class="led-dot"></span><span data-i18n="receiver.left"></span><select data-led="0"></select></label>
+              <label><span class="led-dot"></span><span data-i18n="receiver.middle"></span><select data-led="1"></select></label>
+              <label><span class="led-dot"></span><span data-i18n="receiver.right"></span><select data-led="2"></select></label>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Smart polling -->
-      <section id="view-smart" class="view" hidden>
+      <!-- Scenes -->
+      <section id="view-scenes" class="view" hidden>
         <header class="device-head">
           <div>
-            <div class="eyebrow">性能</div>
-            <h1>智能回报率</h1>
+            <div class="eyebrow" data-i18n="auto.eyebrow"></div>
+            <h1><span data-i18n="auto.title"></span><span class="info" tabindex="0" data-i18n-title="auto.more">i</span></h1>
           </div>
-          <label class="switch"><input id="smart-on" type="checkbox" /><i></i></label>
         </header>
-        <p class="muted">指定程序在前台时自动切换到高回报率，其他时间回落以省电省 CPU。切换有约 2 秒防抖，后台常驻不占用 WebView。</p>
+        <p class="muted small" data-i18n="auto.intro"></p>
+        <div class="status-line">
+          <span class="dot"></span>
+          <span id="auto-status" class="muted">—</span>
+        </div>
 
         <div class="card">
           <div class="card-head">
             <div>
-              <h2>自动识别游戏</h2>
-              <p class="muted small">前台窗口全屏或无边框全屏，且 GPU 3D 占用 ≥ 15% 时视为游戏；识别过的进程在退出前一直按游戏处理。浏览器和播放器默认排除，误判的程序可在下方规则里单独指定。</p>
+              <h2><span data-i18n="smart.title"></span><span class="info" tabindex="0" data-i18n-title="smart.more">i</span></h2>
+              <p class="muted small" data-i18n="smart.intro"></p>
             </div>
-            <label class="switch"><input id="auto-on" type="checkbox" /><i></i></label>
+            <label class="switch"><input id="smart-on" type="checkbox" /><i></i></label>
           </div>
-          <div id="auto-rate" class="seg"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2>其他程序</h2></div>
-          <div id="smart-default" class="seg"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <div><h2>程序规则</h2><p class="muted small">优先级最高，可用来强制或排除某个程序。</p></div>
-            <button id="add-rule" class="ghost">＋ 添加</button>
+          <div id="smart-body">
+            <div class="smart-grid">
+              <label><span class="muted small" data-i18n="smart.gameRate"></span><select id="game-rate"></select></label>
+              <label><span class="muted small" data-i18n="smart.normalRate"></span><select id="normal-rate"></select></label>
+            </div>
+            <div class="card-head sub-head">
+              <h3><span data-i18n="smart.exceptions"></span><span class="info" tabindex="0" data-i18n-title="smart.exceptionsHint">i</span></h3>
+              <button id="add-exception" class="ghost" data-i18n="smart.add"></button>
+            </div>
+            <div id="exceptions"></div>
           </div>
-          <div id="rules"></div>
         </div>
 
-        <div class="status-line">
-          <span class="dot"></span>
-          <span id="smart-status" class="muted">—</span>
+        <div class="section-head">
+          <div>
+            <h2><span data-i18n="scenes.title"></span><span class="info" tabindex="0" data-i18n-title="scenes.more">i</span></h2>
+            <p class="muted small" data-i18n="scenes.intro"></p>
+          </div>
+          <label class="switch"><input id="scenes-on" type="checkbox" /><i></i></label>
         </div>
+        <div id="scene-list"></div>
+        <button id="add-scene" class="ghost" data-i18n="scenes.add"></button>
       </section>
 
       <!-- Settings -->
       <section id="view-settings" class="view" hidden>
         <header class="device-head">
-          <div><div class="eyebrow">OpenSynapse</div><h1>设置</h1></div>
+          <div><div class="eyebrow">OpenSynapse</div><h1 data-i18n="settings.title"></h1></div>
         </header>
-        <div class="card">
-          <div class="card-head">
+        <div class="card list">
+          <div class="list-row">
             <div>
-              <h2>开机启动</h2>
-              <p class="muted small">登录时以托盘方式启动，仅保持轻量后台。</p>
+              <div class="row-title" data-i18n="settings.language"></div>
+              <div class="muted small" data-i18n="settings.languageHint"></div>
+            </div>
+            <select id="language" class="lang-select"></select>
+          </div>
+          <div class="list-row">
+            <div>
+              <div class="row-title" data-i18n="settings.autostart"></div>
+              <div class="muted small" data-i18n="settings.autostartHint"></div>
             </div>
             <label class="switch"><input id="autostart" type="checkbox" /><i></i></label>
           </div>
+          <div class="list-row">
+            <div>
+              <div class="row-title"><span data-i18n="settings.notify"></span><span class="info" tabindex="0" data-i18n-title="settings.notifyMore">i</span></div>
+              <div class="muted small" data-i18n="settings.notifyHint"></div>
+            </div>
+            <label class="switch"><input id="notify" type="checkbox" /><i></i></label>
+          </div>
         </div>
-        <div class="card">
-          <h2>关于</h2>
-          <p class="muted small">
-            OpenSynapse 是一个开源、轻量的 Razer 外设设置工具，与 Razer Inc. 无关联。<br />
-            关闭窗口后程序留在托盘；右键托盘图标可退出。请勿与 Razer Synapse 同时运行，否则两者会互相覆盖设置。<br />
-            协议资料来自 openrazer 项目的公开文档。
-          </p>
+        <div class="card list">
+          <div class="list-row about">
+            <div>
+              <div class="row-title" data-i18n="settings.about"></div>
+              <div class="muted small" data-i18n-html="settings.aboutText"></div>
+            </div>
+          </div>
         </div>
       </section>
     </main>

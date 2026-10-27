@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"golang.org/x/sys/windows/registry"
@@ -18,7 +20,24 @@ import (
 //go:embed resources/tray.png
 var trayIcon []byte
 
-var window *mygo.Window
+var (
+	window   *mygo.Window // main thread only
+	windowMu sync.Mutex
+	shownWin *mygo.Window // the same window, for other goroutines
+)
+
+func currentWindow() *mygo.Window {
+	windowMu.Lock()
+	defer windowMu.Unlock()
+	return shownWin
+}
+
+func setWindow(w *mygo.Window) {
+	window = w
+	windowMu.Lock()
+	shownWin = w
+	windowMu.Unlock()
+}
 
 func openWindow() {
 	if window != nil {
@@ -26,7 +45,7 @@ func openWindow() {
 		window.Focus()
 		return
 	}
-	window = mygo.NewWindow(mygo.WindowOptions{
+	w := mygo.NewWindow(mygo.WindowOptions{
 		Title:           "OpenSynapse",
 		Width:           1180,
 		Height:          760,
@@ -36,27 +55,53 @@ func openWindow() {
 		// No title bar; Windows keeps its own min/max/close (and Snap) over the page.
 		TitleBarStyle:  mygo.TitleBarHidden,
 		TitleBarHeight: 40,
-		StateKey:        "main",
-		URL:             "/",
+		StateKey:       "main",
+		URL:            "/",
 	})
 	// Closing destroys the webview and its browser processes; the tray keeps running.
-	window.OnClosed(func() { window = nil })
+	w.OnClosed(func() { setWindow(nil) })
+	setWindow(w)
 }
 
+// trayMenu: device batteries and the active scene/rate on top (read only),
+// then the window, the two automatic features, and quit.
 func trayMenu() *mygo.Menu {
-	return mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "打开 OpenSynapse", Click: func(*mygo.MenuItem, *mygo.Window) { openWindow() }},
-		{Label: "智能回报率", Type: mygo.MenuItemCheckbox, Checked: Smart{}.Config().Enabled,
+	var items []*mygo.MenuItem
+	trayMu.Lock()
+	for _, line := range strings.Split(trayBattery, "\n") {
+		if line != "" {
+			items = append(items, &mygo.MenuItem{Label: line, Disabled: true})
+		}
+	}
+	if trayAuto != "" {
+		items = append(items, &mygo.MenuItem{Label: trayAuto, Disabled: true})
+	}
+	trayMu.Unlock()
+	if len(items) > 0 {
+		items = append(items, mygo.Separator())
+	}
+	return mygo.NewMenu(append(items,
+		&mygo.MenuItem{Label: tr("tray.open"), Click: func(*mygo.MenuItem, *mygo.Window) { openWindow() }},
+		mygo.Separator(),
+		&mygo.MenuItem{Label: tr("tray.smart"), Type: mygo.MenuItemCheckbox, Checked: Scenes{}.Smart().Enabled,
 			Click: func(it *mygo.MenuItem, _ *mygo.Window) {
-				c := Smart{}.Config()
+				c := Scenes{}.Smart()
 				c.Enabled = it.Checked
-				if err := (Smart{}).SetConfig(c); err != nil {
-					log.Println("smart:", err)
+				if err := (Scenes{}).SetSmart(c); err != nil {
+					log.Println("smart poll:", err)
+				}
+			}},
+		&mygo.MenuItem{Label: tr("tray.scenes"), Type: mygo.MenuItemCheckbox, Checked: Scenes{}.Config().Enabled,
+			Click: func(it *mygo.MenuItem, _ *mygo.Window) {
+				c := Scenes{}.Config()
+				c.Enabled = it.Checked
+				if err := (Scenes{}).SetConfig(c); err != nil {
+					log.Println("scenes:", err)
 				}
 			}},
 		mygo.Separator(),
-		{Label: "退出", Role: mygo.RoleQuit},
-	})
+		&mygo.MenuItem{Label: tr("tray.quit"), Role: mygo.RoleQuit},
+	))
 }
 
 func main() {
@@ -67,19 +112,24 @@ func main() {
 	if err := devices.rescan(); err != nil {
 		log.Println("scan:", err)
 	}
-	go runSmart()
+	go runAuto()
+	go watchDevices()
 
 	mygo.Bind(Devices{})
-	mygo.Bind(Smart{})
+	mygo.Bind(Scenes{})
 	mygo.Bind(Settings{})
 
 	mygo.App.OnSecondInstance(func([]string, string) { openWindow() })
 	mygo.App.OnWindowAllClosed(func() {}) // keep running in the tray
 	mygo.App.WhenReady(func() {
-		tray, err := mygo.NewTray(mygo.TrayOptions{ID: "opensynapse", Icon: trayIcon, ToolTip: "OpenSynapse"})
+		t, err := mygo.NewTray(mygo.TrayOptions{ID: "opensynapse", Icon: trayIcon, ToolTip: "OpenSynapse"})
 		if err != nil {
 			log.Println("tray:", err)
 		} else {
+			tray := t
+			trayMu.Lock()
+			trayOf = t
+			trayMu.Unlock()
 			tray.OnClick(openWindow)
 			tray.OnRightClick(func() {
 				tray.SetMenu(trayMenu()) // rebuilt each time so the checkbox is current
@@ -87,6 +137,7 @@ func main() {
 				tray.SetMenu(nil)
 			})
 		}
+		go runBattery() // after the tray exists, so the first reading reaches its tooltip
 		if !slices.Contains(os.Args[1:], "--tray") || err != nil {
 			openWindow()
 		}
@@ -130,4 +181,19 @@ func (Settings) SetAutostart(on bool) error {
 		return err
 	}
 	return k.SetStringValue("OpenSynapse", `"`+exe+`" --tray`)
+}
+
+// Notify reports whether low-battery notifications are on.
+func (Settings) Notify() bool {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	return cfg.Notify
+}
+
+// SetNotify turns low-battery notifications on or off.
+func (Settings) SetNotify(on bool) error {
+	cfgMu.Lock()
+	cfg.Notify = on
+	cfgMu.Unlock()
+	return saveConfig()
 }
