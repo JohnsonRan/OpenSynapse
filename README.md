@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-A lightweight, open-source settings app for Razer mice and other Razer devices on Windows. Set DPI, lighting, polling rate and power options, and let your devices adjust themselves to the game or program you're using, without running Razer Synapse.
+A lightweight, open-source settings app for Razer mice and other Razer devices on Windows. Set DPI, lighting, polling rate and power options, put macros on mouse buttons, and let your devices adjust themselves to the game or program you're using, without running Razer Synapse.
 
 OpenSynapse is not affiliated with Razer Inc.
 
@@ -36,6 +36,20 @@ Closing the window keeps OpenSynapse running in the notification area (system tr
 - **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
 
 Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.
+
+### Macros
+
+Create macros on the **Macros** page, and then bind them to mouse buttons.
+
+- **Record:** select **● Record** and press keys and mouse buttons. The delays between presses are recorded too. Select **■ Stop** when you're done.
+- **Edit:** add presses by hand with **+ Key** or **+ Mouse button**, change the delay of each step (in milliseconds), and delete steps you don't need.
+- **Playback:** **Play once**, **Repeat a number of times**, **Loop until pressed again** or **Loop while held**.
+- **Bind to a button:** on the device page, open the **Buttons** tab and choose a macro for any button except the left one. Choose **Default** to give a button its original function back.
+
+The **Buttons** tab appears only on mice that support button remapping. So far, it has been tested only on the DeathAdder V4 Pro.
+
+> [!NOTE]
+> Macros are played by OpenSynapse on your PC, not stored on the mouse, so they work only while OpenSynapse is running. When it quits, bound buttons get their original function back, and the bindings return the next time it starts. Some games' anti-cheat software may block macros.
 
 ### Automatic switching
 
@@ -75,6 +89,15 @@ No. The color is set by the firmware and the public protocol can't change it.
 **My settings changed by themselves.**
 If Smart polling rate or Scenes is on, OpenSynapse changes settings when you switch programs. Turn them off on the **Scenes** page or from the tray menu. Also make sure Razer Synapse isn't running.
 
+**How do macros work?**
+A bound button is set on the mouse to send an unused key (F13–F24). OpenSynapse catches that key and plays the macro by simulating keyboard and mouse input.
+
+**Why doesn't my macro work in a game?**
+Some games' anti-cheat software blocks simulated input. Also make sure OpenSynapse is running, because macros don't work without it.
+
+**A mouse button stopped working.**
+If OpenSynapse crashed or was ended from Task Manager, a button bound to a macro keeps sending its F13–F24 key, which does nothing on its own. Start OpenSynapse again and the button works again. To give the button its original function back for good, set it to **Default** on the **Buttons** tab.
+
 **Where are my settings stored?**
 In `%APPDATA%\OpenSynapse\config.json`.
 
@@ -98,4 +121,5 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 ## Credits
 
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
+- The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
 - The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
