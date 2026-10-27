@@ -170,6 +170,9 @@ func parseConfig(b []byte, defaults config) config {
 	if v, ok := raw["notify"]; ok {
 		_ = json.Unmarshal(v, &c.Notify)
 	}
+	if v, ok := raw["language"]; ok {
+		_ = json.Unmarshal(v, &c.Language)
+	}
 	return c
 }
 
