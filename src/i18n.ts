@@ -411,7 +411,7 @@ const ja: Record<Key, string> = {
 
   "cat.mouse": "マウス",
   "cat.keyboard": "キーボード",
-  "cat.mouse-mat": "マウスマット",
+  "cat.mouse-mat": "マウスパッド",
   "cat.accessory": "アクセサリ",
   "cat.monitor": "モニター",
 
@@ -436,7 +436,7 @@ const ja: Record<Key, string> = {
 
   "poll.title": "ポーリングレート",
   "poll.set": "ポーリングレートを {hz} Hz に設定しました",
-  "poll.smartOn": "スマートポーリングレートがオンです。前面のプログラムに合わせて切り替わります。",
+  "poll.smartOn": "スマート ポーリングレートがオンです。前面のプログラムに合わせて切り替わります。",
   "poll.highCost": "ポーリングレートを高くすると、CPU 使用率とバッテリー消費が増えます。",
 
   "light.effect": "エフェクト",
@@ -491,7 +491,7 @@ const ja: Record<Key, string> = {
 
   "macros.eyebrow": "カスタマイズ",
   "macros.title": "マクロ",
-  "macros.intro": "入力の手順を記録または編集し、デバイスの [ボタン] タブでマウスボタンに割り当てます。",
+  "macros.intro": "入力の手順を記録または編集し、デバイスの [ボタン] タブでマウス ボタンに割り当てます。",
   "macros.more":
     "マクロは OpenSynapse がキーボードとマウスの入力をシミュレートして PC 上で再生するため、OpenSynapse を実行したままにしておく必要があります。ゲームによっては、チート対策ソフトがシミュレートされた入力をブロックする場合があります。",
   "macros.add": "+ 新しいマクロ",
@@ -507,11 +507,11 @@ const ja: Record<Key, string> = {
   "macros.steps": "ステップ",
   "macros.record": "● 記録",
   "macros.stop": "■ 停止",
-  "macros.recording": "キーとマウスボタンを記録しています。終わったら [■ 停止] をクリックしてください。",
+  "macros.recording": "キーとマウス ボタンを記録しています。終わったら [■ 停止] をクリックしてください。",
   "macros.recorded": "{n} 個のステップを記録しました",
   "macros.addKey": "+ キー",
   "macros.pressKey": "追加するキーを押してください...",
-  "macros.addMouse": "+ マウスボタン",
+  "macros.addMouse": "+ マウス ボタン",
   "macros.none": "マクロはまだありません。[+ 新しいマクロ] をクリックして作成してください。",
   "macros.noSteps": "ステップはまだありません。記録するか、手動で追加してください。",
   "macros.down": "{key} を押す",
@@ -524,7 +524,7 @@ const ja: Record<Key, string> = {
   "auto.intro": "前面のプログラムに合わせてデバイスを自動で調整します。",
   "auto.more":
     "頻繁に切り替わらないよう、切り替えの前に約 2 秒待ちます。ウィンドウを閉じている間は画面のリソースを使用しません。手動で変更した設定は、次の切り替えで上書きされます。",
-  "auto.allOff": "スマートポーリングレートとシーンはどちらもオフです",
+  "auto.allOff": "スマート ポーリングレートとシーンはどちらもオフです",
   "auto.waiting": "前面のプログラムを待っています...",
   "auto.foreground": "前面: {exe}",
   "auto.fullscreen": "全画面",
@@ -533,7 +533,7 @@ const ja: Record<Key, string> = {
   "auto.rate": "ポーリングレート: {rate}",
   "auto.scene": "シーン: {name}",
 
-  "smart.title": "スマートポーリングレート",
+  "smart.title": "スマート ポーリングレート",
   "smart.intro": "ゲーム中はポーリングレートを上げ、それ以外は下げてバッテリーと CPU を節約します。",
   "smart.more":
     "ゲームの判定: 全画面またはボーダーレス全画面で、GPU 3D 使用率が 15% 以上 (ブラウザーとプレーヤーを除く)。[最高] は各マウスの最高値で、選択した値が上限を超える場合も最高値になります。",
@@ -548,14 +548,14 @@ const ja: Record<Key, string> = {
 
   "scenes.title": "シーン",
   "scenes.intro": "前面のプログラムに合わせて、マウスの DPI とライティング対応デバイスのエフェクトを切り替えます。",
-  "scenes.more": "適用の順序: カスタムシーン → ゲーム → デスクトップ。[現在の設定を維持] の項目は変更されません。",
+  "scenes.more": "適用の順序: カスタム シーン → ゲーム → デスクトップ。[現在の設定を維持] の項目は変更されません。",
   "scenes.add": "+ 新しいシーン",
   "scenes.newName": "シーン {n}",
   "scenes.delete": "シーンを削除",
   "scenes.game": "ゲーム",
   "scenes.gameHint": "ゲームを認識したときに使用",
   "scenes.gameMore":
-    "ゲームの判定: 全画面またはボーダーレス全画面で、GPU 3D 使用率が 15% 以上。認識されないゲーム (ウィンドウモードなど) は [プログラム] に追加できます。",
+    "ゲームの判定: 全画面またはボーダーレス全画面で、GPU 3D 使用率が 15% 以上。認識されないゲーム (ウィンドウ モードなど) は [プログラム] に追加できます。",
   "scenes.desktop": "デスクトップ",
   "scenes.desktopHint": "ほかに当てはまるものがないときに使用",
   "scenes.desktopMore": "ほかのシーンから戻るときに設定を元に戻します。ここでライティングを設定すると、すべてのデバイスをそろえられます。",
@@ -572,21 +572,21 @@ const ja: Record<Key, string> = {
 
   "settings.title": "設定",
   "settings.language": "言語",
-  "settings.languageHint": "ウィンドウとトレイメニューの言語",
+  "settings.languageHint": "ウィンドウとトレイ メニューの言語",
   "settings.langSystem": "システムの設定に従う",
   "settings.autostart": "サインイン時に起動",
   "settings.autostartHint": "Windows にサインインしたとき、トレイで起動します。",
   "settings.autostartOn": "サインイン時の起動をオンにしました",
   "settings.autostartOff": "サインイン時の起動をオフにしました",
   "settings.notify": "バッテリー低下の通知",
-  "settings.notifyHint": "ワイヤレスデバイスのバッテリーが少なくなると、Windows の通知を表示します。",
+  "settings.notifyHint": "ワイヤレス デバイスのバッテリーが少なくなると、Windows の通知を表示します。",
   "settings.notifyMore":
-    "デバイスの警告のしきい値を下回ると通知します (しきい値がないデバイスは 20%)。トレイアイコンにマウスポインターを合わせると、バッテリー残量を確認できます。",
+    "デバイスの警告のしきい値を下回ると通知します (しきい値がないデバイスは 20%)。トレイ アイコンにマウス ポインターを合わせると、バッテリー残量を確認できます。",
   "settings.notifyOn": "バッテリー低下の通知をオンにしました",
   "settings.notifyOff": "バッテリー低下の通知をオフにしました",
   "settings.about": "このアプリについて",
   "settings.aboutText":
-    "OpenSynapse は Razer デバイス向けのオープンソースで軽量な設定アプリで、Razer Inc. とは関係ありません。<br />ウィンドウを閉じてもトレイに残ります。終了するにはトレイアイコンを右クリックしてください。Razer Synapse と同時に実行すると互いの設定が上書きされるため、同時に実行しないでください。<br />プロトコルの情報は openrazer プロジェクトの公開資料に基づいています。",
+    "OpenSynapse は Razer デバイス向けのオープンソースで軽量な設定アプリで、Razer Inc. とは関係ありません。<br />ウィンドウを閉じてもトレイに残ります。終了するにはトレイ アイコンを右クリックしてください。Razer Synapse と同時に実行すると互いの設定が上書きされるため、同時に実行しないでください。<br />プロトコルの情報は openrazer プロジェクトの公開資料に基づいています。",
 };
 
 const dicts: Record<string, Record<Key, string>> = { "zh-CN": zh, en, ja };

@@ -76,7 +76,7 @@ var messages = map[string]map[string]string{
 	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
 	"ja": {
 		"tray.open":        "OpenSynapse を開く",
-		"tray.smart":       "スマートポーリングレート",
+		"tray.smart":       "スマート ポーリングレート",
 		"tray.scenes":      "シーン",
 		"tray.quit":        "終了",
 		"tray.wired":       "有線",
