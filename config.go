@@ -54,21 +54,28 @@ type SmartPoll struct {
 }
 
 type config struct {
-	Smart    SmartPoll           `json:"smartPoll"`
-	Scenes   ScenesConfig        `json:"scenes"`
-	Lighting map[string]Lighting `json:"lighting"` // by device ID; devices cannot report their effect
-	Notify   bool                `json:"notify"`   // low-battery notifications
-	Language string              `json:"language"` // "" follows the system
-	Glass    bool                `json:"glass"`    // glass theme (glass.go)
-	Macros   []Macro             `json:"macros"`
-	Bindings []Binding           `json:"bindings"` // device buttons that play macros
+	Smart      SmartPoll           `json:"smartPoll"`
+	Scenes     ScenesConfig        `json:"scenes"`
+	Lighting   map[string]Lighting `json:"lighting"`   // by device ID; devices cannot report their effect
+	Notify     bool                `json:"notify"`     // low-battery notifications
+	Language   string              `json:"language"`   // "" follows the system
+	Glass      bool                `json:"glass"`      // glass theme (glass.go)
+	DPIDisplay bool                `json:"dpiDisplay"` // on-screen DPI when the DPI button changes it
+	Macros     []Macro             `json:"macros"`
+	Bindings   []Binding           `json:"bindings"` // device buttons that play macros
 }
 
 var (
 	cfgMu sync.Mutex
-	cfg   = config{
-		Notify: true,
-		Smart:  SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{}},
+	cfg   = defaultConfig()
+)
+
+// defaultConfig is the configuration of a first run.
+func defaultConfig() config {
+	return config{
+		Notify:     true,
+		DPIDisplay: true,
+		Smart:      SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{}},
 		Scenes: ScenesConfig{
 			Game:    Scene{Name: "game", Apps: []string{}},
 			Desktop: Scene{Name: "desktop", Apps: []string{}},
@@ -77,7 +84,7 @@ var (
 		Macros:   []Macro{},
 		Bindings: []Binding{},
 	}
-)
+}
 
 func lightingFor(d *razer.Device) Lighting {
 	cfgMu.Lock()
@@ -191,6 +198,9 @@ func parseConfig(b []byte, defaults config) config {
 	}
 	if v, ok := raw["notify"]; ok {
 		_ = json.Unmarshal(v, &c.Notify)
+	}
+	if v, ok := raw["dpiDisplay"]; ok {
+		_ = json.Unmarshal(v, &c.DPIDisplay)
 	}
 	if v, ok := raw["glass"]; ok {
 		_ = json.Unmarshal(v, &c.Glass)

@@ -6,6 +6,7 @@ import {
   Settings,
   Scenes,
   type AppInfo,
+  type ButtonAction,
   type ButtonInfo,
   type Macro,
   type MacroEvent,
@@ -16,6 +17,7 @@ import {
   type Scene,
   type ScenesConfig,
   type SmartPoll,
+  type Tracking,
 } from "./mygo";
 import { setLang, t, translateDom } from "./i18n";
 
@@ -212,6 +214,8 @@ async function openDevice(d: DeviceInfo) {
   document.querySelector<HTMLElement>(".tabs")!.hidden = !first;
   showView("device");
   loadButtons(d);
+  loadInfo(d);
+  loadLift(d);
   if (!smart) smart = await Scenes.smart().catch(() => undefined);
   await refreshState();
 }
@@ -452,11 +456,128 @@ $<HTMLInputElement>("#brightness").oninput = (e) => {
   saveBrightness(v);
 };
 
+// --- device info: firmware, serial, receiver pairing ---
+
+async function loadInfo(d: DeviceInfo) {
+  const tab = document.querySelector<HTMLElement>('.tab[data-tab="info"]')!;
+  tab.hidden = true;
+  const info = await Devices.details(d.id).catch(() => undefined);
+  if (!info || dev?.id !== d.id || (!info.firmware && !info.serial)) return;
+  tab.hidden = false;
+  document.querySelector<HTMLElement>(".tabs")!.hidden = false;
+  $("#info-fw-row").hidden = !info.firmware;
+  $("#info-fw").textContent = info.firmware ? `v${info.firmware}` : "";
+  $("#info-sn-row").hidden = !info.serial;
+  $("#info-sn").textContent = info.serial;
+  $("#info-pair-row").hidden = !info.pairing;
+  $("#info-sn-copy").onclick = () => attempt(() => navigator.clipboard.writeText(info.serial), t("info.copied"));
+}
+$("#info-fw-update").onclick = () => dev && attempt(() => Devices.openSupport(dev!.id, "firmware"));
+$("#info-pair").onclick = () => dev && attempt(() => Devices.openSupport(dev!.id, "pairing"));
+
+// --- lift-off distance ---
+
+const LIFT_DEFAULT: Tracking = { asymmetric: false, distance: 2, liftOff: 13, landing: 12 };
+let lift: Tracking | undefined;
+
+async function loadLift(d: DeviceInfo) {
+  $("#card-lift").hidden = true;
+  lift = await Devices.tracking(d.id).catch(() => undefined);
+  if (!lift || dev?.id !== d.id) return;
+  $("#card-lift").hidden = false;
+  renderLift();
+}
+
+function renderLift() {
+  const l = lift!;
+  $<HTMLInputElement>("#lift-asym").checked = l.asymmetric;
+  $("#lift-sym").hidden = l.asymmetric;
+  $("#lift-asym-body").hidden = !l.asymmetric;
+  segmented($("#lift-sym"), [1, 2, 3], l.distance, (v) => t(`lift.${v}` as "lift.1"), (v) => ((l.distance = v), saveLift()));
+  const off = $<HTMLInputElement>("#lift-off"), land = $<HTMLInputElement>("#lift-land");
+  off.value = String(l.liftOff);
+  land.value = String(l.landing);
+  $("#lift-off-val").textContent = `${l.liftOff}`;
+  $("#lift-land-val").textContent = `${l.landing}`;
+}
+
+const saveLift = debounce(() => dev && lift && attempt(() => Devices.setTracking(dev!.id, lift!), t("lift.saved")), 300);
+
+$<HTMLInputElement>("#lift-asym").onchange = (e) => {
+  if (!lift) return;
+  lift.asymmetric = (e.target as HTMLInputElement).checked;
+  renderLift();
+  saveLift();
+};
+// Landing stays below lift-off, as Synapse keeps it.
+$<HTMLInputElement>("#lift-off").oninput = (e) => {
+  if (!lift) return;
+  lift.liftOff = +(e.target as HTMLInputElement).value;
+  if (lift.landing >= lift.liftOff) lift.landing = lift.liftOff - 1;
+  renderLift();
+  saveLift();
+};
+$<HTMLInputElement>("#lift-land").oninput = (e) => {
+  if (!lift) return;
+  lift.landing = +(e.target as HTMLInputElement).value;
+  if (lift.liftOff <= lift.landing) lift.liftOff = lift.landing + 1;
+  renderLift();
+  saveLift();
+};
+$("#lift-reset").onclick = () => {
+  if (!lift) return;
+  lift = { ...LIFT_DEFAULT };
+  renderLift();
+  saveLift();
+};
+
 // --- buttons ---
 
 const buttonName = (id: number) => ([1, 2, 3, 4, 5, 9, 10, 96].includes(id) ? t(`btn.${id}` as "btn.1") : t("btn.other", { n: id }));
 
-// The tab shows only for devices that answer Synapse's button commands.
+// The tab shows only for devices that answer Synapse's button commands. Each
+// button plays a macro, or is remapped on the device: to a mouse button, a
+// DPI action or a key (which works without OpenSynapse).
+const DPI_ACTIONS = [1, 2, 6, 7];
+const MOUSE_TARGETS = [1, 2, 3, 4, 5, 9, 10];
+const MODIFIER_VKS = [16, 17, 18, 91, 92];
+const modNames = (mods: number) => (["Ctrl", "Shift", "Alt", "Win"] as const).filter((_, i) => mods & (1 << i));
+const keyLabel = (vk: number, mods: number) => [...modNames(mods), ...(vk && !MODIFIER_VKS.includes(vk) ? [vkName(vk)] : [])].join("+");
+
+function actionValue(a: ButtonAction) {
+  switch (a.kind) {
+    case "macro":
+      return `macro:${a.macro}`;
+    case "mouse":
+    case "dpi":
+      return `${a.kind}:${a.code}`;
+    case "key":
+      return `key:${a.code}:${a.mods}`;
+  }
+  return a.kind; // default, other
+}
+
+function parseAction(v: string): ButtonAction {
+  const [kind = "default", x = "", y = "0"] = v.split(":");
+  if (kind === "macro") return { kind, macro: x, code: 0, mods: 0 };
+  return { kind, macro: "", code: +x || 0, mods: +y || 0 };
+}
+
+function buttonOptions(b: ButtonInfo, macros: Macro[]) {
+  const cur = actionValue(b.action);
+  const group = (label: string, items: [string, string][]) =>
+    items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
+  const keyItems: [string, string][] = b.action.kind === "key" ? [[cur, keyLabel(b.action.code, b.action.mods)]] : [];
+  return (
+    option("default", t("buttons.default"), cur === "default") +
+    (b.action.kind === "other" ? option("other", t("buttons.other"), true) : "") +
+    group(t("buttons.groupMouse"), MOUSE_TARGETS.map((n) => [`mouse:${n}`, buttonName(n)])) +
+    group("DPI", DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
+    group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
+    group(t("buttons.groupMacro"), macros.map((m) => [`macro:${m.id}`, esc(m.name)]))
+  );
+}
+
 async function loadButtons(d: DeviceInfo) {
   const tab = document.querySelector<HTMLElement>('.tab[data-tab="buttons"]')!;
   tab.hidden = true;
@@ -475,13 +596,26 @@ async function loadButtons(d: DeviceInfo) {
       const row = document.createElement("label");
       row.className = "button-row";
       const sel = document.createElement("select");
-      sel.innerHTML = option("", t("buttons.default"), !b.macro) + all.map((m) => option(m.id, esc(m.name), m.id === b.macro)).join("");
-      sel.disabled = b.id === 1; // left button: see Devices.BindButton
-      sel.onchange = () =>
-        attempt(() => Devices.bindButton(d.id, b.id, sel.value), t("buttons.saved")).then((ok) => {
-          if (ok) b.macro = sel.value;
-          else sel.value = b.macro;
+      const render = () => (sel.innerHTML = buttonOptions(b, all));
+      render();
+      sel.disabled = b.id === 1; // the left button keeps clicking
+      const apply = (act: ButtonAction) =>
+        attempt(() => Devices.setButton(d.id, b.id, act), t("buttons.saved")).then((ok) => {
+          if (ok) b.action = act;
+          render();
         });
+      sel.onchange = () => {
+        if (sel.value !== "capture") return void apply(parseAction(sel.value));
+        // The next key (with Ctrl, Shift, Alt, Win) pressed in the window.
+        sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
+        const onKey = (e: KeyboardEvent) => {
+          e.preventDefault();
+          window.removeEventListener("keydown", onKey, true);
+          const mods = (e.ctrlKey ? 1 : 0) | (e.shiftKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+          apply({ kind: "key", macro: "", code: e.keyCode, mods });
+        };
+        window.addEventListener("keydown", onKey, true);
+      };
       const name = document.createElement("span");
       name.textContent = buttonName(b.id);
       row.append(name, sel);
@@ -988,6 +1122,12 @@ $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); //
   credits.replaceChildren(before!, link, after);
 }
 document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
+
+Settings.dpiDisplay().then((on) => ($<HTMLInputElement>("#dpi-display").checked = on));
+$<HTMLInputElement>("#dpi-display").onchange = (e) => attempt(() => Settings.setDPIDisplay((e.target as HTMLInputElement).checked));
+$("#export").onclick = () => attempt(async () => (await Settings.export()) && toast(t("backup.exported")));
+// Everything on the page may change: reload it.
+$("#import").onclick = () => attempt(async () => (await Settings.import()) && location.reload());
 
 const glassSwitch = $<HTMLInputElement>("#glass");
 glassSwitch.checked = glass.on;

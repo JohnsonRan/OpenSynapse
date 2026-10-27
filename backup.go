@@ -1,0 +1,79 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"slices"
+
+	"github.com/egoist/mygo"
+)
+
+// Settings can be saved to a file and loaded on another PC: scenes, smart
+// polling, macros and button bindings, lighting and the app's options.
+
+var backupFilter = []mygo.FileFilter{{Name: "OpenSynapse", Extensions: []string{"json"}}}
+
+// Export saves the settings to a file the user picks. It reports false when
+// the user cancels.
+func (Settings) Export() (bool, error) {
+	path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{
+		Parent: currentWindow(), DefaultPath: "OpenSynapse-settings.json", Filters: backupFilter,
+	})
+	if err != nil || path == "" {
+		return false, err
+	}
+	cfgMu.Lock()
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	cfgMu.Unlock()
+	if err != nil {
+		return false, err
+	}
+	return true, os.WriteFile(path, b, 0o644)
+}
+
+// Import replaces the settings with a file the user picks. It reports false
+// when the user cancels. Buttons bound to macros are restored first, and the
+// imported bindings take over once their devices are found.
+func (Settings) Import() (bool, error) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: currentWindow(), Filters: backupFilter})
+	if err != nil || len(paths) == 0 {
+		return false, err
+	}
+	b, err := os.ReadFile(paths[0])
+	if err != nil {
+		return false, err
+	}
+	next, err := importConfig(b)
+	if err != nil {
+		return false, err
+	}
+	applyBindings(true)
+	cfgMu.Lock()
+	cfg = next
+	cfgMu.Unlock()
+	if err := saveConfig(); err != nil {
+		return false, err
+	}
+	resetAuto()
+	kickBindings()
+	refreshHooks()
+	if w := currentWindow(); w != nil && glassSupported {
+		w.SetVibrancy(glassVibrancy(glassOn()))
+	}
+	return true, nil
+}
+
+// importConfig reads a settings file; one that is not OpenSynapse's fails.
+func importConfig(b []byte) (config, error) {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(b, &raw) != nil || raw["scenes"] == nil && raw["macros"] == nil && raw["smartPoll"] == nil {
+		return config{}, errors.New(tr("err.importFile"))
+	}
+	c := parseConfig(b, defaultConfig())
+	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.normalize() != nil })
+	c.Bindings = slices.DeleteFunc(c.Bindings, func(bd Binding) bool {
+		return !isTriggerVK(bd.Trigger) || !slices.ContainsFunc(c.Macros, func(m Macro) bool { return m.ID == bd.Macro })
+	})
+	return c, nil
+}

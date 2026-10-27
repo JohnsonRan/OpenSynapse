@@ -357,38 +357,6 @@ func (Macros) StopRecording() []MacroEvent {
 	return cleanRecording(ev)
 }
 
-// ButtonInfo is a remappable button and the macro it plays ("" for none).
-type ButtonInfo struct {
-	ID    int    `json:"id"`
-	Macro string `json:"macro"`
-}
-
-// Buttons lists the device's remappable buttons. It fails on devices without
-// Synapse's button commands.
-func (Devices) Buttons(id string) ([]ButtonInfo, error) {
-	d, err := devices.get(id)
-	if err != nil {
-		return nil, err
-	}
-	ids, err := d.Buttons()
-	if err != nil {
-		return nil, err
-	}
-	out := []ButtonInfo{}
-	cfgMu.Lock()
-	defer cfgMu.Unlock()
-	for _, b := range ids {
-		info := ButtonInfo{ID: b}
-		for _, bd := range cfg.Bindings {
-			if bd.Family == d.Family() && bd.Button == b {
-				info.Macro = bd.Macro
-			}
-		}
-		out = append(out, info)
-	}
-	return out, nil
-}
-
 var bindMu sync.Mutex // one bind at a time, so two never take the same trigger
 
 var bindingsKick = make(chan struct{}, 1)

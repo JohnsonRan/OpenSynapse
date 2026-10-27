@@ -38,6 +38,9 @@ Closing the window keeps OpenSynapse running in the notification area (system tr
 - **Polling rate:** 125–8000 Hz. For wireless mice, the mouse and its receiver are both updated.
 - **Power:** battery level, charging state, sleep timeout and low-battery threshold.
 - **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
+- **Lift-off distance:** low, medium or high, or separate distances for lifting and landing (asymmetric).
+- **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. These are stored in the mouse and work without OpenSynapse. Buttons can also play [macros](#macros).
+- **Info:** the firmware version and serial number, with links to Razer's firmware updater and, for mice with a receiver, its pairing guide.
 
 Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.
 
@@ -76,6 +79,8 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
 - The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
 - **Glass effect** (under **Settings**, Windows 11 22H2 or later) makes the window translucent, blurring the desktop and windows behind it.
+- **DPI display** (under **Settings**) shows the new DPI near the bottom of the screen when you press the mouse's DPI button.
+- **Back up settings** (under **Settings**) exports scenes, macros, button bindings and other settings to a file, and imports them, for example on another PC.
 
 ### Updates
 

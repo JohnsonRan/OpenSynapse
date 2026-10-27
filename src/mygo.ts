@@ -32,16 +32,37 @@ export interface AutoStatus {
   rateWhy: string;
 }
 
-/** ButtonInfo is a remappable button and the macro it plays ("" for none). */
+/** ButtonAction is what a button does, as the page shows and sets it. */
+export interface ButtonAction {
+  /** default, macro, mouse, dpi, key, other */
+  kind: string;
+  /** macro: its ID */
+  macro: string;
+  /** mouse: 1–5, 9, 10; dpi: 1 up, 2 down, 6 cycle up, 7 cycle down; key: virtual-key code, 0 for modifiers only */
+  code: number;
+  /** key: modifier bits, left Ctrl 1, Shift 2, Alt 4, Win 8 */
+  mods: number;
+}
+
+/** ButtonInfo is a remappable button and what it does. */
 export interface ButtonInfo {
   id: number;
-  macro: string;
+  action: ButtonAction;
 }
 
 /** DPIStage is one sensitivity stage. */
 export interface DPIStage {
   x: number;
   y: number;
+}
+
+/** DeviceDetails is what the device page's About section shows. */
+export interface DeviceDetails {
+  /** "" when the device does not say */
+  firmware: string;
+  serial: string;
+  /** has a receiver to pair with */
+  pairing: boolean;
 }
 
 /** DeviceInfo describes a connected device and the controls it declares. */
@@ -194,6 +215,20 @@ export interface SmartPoll {
   exceptions: Rule[];
 }
 
+/**
+ * Tracking is the lift-off setting: one distance for lifting and landing, or
+ * separate ones (asymmetric).
+ */
+export interface Tracking {
+  asymmetric: boolean;
+  /** 1 low, 2 medium, 3 high */
+  distance: number;
+  /** asymmetric: 2–26 */
+  liftOff: number;
+  /** asymmetric: 1–25, below LiftOff */
+  landing: number;
+}
+
 // ---- Services ----
 
 /** Devices controls connected Razer devices. */
@@ -213,9 +248,23 @@ export const Devices = {
   buttons(id: string): Promise<ButtonInfo[]> {
     return call("Devices.Buttons", id);
   },
+  /**
+   * Details reads the firmware version and serial number. Through a receiver
+   * they are the mouse's.
+   */
+  details(id: string): Promise<DeviceDetails> {
+    return call("Devices.Details", id);
+  },
   /** List returns connected devices. */
   list(): Promise<DeviceInfo[]> {
     return call("Devices.List");
+  },
+  /**
+   * OpenSupport opens Razer's firmware updater ("firmware") or receiver
+   * pairing ("pairing") page for the device in the browser.
+   */
+  openSupport(id: string, kind: string): Promise<void> {
+    return call("Devices.OpenSupport", id, kind);
   },
   /** Rescan looks for devices again. */
   rescan(): Promise<DeviceInfo[]> {
@@ -224,6 +273,13 @@ export const Devices = {
   /** SetBrightness sets lighting brightness, 0–100. */
   setBrightness(id: string, pct: number): Promise<void> {
     return call("Devices.SetBrightness", id, pct);
+  },
+  /**
+   * SetButton sets what a button does. The left button keeps clicking: if it
+   * were a key or a macro, the mouse could not click.
+   */
+  setButton(id: string, button: number, act: ButtonAction): Promise<void> {
+    return call("Devices.SetButton", id, button, act);
   },
   /** SetDPI sets the current sensitivity (devices without DPI stages). */
   setDPI(id: string, x: number, y: number): Promise<void> {
@@ -256,6 +312,10 @@ export const Devices = {
   setReceiverLEDs(id: string, modes: number[]): Promise<void> {
     return call("Devices.SetReceiverLEDs", id, modes);
   },
+  /** SetTracking sets the lift-off distance. */
+  setTracking(id: string, t: Tracking): Promise<void> {
+    return call("Devices.SetTracking", id, t);
+  },
   /**
    * State reads the device's current settings. It fails only when the device
    * answers none of its declared reads.
@@ -266,6 +326,10 @@ export const Devices = {
   /** TakeTarget returns, once, the page a tray click asked a new window to show. */
   takeTarget(): Promise<string> {
     return call("Devices.TakeTarget");
+  },
+  /** Tracking reads the lift-off distance; it fails on devices without it. */
+  tracking(id: string): Promise<Tracking> {
+    return call("Devices.Tracking", id);
   },
 } as const;
 
@@ -331,9 +395,28 @@ export const Settings = {
   checkForUpdates(): Promise<void> {
     return call("Settings.CheckForUpdates");
   },
+  /** DPIDisplay reports whether DPI changes are shown on the screen. */
+  dpiDisplay(): Promise<boolean> {
+    return call("Settings.DPIDisplay");
+  },
+  /**
+   * Export saves the settings to a file the user picks. It reports false when
+   * the user cancels.
+   */
+  export(): Promise<boolean> {
+    return call("Settings.Export");
+  },
   /** Glass returns the glass theme setting. */
   glass(): Promise<GlassInfo> {
     return call("Settings.Glass");
+  },
+  /**
+   * Import replaces the settings with a file the user picks. It reports false
+   * when the user cancels. Buttons bound to macros are restored first, and the
+   * imported bindings take over once their devices are found.
+   */
+  import(): Promise<boolean> {
+    return call("Settings.Import");
   },
   /** Language returns the language setting. */
   language(): Promise<LanguageInfo> {
@@ -354,6 +437,10 @@ export const Settings = {
   /** SetAutostart turns starting at login on or off. */
   setAutostart(on: boolean): Promise<void> {
     return call("Settings.SetAutostart", on);
+  },
+  /** SetDPIDisplay turns the on-screen DPI display on or off. */
+  setDPIDisplay(on: boolean): Promise<void> {
+    return call("Settings.SetDPIDisplay", on);
   },
   /** SetGlass turns the glass theme on or off; the page restyles itself. */
   setGlass(on: boolean): Promise<void> {

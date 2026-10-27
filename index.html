@@ -73,6 +73,7 @@
           <button class="tab" data-tab="power" data-i18n="tab.power"></button>
           <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
           <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
+          <button class="tab" data-tab="info" data-i18n="tab.info"></button>
         </div>
 
         <div id="tab-perf" class="tab-body">
@@ -92,6 +93,19 @@
           <div class="card" id="card-dpi">
             <div class="card-head"><h2 data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> DPI</span></div>
             <input id="dpi" type="range" min="100" step="50" />
+          </div>
+
+          <div class="card" id="card-lift" hidden>
+            <div class="card-head">
+              <h2><span data-i18n="lift.title"></span><span class="info" tabindex="0" data-i18n-title="lift.more">i</span></h2>
+              <label class="check"><input id="lift-asym" type="checkbox" /> <span data-i18n="lift.asymmetric"></span></label>
+            </div>
+            <div id="lift-sym" class="seg"></div>
+            <div id="lift-asym-body" class="lift-grid" hidden>
+              <label><span class="muted small"><span data-i18n="lift.liftOff"></span> <b id="lift-off-val"></b></span><input id="lift-off" type="range" min="2" max="26" step="1" /></label>
+              <label><span class="muted small"><span data-i18n="lift.landing"></span> <b id="lift-land-val"></b></span><input id="lift-land" type="range" min="1" max="25" step="1" /></label>
+            </div>
+            <div class="row"><span class="muted small" data-i18n="lift.hint"></span><button id="lift-reset" class="ghost" data-i18n="lift.reset"></button></div>
           </div>
 
           <div class="card" id="card-poll">
@@ -144,6 +158,33 @@
               <label><span class="led-dot"></span><span data-i18n="receiver.right"></span><select data-led="2"></select></label>
             </div>
           </div>
+        </div>
+
+        <div id="tab-info" class="tab-body" hidden>
+          <div class="card list">
+            <div class="list-row" id="info-fw-row">
+              <div>
+                <div class="row-title" data-i18n="info.firmware"></div>
+                <div class="muted small" id="info-fw"></div>
+              </div>
+              <button class="ghost" id="info-fw-update" data-i18n="info.firmwareUpdate"></button>
+            </div>
+            <div class="list-row" id="info-sn-row">
+              <div>
+                <div class="row-title" data-i18n="info.serial"></div>
+                <div class="muted small selectable" id="info-sn"></div>
+              </div>
+              <button class="ghost" id="info-sn-copy" data-i18n="info.copy"></button>
+            </div>
+            <div class="list-row" id="info-pair-row">
+              <div>
+                <div class="row-title" data-i18n="info.pairing"></div>
+                <div class="muted small" data-i18n="info.pairingHint"></div>
+              </div>
+              <button class="ghost" id="info-pair" data-i18n="info.pairingGuide"></button>
+            </div>
+          </div>
+          <p class="muted small" data-i18n="info.firmwareHint"></p>
         </div>
 
         <div id="tab-buttons" class="tab-body" hidden>
@@ -272,6 +313,25 @@
               <div class="muted small" data-i18n="settings.notifyHint"></div>
             </div>
             <label class="switch"><input id="notify" type="checkbox" /><i></i></label>
+          </div>
+          <div class="list-row">
+            <div>
+              <div class="row-title" data-i18n="settings.dpiDisplay"></div>
+              <div class="muted small" data-i18n="settings.dpiDisplayHint"></div>
+            </div>
+            <label class="switch"><input id="dpi-display" type="checkbox" /><i></i></label>
+          </div>
+        </div>
+        <div class="card list">
+          <div class="list-row">
+            <div>
+              <div class="row-title" data-i18n="backup.title"></div>
+              <div class="muted small" data-i18n="backup.hint"></div>
+            </div>
+            <div class="row-actions">
+              <button id="import" class="ghost" data-i18n="backup.import"></button>
+              <button id="export" class="ghost" data-i18n="backup.export"></button>
+            </div>
           </div>
         </div>
       </section>

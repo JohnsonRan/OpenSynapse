@@ -1193,3 +1193,35 @@ button.inline-link:hover {
 :root.glass #toast {
   background: #1c1c1c;
 }
+
+/* ---------- lift-off, settings actions ---------- */
+
+.lift-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.lift-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.selectable {
+  user-select: text;
+}
+
+optgroup {
+  background: #1c1c1c;
+  color: var(--muted);
+}
+
+option {
+  color: var(--fg);
+}

@@ -41,6 +41,8 @@ var messages = map[string]map[string]string{
 		"err.macroMissing": "找不到该宏",
 		"err.leftButton":   "左键不能绑定宏",
 		"err.noTrigger":    "最多只能绑定 %d 个按键",
+		"err.buttonAction": "无效的按键功能",
+		"err.importFile":   "这不是 OpenSynapse 的设置文件",
 	},
 	"en": {
 		"tray.open":        "Open OpenSynapse",
@@ -72,6 +74,8 @@ var messages = map[string]map[string]string{
 		"err.macroMissing": "Macro not found",
 		"err.leftButton":   "The left button can't play a macro",
 		"err.noTrigger":    "At most %d buttons can play macros",
+		"err.buttonAction": "Invalid button function",
+		"err.importFile":   "This isn't an OpenSynapse settings file",
 	},
 	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
 	"ja": {
@@ -104,6 +108,8 @@ var messages = map[string]map[string]string{
 		"err.macroMissing": "マクロが見つかりません",
 		"err.leftButton":   "左ボタンにはマクロを割り当てられません",
 		"err.noTrigger":    "マクロを割り当てられるボタンは %d 個までです",
+		"err.buttonAction": "ボタンの機能が無効です",
+		"err.importFile":   "OpenSynapse の設定ファイルではありません",
 	},
 }
 
