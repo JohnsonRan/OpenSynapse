@@ -8,9 +8,9 @@
     "dev": "mygo dev",
     "build": "mygo build",
     "generate": "mygo generate",
-    "dev:web": "vite",
-    "build:web": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "dev:web": "vite web",
+    "build:web": "tsc -p web && vite build web",
+    "typecheck": "tsc -p web"
   },
   "dependencies": {
     "mygo-runtime": "^0.7.1"

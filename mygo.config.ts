@@ -6,15 +6,16 @@ export default defineConfig({
   identifier: "dev.opensynapse.app",
   // The release workflow checks that the tag is v + this version.
   version: pkg.version,
-  // Not resources/icon.png: that folder is copied next to the executable.
-  icon: "assets/icon.png",
+  // The Go app; not resources/icon.png, a folder copied next to the executable.
+  main: "./cmd/opensynapse",
+  icon: "cmd/opensynapse/assets/icon.png",
   // `mygo dev` runs devCommand and loads devUrl; `mygo build` runs
   // buildCommand and embeds frontendDist into the app.
   devUrl: "http://localhost:5173",
   devCommand: "bun run dev:web",
   buildCommand: "bun run build:web",
   frontendDist: "dist",
-  bindings: "src/mygo.ts",
+  bindings: "web/src/mygo.ts",
   out: "build",
   // Releases are signed with the secret key (MYGO_UPDATER_PRIVATE_KEY in CI);
   // installed and portable apps accept only updates signed with it.
