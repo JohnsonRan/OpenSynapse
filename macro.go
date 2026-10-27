@@ -18,13 +18,22 @@ import (
 // buttons get their original function back. The DeathAdder V4 Pro has no
 // macro memory, and this works on any device that takes a key assignment.
 
-// MacroEvent is one input, sent Delay ms after the previous one.
+// MacroEvent is one input, sent Delay ms after the previous one:
+//   - key: Code is a virtual-key code, Down presses or releases it
+//   - mouse: Code is a button, 1 left, 2 right, 3 middle, 4 back, 5 forward
+//   - move: the pointer moves by X, Y (relative, as the mouse would move it)
+//   - wheel, hwheel: Code notches, up or right when positive
 type MacroEvent struct {
-	Kind  string `json:"kind"` // key (Code: virtual-key code) or mouse (Code: 1 left, 2 right, 3 middle, 4 back, 5 forward)
+	Kind  string `json:"kind"`
 	Code  int    `json:"code"`
 	Down  bool   `json:"down"`
+	X     int    `json:"x"`
+	Y     int    `json:"y"`
 	Delay int    `json:"delay"`
 }
+
+// pressable events go down and up; the others happen at once.
+func (e MacroEvent) pressable() bool { return e.Kind == "key" || e.Kind == "mouse" }
 
 // Macro is a recorded or edited input sequence.
 type Macro struct {
@@ -39,6 +48,7 @@ type Macro struct {
 type Binding struct {
 	Family   string           `json:"family"` // device family: cable and receiver share a binding
 	Button   int              `json:"button"`
+	Layer    int              `json:"layer"` // razer.LayerNormal or LayerHypershift
 	Macro    string           `json:"macro"`
 	Trigger  int              `json:"trigger"`  // virtual-key code, F13–F24
 	Original razer.Assignment `json:"original"` // restored on unbind
@@ -67,7 +77,7 @@ func isTriggerAssignment(a razer.Assignment) bool {
 // shortcut: only the DeathAdder V4 Pro defaults are known (its DPI button 0x60 cycles DPI); read the defaults from the device table once Synapse's are decoded.
 func defaultAssignment(button int) razer.Assignment {
 	if button == 0x60 {
-		return razer.Assignment{Fn: 6, Data: []byte{6}}
+		return razer.Assignment{Fn: razer.FnDPI, Data: []byte{6}}
 	}
 	return razer.Assignment{Fn: razer.FnMouse, Data: []byte{byte(button)}}
 }
@@ -106,6 +116,10 @@ func (m *Macro) normalize() error {
 			bad = bad || e.Code < 1 || e.Code > 254
 		case "mouse":
 			bad = bad || e.Code < 1 || e.Code > 5
+		case "move":
+			bad = bad || e.X == 0 && e.Y == 0 || abs(e.X) > 10000 || abs(e.Y) > 10000
+		case "wheel", "hwheel":
+			bad = bad || e.Code == 0 || abs(e.Code) > 100
 		default:
 			bad = true
 		}
@@ -224,6 +238,9 @@ func play(m Macro, stop <-chan struct{}) {
 			}
 			total += e.Delay
 			sendEvent(e)
+			if !e.pressable() {
+				continue
+			}
 			k := inputKey{e.Kind, e.Code}
 			if e.Down {
 				down[k] = e
@@ -240,12 +257,41 @@ func play(m Macro, stop <-chan struct{}) {
 
 // ---------- recording ----------
 
-var rec struct {
+type recorder struct {
 	sync.Mutex
 	on     bool
+	moves  bool   // pointer movement is recorded too
 	last   uint32 // hook timestamp of the previous event, ms
 	down   map[inputKey]bool
 	events []MacroEvent
+	pt     [2]int32 // pointer position of the previous move
+	havePt bool
+}
+
+var rec recorder
+
+// moveStep: moves closer together than this are recorded as one.
+const moveStep = 15
+
+// recordMove runs from the mouse hook with the pointer's position.
+func recordMove(x, y int32, at uint32) {
+	rec.Lock()
+	defer rec.Unlock()
+	if !rec.on || !rec.moves {
+		return
+	}
+	dx, dy := int(x-rec.pt[0]), int(y-rec.pt[1])
+	first := !rec.havePt
+	rec.pt, rec.havePt = [2]int32{x, y}, true
+	if first || dx == 0 && dy == 0 {
+		return
+	}
+	if n := len(rec.events); n > 0 && rec.events[n-1].Kind == "move" && at-rec.last < moveStep {
+		rec.events[n-1].X += dx
+		rec.events[n-1].Y += dy
+		return
+	}
+	rec.add(MacroEvent{Kind: "move", X: dx, Y: dy}, at)
 }
 
 // recordInput runs from the hooks.
@@ -255,16 +301,23 @@ func recordInput(e MacroEvent, at uint32) {
 	if !rec.on {
 		return
 	}
-	k := inputKey{e.Kind, e.Code}
-	if e.Down && rec.down[k] {
-		return // key repeat
+	if e.pressable() {
+		k := inputKey{e.Kind, e.Code}
+		if e.Down && rec.down[k] {
+			return // key repeat
+		}
+		rec.down[k] = e.Down
 	}
-	rec.down[k] = e.Down
-	if len(rec.events) > 0 {
-		e.Delay = int(at - rec.last)
+	rec.add(e, at)
+}
+
+// add appends an event with its delay; rec is locked.
+func (r *recorder) add(e MacroEvent, at uint32) {
+	if len(r.events) > 0 {
+		e.Delay = int(at - r.last)
 	}
-	rec.last = at
-	rec.events = append(rec.events, e)
+	r.last = at
+	r.events = append(r.events, e)
 }
 
 func hooksWanted() (keyboard, mouse bool) {
@@ -277,20 +330,37 @@ func hooksWanted() (keyboard, mouse bool) {
 	return bound || recording, recording
 }
 
-// cleanRecording drops the click on the stop button (the last left down/up)
-// and releases that have no press in the recording.
+// cleanRecording drops the click on the stop button (the last left down/up,
+// and the pointer's trip to it) and releases that have no press in the
+// recording.
 func cleanRecording(ev []MacroEvent) []MacroEvent {
-	if n := len(ev); n >= 2 && ev[n-2] == (MacroEvent{"mouse", leftButton, true, ev[n-2].Delay}) && ev[n-1].Kind == "mouse" && ev[n-1].Code == leftButton && !ev[n-1].Down {
-		ev = ev[:n-2]
+	trimMoves := func() {
+		for len(ev) > 0 && ev[len(ev)-1].Kind == "move" {
+			ev = ev[:len(ev)-1]
+		}
+	}
+	trimMoves()
+	isLeft := func(e MacroEvent, down bool) bool { return e.Kind == "mouse" && e.Code == leftButton && e.Down == down }
+	if n := len(ev); n > 0 && isLeft(ev[n-1], false) {
+		i := n - 2
+		for i >= 0 && ev[i].Kind == "move" {
+			i--
+		}
+		if i >= 0 && isLeft(ev[i], true) {
+			ev = ev[:i]
+			trimMoves()
+		}
 	}
 	out := []MacroEvent{}
 	down := map[inputKey]bool{}
 	for _, e := range ev {
-		k := inputKey{e.Kind, e.Code}
-		if !e.Down && !down[k] {
-			continue
+		if e.pressable() {
+			k := inputKey{e.Kind, e.Code}
+			if !e.Down && !down[k] {
+				continue
+			}
+			down[k] = e.Down
 		}
-		down[k] = e.Down
 		out = append(out, e)
 	}
 	if len(out) > 0 {
@@ -339,10 +409,11 @@ func (Macros) Delete(id string) error {
 	return saveConfig()
 }
 
-// StartRecording captures keys and mouse buttons until StopRecording.
-func (Macros) StartRecording() {
+// StartRecording captures keys, mouse buttons and the wheel until
+// StopRecording, and with moves the pointer's movement too.
+func (Macros) StartRecording(moves bool) {
 	rec.Lock()
-	rec.on, rec.events, rec.down = true, nil, map[inputKey]bool{}
+	rec.on, rec.moves, rec.events, rec.down, rec.havePt = true, moves, nil, map[inputKey]bool{}, false
 	rec.Unlock()
 	refreshHooks()
 }
@@ -405,14 +476,14 @@ func applyBindings(restore bool) {
 			if restore {
 				want = b.Original
 			}
-			cur, err := d.ButtonAssignment(b.Button)
+			cur, err := d.ButtonAssignment(b.Button, b.Layer)
 			if err != nil {
 				break // asleep or gone: skip the device
 			}
 			if cur.Fn == want.Fn && slices.Equal(cur.Data, want.Data) {
 				continue
 			}
-			if err := d.SetButtonAssignment(b.Button, want); err != nil {
+			if err := d.SetButtonAssignment(b.Button, b.Layer, want); err != nil {
 				log.Println("button", b.Button, "of", d.ID, err)
 			}
 		}
@@ -422,19 +493,19 @@ func applyBindings(restore bool) {
 // BindButton makes a button play a macro; an empty macro restores the button.
 // The left button cannot be bound: if OpenSynapse is not running it would
 // only send F13, leaving no way to click.
-func (Devices) BindButton(id string, button int, macro string) error {
+func (Devices) BindButton(id string, button, layer int, macro string) error {
 	bindMu.Lock()
 	defer bindMu.Unlock()
 	d, err := devices.get(id)
 	if err != nil {
 		return err
 	}
-	if button == leftButton {
+	if button == leftButton && layer == razer.LayerNormal {
 		return errors.New(tr("err.leftButton"))
 	}
 	fam := d.Family()
 	find := func() int {
-		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == fam && b.Button == button })
+		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == fam && b.Button == button && b.Layer == layer })
 	}
 	cfgMu.Lock()
 	i := find()
@@ -445,7 +516,7 @@ func (Devices) BindButton(id string, button int, macro string) error {
 		}
 		orig := cfg.Bindings[i].Original
 		cfgMu.Unlock()
-		if err := d.SetButtonAssignment(button, orig); err != nil {
+		if err := d.SetButtonAssignment(button, layer, orig); err != nil {
 			return err
 		}
 		cfgMu.Lock()
@@ -470,19 +541,26 @@ func (Devices) BindButton(id string, button int, macro string) error {
 	if trig == 0 {
 		return errors.New(tr("err.noTrigger", numTriggers))
 	}
-	orig, err := d.ButtonAssignment(button)
+	orig, err := d.ButtonAssignment(button, layer)
 	if err != nil {
 		return err
 	}
 	if isTriggerAssignment(orig) {
 		orig = defaultAssignment(button)
 	}
-	if err := d.SetButtonAssignment(button, triggerAssignment(trig)); err != nil {
+	if err := d.SetButtonAssignment(button, layer, triggerAssignment(trig)); err != nil {
 		return err
 	}
 	cfgMu.Lock()
-	cfg.Bindings = append(cfg.Bindings, Binding{Family: fam, Button: button, Macro: macro, Trigger: trig, Original: orig})
+	cfg.Bindings = append(cfg.Bindings, Binding{Family: fam, Button: button, Layer: layer, Macro: macro, Trigger: trig, Original: orig})
 	cfgMu.Unlock()
 	refreshHooks()
 	return saveConfig()
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

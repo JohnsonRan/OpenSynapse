@@ -1225,3 +1225,33 @@ optgroup {
 option {
   color: var(--fg);
 }
+
+/* ---------- button layers, move and wheel steps ---------- */
+
+.seg.seg-small button {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.step-what.amount span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-what.amount label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.step-what.amount input {
+  width: 72px;
+}
+
+.step-what.amount::before {
+  content: "↔ ";
+  color: var(--accent);
+}

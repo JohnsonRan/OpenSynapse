@@ -134,8 +134,18 @@ func keyboardProc(code, wparam, lparam uintptr) uintptr {
 func mouseProc(code, wparam, lparam uintptr) uintptr {
 	if int32(code) == 0 {
 		m := *(**mouseHookData)(unsafe.Pointer(&lparam))
-		if btn, down, ok := mouseButton(uint32(wparam), m.data); ok && m.flags&llmhfInjected == 0 {
-			recordInput(MacroEvent{Kind: "mouse", Code: btn, Down: down}, m.time)
+		if m.flags&llmhfInjected == 0 {
+			switch msg := uint32(wparam); msg {
+			case 0x0200: // WM_MOUSEMOVE
+				recordMove(m.x, m.y, m.time)
+			case 0x020A, 0x020E: // WM_MOUSEWHEEL, WM_MOUSEHWHEEL
+				kind := map[uint32]string{0x020A: "wheel", 0x020E: "hwheel"}[msg]
+				recordInput(MacroEvent{Kind: kind, Code: notches(int16(m.data >> 16))}, m.time)
+			default:
+				if btn, down, ok := mouseButton(msg, m.data); ok {
+					recordInput(MacroEvent{Kind: "mouse", Code: btn, Down: down}, m.time)
+				}
+			}
 		}
 	}
 	r, _, _ := procCallNextHookEx.Call(0, code, wparam, lparam)
@@ -177,6 +187,20 @@ type mouseInput struct {
 var sendEvent = sendInput
 
 func sendInput(e MacroEvent) {
+	switch e.Kind {
+	case "move", "wheel", "hwheel":
+		in := mouseInput{}
+		switch e.Kind {
+		case "move":
+			in.dx, in.dy, in.flags = int32(e.X), int32(e.Y), 0x0001 // MOUSEEVENTF_MOVE, relative
+		case "wheel":
+			in.data, in.flags = uint32(int32(e.Code*120)), 0x0800 // MOUSEEVENTF_WHEEL
+		case "hwheel":
+			in.data, in.flags = uint32(int32(e.Code*120)), 0x1000 // MOUSEEVENTF_HWHEEL
+		}
+		procSendInput.Call(1, uintptr(unsafe.Pointer(&in)), unsafe.Sizeof(in))
+		return
+	}
 	if e.Kind == "mouse" {
 		in := mouseInput{}
 		bits := [...]uint32{1: 0x0002, 2: 0x0008, 3: 0x0020, 4: 0x0080, 5: 0x0080}
@@ -205,4 +229,16 @@ func sendInput(e MacroEvent) {
 		in.flags |= 0x0002 // KEYEVENTF_KEYUP
 	}
 	procSendInput.Call(1, uintptr(unsafe.Pointer(&in)), unsafe.Sizeof(in))
+}
+
+// notches turns a wheel delta into whole notches (120 each), at least one;
+// high-resolution wheels send less than a notch at a time.
+func notches(delta int16) int {
+	n := int(delta) / 120
+	if n == 0 && delta > 0 {
+		n = 1
+	} else if n == 0 && delta < 0 {
+		n = -1
+	}
+	return n
 }

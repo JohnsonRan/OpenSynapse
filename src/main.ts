@@ -563,20 +563,24 @@ function parseAction(v: string): ButtonAction {
   return { kind, macro: "", code: +x || 0, mods: +y || 0 };
 }
 
-function buttonOptions(b: ButtonInfo, macros: Macro[]) {
-  const cur = actionValue(b.action);
+function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
+  const cur = actionValue(act);
   const group = (label: string, items: [string, string][]) =>
     items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
-  const keyItems: [string, string][] = b.action.kind === "key" ? [[cur, keyLabel(b.action.code, b.action.mods)]] : [];
+  const keyItems: [string, string][] = act.kind === "key" ? [[cur, keyLabel(act.code, act.mods)]] : [];
   return (
     option("default", t("buttons.default"), cur === "default") +
-    (b.action.kind === "other" ? option("other", t("buttons.other"), true) : "") +
+    (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
     group(t("buttons.groupMouse"), MOUSE_TARGETS.map((n) => [`mouse:${n}`, buttonName(n)])) +
     group("DPI", DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
+    (layer === 0 ? group("Hypershift", [["hypershift", t("buttons.hypershift")]]) : "") +
     group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
     group(t("buttons.groupMacro"), macros.map((m) => [`macro:${m.id}`, esc(m.name)]))
   );
 }
+
+// Which layer the Buttons tab edits: 0 normal, 1 while Hypershift is held.
+let buttonLayer = 0;
 
 async function loadButtons(d: DeviceInfo) {
   const tab = document.querySelector<HTMLElement>('.tab[data-tab="buttons"]')!;
@@ -591,37 +595,52 @@ async function loadButtons(d: DeviceInfo) {
   if (dev?.id !== d.id) return;
   tab.hidden = false;
   document.querySelector<HTMLElement>(".tabs")!.hidden = false;
-  $("#button-list").replaceChildren(
-    ...buttons.map((b) => {
-      const row = document.createElement("label");
-      row.className = "button-row";
-      const sel = document.createElement("select");
-      const render = () => (sel.innerHTML = buttonOptions(b, all));
-      render();
-      sel.disabled = b.id === 1; // the left button keeps clicking
-      const apply = (act: ButtonAction) =>
-        attempt(() => Devices.setButton(d.id, b.id, act), t("buttons.saved")).then((ok) => {
-          if (ok) b.action = act;
-          render();
-        });
-      sel.onchange = () => {
-        if (sel.value !== "capture") return void apply(parseAction(sel.value));
-        // The next key (with Ctrl, Shift, Alt, Win) pressed in the window.
-        sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
-        const onKey = (e: KeyboardEvent) => {
-          e.preventDefault();
-          window.removeEventListener("keydown", onKey, true);
-          const mods = (e.ctrlKey ? 1 : 0) | (e.shiftKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
-          apply({ kind: "key", macro: "", code: e.keyCode, mods });
+  const renderList = () => {
+    const layer = buttonLayer;
+    const hasShift = buttons.some((b) => b.action.kind === "hypershift");
+    $("#button-layer-hint").textContent = layer === 1 && !hasShift ? t("buttons.layerNoShift") : t(layer ? "buttons.layerShiftHint" : "buttons.hint");
+    $("#button-list").replaceChildren(
+      ...buttons.map((b) => {
+        const row = document.createElement("label");
+        row.className = "button-row";
+        const sel = document.createElement("select");
+        const cur = () => (layer ? b.shift : b.action);
+        const render = () => (sel.innerHTML = buttonOptions(cur(), layer, all));
+        render();
+        sel.disabled = b.id === 1 && layer === 0; // the left button keeps clicking
+        const apply = (act: ButtonAction) =>
+          attempt(() => Devices.setButton(d.id, b.id, layer, act), t("buttons.saved")).then((ok) => {
+            if (ok) {
+              if (layer) b.shift = act;
+              else b.action = act;
+            }
+            if (ok && layer === 0) renderList(); // the Hypershift hint may change
+            else render();
+          });
+        sel.onchange = () => {
+          if (sel.value !== "capture") return void apply(parseAction(sel.value));
+          // The next key (with Ctrl, Shift, Alt, Win) pressed in the window.
+          sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
+          const onKey = (e: KeyboardEvent) => {
+            e.preventDefault();
+            window.removeEventListener("keydown", onKey, true);
+            const mods = (e.ctrlKey ? 1 : 0) | (e.shiftKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+            apply({ kind: "key", macro: "", code: e.keyCode, mods });
+          };
+          window.addEventListener("keydown", onKey, true);
         };
-        window.addEventListener("keydown", onKey, true);
-      };
-      const name = document.createElement("span");
-      name.textContent = buttonName(b.id);
-      row.append(name, sel);
-      return row;
-    }),
-  );
+        const name = document.createElement("span");
+        name.textContent = buttonName(b.id);
+        row.append(name, sel);
+        return row;
+      }),
+    );
+  };
+  segmented($("#button-layer"), [0, 1], buttonLayer, (v) => t(v ? "buttons.layerShift" : "buttons.layerNormal"), (v) => {
+    buttonLayer = v;
+    renderList();
+  });
+  renderList();
 }
 
 // ---------- macros ----------
@@ -738,7 +757,13 @@ function renderSteps() {
         <span class="step-delay"><input type="number" min="0" max="600000" step="10" title="${t("macros.delay")}" /> ms</span>
         <span class="step-what ${e.down ? "down" : "up"}"></span>
         <button class="ghost x" title="${t("macros.deleteStep")}">✕</button>`;
-      row.querySelector(".step-what")!.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
+      const what = row.querySelector<HTMLElement>(".step-what")!;
+      if (e.kind === "key" || e.kind === "mouse") {
+        what.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
+      } else {
+        what.className = "step-what amount";
+        what.append(stepAmount(e));
+      }
       const delay = row.querySelector<HTMLInputElement>("input")!;
       delay.value = String(e.delay);
       delay.onchange = () => {
@@ -756,13 +781,49 @@ function renderSteps() {
   );
 }
 
-// A press and its release, as a manual add.
-function addPress(kind: string, code: number) {
+// The editable amount of a move or wheel step: X and Y, or notches.
+function stepAmount(e: MacroEvent) {
+  const box = document.createElement("span");
+  const num = (label: string, get: () => number, set: (v: number) => void) => {
+    const l = document.createElement("label");
+    const input = Object.assign(document.createElement("input"), { type: "number", value: String(get()) });
+    input.min = "-10000";
+    input.max = "10000";
+    input.onchange = () => {
+      set(Math.round(+input.value) || 0);
+      input.value = String(get());
+      saveMacro();
+    };
+    l.append(label, input);
+    return l;
+  };
+  if (e.kind === "move") {
+    box.append(t("macros.move"), num("X", () => e.x, (v) => (e.x = v)), num("Y", () => e.y, (v) => (e.y = v)));
+  } else {
+    const clamp = (v: number) => Math.max(-100, Math.min(100, v)) || (e.code > 0 ? 1 : -1);
+    box.append(t(e.kind === "wheel" ? "macros.wheel" : "macros.hwheel"), num("", () => e.code, (v) => (e.code = clamp(v))));
+  }
+  return box;
+}
+
+const step = (kind: string, code: number, down: boolean, x = 0, y = 0): MacroEvent => ({
+  kind,
+  code,
+  down,
+  x,
+  y,
+  delay: 50,
+});
+
+// A press and its release, or a move or wheel step, as a manual add.
+function addSteps(...ev: MacroEvent[]) {
   if (!macro) return;
-  macro.events.push({ kind, code, down: true, delay: macro.events.length ? 50 : 0 }, { kind, code, down: false, delay: 50 });
+  if (!macro.events.length) ev[0]!.delay = 0;
+  macro.events.push(...ev);
   renderSteps();
   saveMacro();
 }
+const addPress = (kind: string, code: number) => addSteps(step(kind, code, true), step(kind, code, false));
 
 $("#add-macro").onclick = () => {
   if (recording) return;
@@ -789,7 +850,7 @@ $("#macro-delete").onclick = () => {
 $("#macro-record").onclick = async () => {
   if (!macro) return;
   if (!recording) {
-    if (!(await attempt(() => Macros.startRecording()))) return;
+    if (!(await attempt(() => Macros.startRecording($<HTMLInputElement>("#record-moves").checked)))) return;
     recording = true;
   } else {
     recording = false;
@@ -820,9 +881,19 @@ $("#add-key").onclick = () => {
 };
 
 const addMouse = $<HTMLSelectElement>("#add-mouse");
-addMouse.innerHTML = option("", t("macros.addMouse"), true) + MOUSE_BUTTONS.map((b) => option(b, buttonName(b), false)).join("");
+addMouse.innerHTML =
+  option("", t("macros.addMouse"), true) +
+  MOUSE_BUTTONS.map((b) => option(b, buttonName(b), false)).join("") +
+  option("wheel:1", t("macros.addWheelUp"), false) +
+  option("wheel:-1", t("macros.addWheelDown"), false) +
+  option("hwheel:1", t("macros.addWheelRight"), false) +
+  option("hwheel:-1", t("macros.addWheelLeft"), false) +
+  option("move", t("macros.addMove"), false);
 addMouse.onchange = () => {
-  if (addMouse.value) addPress("mouse", +addMouse.value);
+  const [kind, n] = addMouse.value.split(":");
+  if (kind === "move") addSteps(step("move", 0, false, 100, 0));
+  else if (n) addSteps(step(kind!, +n, false));
+  else if (kind) addPress("mouse", +kind);
   addMouse.value = "";
 };
 

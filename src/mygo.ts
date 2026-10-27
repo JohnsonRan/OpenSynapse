@@ -34,7 +34,7 @@ export interface AutoStatus {
 
 /** ButtonAction is what a button does, as the page shows and sets it. */
 export interface ButtonAction {
-  /** default, macro, mouse, dpi, key, other */
+  /** default, macro, mouse, dpi, key, hypershift, other */
   kind: string;
   /** macro: its ID */
   macro: string;
@@ -44,10 +44,13 @@ export interface ButtonAction {
   mods: number;
 }
 
-/** ButtonInfo is a remappable button and what it does. */
+/** ButtonInfo is a remappable button and what it does on each layer. */
 export interface ButtonInfo {
   id: number;
+  /** normally */
   action: ButtonAction;
+  /** while Hypershift is held */
+  shift: ButtonAction;
 }
 
 /** DPIStage is one sensitivity stage. */
@@ -153,12 +156,19 @@ export interface Macro {
   count: number;
 }
 
-/** MacroEvent is one input, sent Delay ms after the previous one. */
+/**
+ * MacroEvent is one input, sent Delay ms after the previous one:
+ *   - key: Code is a virtual-key code, Down presses or releases it
+ *   - mouse: Code is a button, 1 left, 2 right, 3 middle, 4 back, 5 forward
+ *   - move: the pointer moves by X, Y (relative, as the mouse would move it)
+ *   - wheel, hwheel: Code notches, up or right when positive
+ */
 export interface MacroEvent {
-  /** key (Code: virtual-key code) or mouse (Code: 1 left, 2 right, 3 middle, 4 back, 5 forward) */
   kind: string;
   code: number;
   down: boolean;
+  x: number;
+  y: number;
   delay: number;
 }
 
@@ -238,8 +248,8 @@ export const Devices = {
    * The left button cannot be bound: if OpenSynapse is not running it would
    * only send F13, leaving no way to click.
    */
-  bindButton(id: string, button: number, macro: string): Promise<void> {
-    return call("Devices.BindButton", id, button, macro);
+  bindButton(id: string, button: number, layer: number, macro: string): Promise<void> {
+    return call("Devices.BindButton", id, button, layer, macro);
   },
   /**
    * Buttons lists the device's remappable buttons. It fails on devices without
@@ -275,11 +285,11 @@ export const Devices = {
     return call("Devices.SetBrightness", id, pct);
   },
   /**
-   * SetButton sets what a button does. The left button keeps clicking: if it
-   * were a key or a macro, the mouse could not click.
+   * SetButton sets what a button does on a layer. The left button keeps
+   * clicking normally: as a key or a macro, the mouse could not click.
    */
-  setButton(id: string, button: number, act: ButtonAction): Promise<void> {
-    return call("Devices.SetButton", id, button, act);
+  setButton(id: string, button: number, layer: number, act: ButtonAction): Promise<void> {
+    return call("Devices.SetButton", id, button, layer, act);
   },
   /** SetDPI sets the current sensitivity (devices without DPI stages). */
   setDPI(id: string, x: number, y: number): Promise<void> {
@@ -347,9 +357,12 @@ export const Macros = {
   save(m: Macro): Promise<Macro> {
     return call("Macros.Save", m);
   },
-  /** StartRecording captures keys and mouse buttons until StopRecording. */
-  startRecording(): Promise<void> {
-    return call("Macros.StartRecording");
+  /**
+   * StartRecording captures keys, mouse buttons and the wheel until
+   * StopRecording, and with moves the pointer's movement too.
+   */
+  startRecording(moves: boolean): Promise<void> {
+    return call("Macros.StartRecording", moves);
   },
   /** StopRecording returns what was recorded. */
   stopRecording(): Promise<MacroEvent[]> {

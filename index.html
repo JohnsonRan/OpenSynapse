@@ -189,8 +189,11 @@
 
         <div id="tab-buttons" class="tab-body" hidden>
           <div class="card">
-            <div class="card-head"><h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="buttons.more">i</span></h2></div>
-            <p class="muted small" data-i18n="buttons.hint"></p>
+            <div class="card-head">
+              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="buttons.more">i</span></h2>
+              <div id="button-layer" class="seg seg-small"></div>
+            </div>
+            <p class="muted small" id="button-layer-hint"></p>
             <div id="button-list"></div>
           </div>
         </div>
@@ -221,7 +224,10 @@
             </div>
             <div class="card-head sub-head">
               <h3 data-i18n="macros.steps"></h3>
-              <button id="macro-record" class="ghost"></button>
+              <div class="row-actions">
+                <label class="check"><input id="record-moves" type="checkbox" /> <span data-i18n="macros.recordMoves"></span></label>
+                <button id="macro-record" class="ghost"></button>
+              </div>
             </div>
             <p id="macro-recording" class="small accent" data-i18n="macros.recording" hidden></p>
             <div id="macro-steps"></div>

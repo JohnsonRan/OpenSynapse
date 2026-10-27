@@ -21,9 +21,17 @@ type Assignment struct {
 const (
 	FnMouse = 1 // data: mouse button code (1 left … 5 forward, 9/10 wheel)
 	FnKey   = 2 // data: modifier bits, HID keyboard usage
+	FnDPI   = 6 // data: 1 up, 2 down, 6 cycle up, 7 cycle down
+	// FnHypershift: while the button is held, the other buttons do what their
+	// Hypershift layer says (data [1], as Synapse writes it).
+	FnHypershift = 12
 )
 
-const buttonNormal = 0 // the normal layer; 1 is Hypershift
+// Button layers: what a button does normally, and while a Hypershift button is held.
+const (
+	LayerNormal     = 0
+	LayerHypershift = 1
+)
 
 // Buttons lists the device's remappable button ids.
 func (d *Device) Buttons() ([]int, error) {
@@ -43,9 +51,9 @@ func (d *Device) Buttons() ([]int, error) {
 	return out, nil
 }
 
-// ButtonAssignment reads what a button does now.
-func (d *Device) ButtonAssignment(button int) (Assignment, error) {
-	r, err := d.run("synapse_buttons", 0x02, 0x8C, 80, noStore, byte(button), buttonNormal)
+// ButtonAssignment reads what a button does now on a layer.
+func (d *Device) ButtonAssignment(button, layer int) (Assignment, error) {
+	r, err := d.run("synapse_buttons", 0x02, 0x8C, 80, noStore, byte(button), byte(layer))
 	if err != nil {
 		return Assignment{}, err
 	}
@@ -60,11 +68,11 @@ func (d *Device) ButtonAssignment(button int) (Assignment, error) {
 // SetButtonAssignment changes what a button does now. On the DeathAdder V4
 // Pro only profile 0 (noStore) takes effect; profile 1 (varStore) accepts the
 // write but the button keeps its old function.
-func (d *Device) SetButtonAssignment(button int, as Assignment) error {
+func (d *Device) SetButtonAssignment(button, layer int, as Assignment) error {
 	if len(as.Data) > 75 {
 		return errors.New("button data too long")
 	}
-	args := append([]byte{noStore, byte(button), buttonNormal, as.Fn, byte(len(as.Data))}, as.Data...)
+	args := append([]byte{noStore, byte(button), byte(layer), as.Fn, byte(len(as.Data))}, as.Data...)
 	_, err := d.run("synapse_buttons", 0x02, 0x0C, 80, args...)
 	return err
 }

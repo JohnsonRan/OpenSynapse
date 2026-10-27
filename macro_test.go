@@ -35,8 +35,13 @@ func TestTriggers(t *testing.T) {
 	}
 }
 
-func key(code int, down bool, delay int) MacroEvent { return MacroEvent{"key", code, down, delay} }
-func btn(code int, down bool, delay int) MacroEvent { return MacroEvent{"mouse", code, down, delay} }
+func key(code int, down bool, delay int) MacroEvent {
+	return MacroEvent{Kind: "key", Code: code, Down: down, Delay: delay}
+}
+func btn(code int, down bool, delay int) MacroEvent {
+	return MacroEvent{Kind: "mouse", Code: code, Down: down, Delay: delay}
+}
+func move(x, y int) MacroEvent { return MacroEvent{Kind: "move", X: x, Y: y} }
 
 func TestCleanRecording(t *testing.T) {
 	got := cleanRecording([]MacroEvent{
@@ -129,11 +134,45 @@ func TestMacroNormalize(t *testing.T) {
 		{Name: ""},
 		{Name: "x", Mode: "repeat", Count: 0},
 		{Name: "x", Events: []MacroEvent{btn(6, true, 0)}},
-		{Name: "x", Events: []MacroEvent{{Kind: "wheel", Code: 1}}},
+		{Name: "x", Events: []MacroEvent{{Kind: "scroll", Code: 1}}},
 		{Name: "x", Events: []MacroEvent{key(0x41, true, -1)}},
 	} {
 		if bad.normalize() == nil {
 			t.Errorf("accepted %+v", bad)
 		}
+	}
+}
+
+func TestCleanRecordingMoves(t *testing.T) {
+	wheel := MacroEvent{Kind: "wheel", Code: -2, Delay: 20}
+	got := cleanRecording([]MacroEvent{
+		move(3, 0), key(0x41, true, 10), key(0x41, false, 10), wheel,
+		move(40, 10), move(30, 5), // to the stop button
+		btn(1, true, 300), move(1, 0), btn(1, false, 80), move(0, 2),
+	})
+	want := []MacroEvent{move(3, 0), key(0x41, true, 10), key(0x41, false, 10), wheel}
+	if !slices.Equal(got, want) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestPlayMovesAndWheel(t *testing.T) {
+	got := capture(t)
+	ev := []MacroEvent{move(5, -3), {Kind: "wheel", Code: 1}, {Kind: "hwheel", Code: -1}}
+	play(Macro{Mode: "once", Events: ev}, make(chan struct{}))
+	if !slices.Equal(got(), ev) {
+		t.Fatalf("played %v", got())
+	}
+	m := Macro{Name: "m", Events: ev}
+	if m.normalize() != nil {
+		t.Fatal("rejected moves and wheel steps")
+	}
+	for _, bad := range []MacroEvent{move(0, 0), {Kind: "wheel"}, {Kind: "hwheel", Code: 101}} {
+		if (&Macro{Name: "m", Events: []MacroEvent{bad}}).normalize() == nil {
+			t.Errorf("accepted %+v", bad)
+		}
+	}
+	if notches(-120) != -1 || notches(30) != 1 || notches(240) != 2 {
+		t.Error("notches")
 	}
 }
