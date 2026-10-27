@@ -1,0 +1,101 @@
+# OpenSynapse
+
+[English](README.md) · **简体中文** · [日本語](README.ja.md)
+
+一款适用于 Windows 的轻量开源 Razer 鼠标及其他 Razer 设备设置工具。无需运行 Razer Synapse，即可设置 DPI、灯光、回报率和电源选项，还能让设备根据当前使用的游戏或程序自动调整。
+
+OpenSynapse 与 Razer Inc. 无关联。
+
+## 为什么选择 OpenSynapse
+
+- **占用低。** 在后台运行时只有一个小进程，内存占用约 20–30 MB。设置窗口仅在打开时加载，关闭后会释放全部内存。
+- **无需帐户，不联网。** 所有数据都保存在你的电脑上，OpenSynapse 不会连接互联网。
+- **随用随变。** 进入游戏时提高回报率，为特定程序切换 DPI 和灯光，离开后恢复平时的设置。
+
+> [!IMPORTANT]
+> 使用 OpenSynapse 前，请先退出 Razer Synapse。两者会写入相同的设备设置，同时运行会互相覆盖。
+
+## 快速上手
+
+1. 确认系统为 64 位 Windows 10 或 Windows 11，并已安装 [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (Windows 11 和保持更新的 Windows 10 已自带)。
+2. 运行安装程序 `opensynapse-setup-<版本号>-amd64.exe`，或[自行构建](#从源代码构建)。
+3. 打开 OpenSynapse。所有已连接的设备都会以卡片形式显示在**设备**页面上，选择卡片即可更改其设置。
+
+如果找不到设备，请打开设备电源、插好接收器并退出 Razer Synapse，然后选择**重新扫描**。
+
+关闭窗口后，OpenSynapse 会继续在通知区域 (系统托盘) 中运行。如需退出，请右键单击托盘图标，然后选择**退出**。
+
+## 功能
+
+### 设备设置
+
+- **灵敏度:** 最多 5 个 DPI 档位，X/Y 可分别设置；也可只使用单个 DPI 值。按鼠标上的 DPI 按钮会依次切换各档位。
+- **灯光:** 关闭、静态、呼吸、光谱循环或波浪 (视设备而定)，并可调整颜色和亮度。
+- **回报率:** 125–8000 Hz。对于无线鼠标，会同时设置鼠标和接收器。
+- **电源:** 电量、充电状态、休眠时间和低电量阈值。
+- **接收器指示灯:** 在 HyperPolling 接收器上，可设置三颗指示灯各自显示的内容: 电量、连接状态、回报率或 DPI。
+
+每台设备只显示其支持的设置。插入、拔出设备，或将无线鼠标在有线和接收器之间切换时，几秒内即可识别。
+
+### 自动切换
+
+在**情景**页面或右键单击托盘图标即可开启以下功能。
+
+- **智能回报率:** 游戏时鼠标使用较高的回报率，其他时候使用较低的回报率，以节省电量和 CPU。也可以为指定程序固定回报率。**最高**表示各鼠标支持的最高回报率。
+- **情景模式:** 根据前台程序切换鼠标 DPI 和设备灯光。设为**保持当前**的项不会更改。OpenSynapse 按以下顺序选择情景:
+  1. **自定义情景**，按程序文件名匹配 (例如 `obs64.exe`)。
+  2. **游戏**，识别到游戏时使用。无法识别的游戏 (例如窗口化运行的游戏) 可在**程序**中添加。
+  3. **桌面**，以上都不匹配时使用。离开其他情景时也用它恢复设置，因此在这里设置灯光可让所有设备保持一致。
+
+程序需要在前台停留约 2 秒，OpenSynapse 才会切换。手动更改的设置会在下次切换时被覆盖。
+
+**游戏识别方式:** 全屏或无边框全屏窗口，且其程序占用 GPU 3D 引擎至少 15%。浏览器和视频播放器不会被识别为游戏。
+
+### 通知和托盘
+
+- **低电量通知:** 无线设备电量降到提醒阈值 (设备没有阈值时按 20%) 时，会弹出 Windows 通知。每次放电只通知一次。
+- 将鼠标悬停在托盘图标上，可查看当前情景和各设备的电量。
+- **开机启动**会在你登录 Windows 时在托盘中启动 OpenSynapse。
+- 界面提供中文和英文，默认跟随 Windows 显示语言。可在**设置** > **语言**中更改。
+
+## 支持的设备
+
+OpenSynapse 可识别约 210 款 Razer 鼠标、键盘、鼠标垫和配件 (不支持笔记本电脑)。设备列表来自 [openrazer](https://github.com/openrazer/openrazer) 项目。
+
+目前只有 **DeathAdder V4 Pro** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
+
+## 常见问题
+
+**为什么显示的灯效和设备当前的灯效不一样？**
+Razer 设备无法报告当前灯效，因此 OpenSynapse 显示的是你最后一次在 OpenSynapse 中设置的灯效。
+
+**可以更改接收器指示灯的颜色吗？**
+不可以。颜色由固件决定，公开协议不支持修改。
+
+**设置自己变了。**
+如果开启了智能回报率或情景模式，OpenSynapse 会在你切换程序时更改设置。可在**情景**页面或托盘菜单中关闭。另外，请确认 Razer Synapse 没有在运行。
+
+**设置保存在哪里？**
+保存在 `%APPDATA%\OpenSynapse\config.json` 中。
+
+## 从源代码构建
+
+要求: Go 1.27.3 或更高版本，以及 [Bun](https://bun.sh)。
+
+```sh
+bun install
+bun run dev        # 运行并实时重载
+bun run build      # 生成 build/windows-amd64/OpenSynapse.exe 和安装程序
+go test ./...
+go run ./cmd/probe # 打印设备状态 (只读)
+
+# 从 openrazer 源码重新生成设备列表
+uv run --no-project python scripts/gendevices.py ../openrazer
+```
+
+本程序使用 Go 编写，窗口基于 [MyGo](https://github.com/egoist/mygo) 和 WebView2。`internal/razer/data/devices.json` 中的设备列表由 `scripts/gendevices.py` 从 openrazer 生成。
+
+## 致谢
+
+- 协议资料和设备列表来自 [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0)。协议在本项目中重新实现，未复制 openrazer 的任何代码。
+- 界面仅借鉴了 Razer Synapse 的整体风格 (深色主题、绿色强调色)。所有图标和图片均为原创。

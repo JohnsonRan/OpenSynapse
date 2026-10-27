@@ -1,46 +1,101 @@
 # OpenSynapse
 
-A lightweight, open-source settings app for Razer mice. Built in Go with a [MyGo](https://github.com/egoist/mygo) WebView2 frontend. Not affiliated with Razer Inc.
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-- **Background cost:** the resident process is Go only (HID, tray, smart polling). It uses about 20–30 MB. The WebView2 window exists only while it is open, and closing it ends every browser process.
-- **Supported devices:** about 210 Razer mice, keyboards, mouse mats and accessories (laptops are left out). Each device page only shows the controls that device declares. The device table `internal/razer/data/devices.json` is generated from openrazer by `scripts/gendevices.py`. Only the DeathAdder V4 Pro (`1532:00BE` wired, `1532:00BF` wireless) has been tested on real hardware.
+A lightweight, open-source settings app for Razer mice and other Razer devices on Windows. Set DPI, lighting, polling rate and power options, and let your devices adjust themselves to the game or program you're using, without running Razer Synapse.
 
-## Features
+OpenSynapse is not affiliated with Razer Inc.
 
-- Device overview: every connected device appears as a card; click a card to open its settings. Plugging and unplugging are picked up within about 3 s. A wireless mouse on its cable is shown once, by whichever connection answers, and an open device page follows it between cable and receiver. If a device is unplugged, its page goes back to the overview.
-- DPI stages (1–5, X/Y independent) or a single DPI value
-- Lighting for the whole device: off, static, breathing, spectrum or wave (whichever the device supports), plus color and brightness. Devices cannot report their current effect, so the app remembers the last one set here.
-- Polling rate, 125–8000 Hz. On wireless mice that use a receiver, both the mouse and the receiver are set.
-- Battery, charging state, sleep timeout, low-battery threshold
-- **Smart polling rate:** every mouse switches to the game rate while a game is in front, and to the normal rate otherwise. Per-program exceptions are checked first. "最高" means each mouse's own maximum, and a rate above a mouse's maximum uses that maximum. A game is detected as described under scenes (step 2 below).
-- **Scenes:** device settings change with the program in the foreground. Each scene can set the mouse DPI, plus the effect, color and brightness of every lit device. Anything left on 「保持当前」 is not touched. Scenes are matched in this order:
-  1. The first custom scene that lists the program (e.g. `obs64.exe`).
-  2. The built-in game scene: any program auto-detected as a game, plus programs you list for it (e.g. games that run windowed). A game is a fullscreen or borderless-fullscreen window whose process uses at least 15% of the GPU 3D engine. Once recognized, a process stays a game until it exits. Browsers and video players are excluded. GPU load is measured only while an unrecognized fullscreen window is in front.
-  3. Otherwise the Desktop scene. It also restores your settings when you leave another scene, and putting lighting in it keeps all your devices in sync.
+## Why OpenSynapse
 
-  The program must stay in front for about 2 s before a switch. Each device is written once per switch, and a device that does not answer is retried every 10 s. A switch overrides settings you changed by hand. The old smart polling-rate setup is migrated automatically. Turn either feature on in the 情景 page or from the tray right-click menu.
-- **Low-battery notification:** a wireless device that drops to its warning threshold (20% if it has none) triggers one Windows notification, which is re-armed once the device charges. Hover the tray icon to see the active scene and each device's battery.
-- HyperPolling receiver indicators: choose what each of the three LEDs shows (off, battery, connection, polling rate, DPI). LED color is not in the public protocol.
-- Tray app with optional start at login (`--tray`, HKCU Run)
+- **Light on your PC.** In the background, OpenSynapse is a single small process that uses about 20–30 MB of memory. The settings window is loaded only while it's open, and closing it frees all of its memory.
+- **No account, no cloud.** Everything stays on your PC. OpenSynapse doesn't connect to the internet.
+- **Adapts to what you're doing.** Raise the polling rate when a game starts, switch DPI and lighting for specific programs, and go back to your usual settings afterward.
 
-**Quit Razer Synapse before using this.** Both apps write the same HID settings and will overwrite each other.
+> [!IMPORTANT]
+> Quit Razer Synapse before you use OpenSynapse. Both apps write the same device settings and will overwrite each other.
 
-## Development
+## Get started
 
-Requirements: Go 1.27.3+ and Bun.
+1. Make sure you're on 64-bit Windows 10 or Windows 11 with the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) installed (it comes with Windows 11 and up-to-date Windows 10).
+2. Run the installer, `opensynapse-setup-<version>-amd64.exe`, or [build it yourself](#build-from-source).
+3. Open OpenSynapse. Every connected device appears as a card on the **Devices** page. Select a card to change its settings.
+
+If a device is missing, turn it on, plug in its receiver, quit Razer Synapse, and then select **Scan again**.
+
+Closing the window keeps OpenSynapse running in the notification area (system tray). To quit, right-click the tray icon and select **Quit**.
+
+## What you can do
+
+### Device settings
+
+- **Sensitivity:** up to 5 DPI stages with separate X/Y values, or a single DPI value. The DPI button on the mouse cycles through your stages.
+- **Lighting:** off, static, breathing, spectrum or wave (depending on the device), plus color and brightness.
+- **Polling rate:** 125–8000 Hz. For wireless mice, the mouse and its receiver are both updated.
+- **Power:** battery level, charging state, sleep timeout and low-battery threshold.
+- **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
+
+Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.
+
+### Automatic switching
+
+Go to the **Scenes** page, or right-click the tray icon, to turn these on.
+
+- **Smart polling rate:** your mice use a higher rate while you're in a game and a lower one otherwise, which saves battery and CPU. You can also fix the rate for specific programs. **Highest** means each mouse's own maximum.
+- **Scenes:** change mouse DPI and device lighting based on the program in front. Anything set to **Keep current** is left alone. OpenSynapse picks a scene in this order:
+  1. **Your own scenes**, matched by program file name (for example, `obs64.exe`).
+  2. **Game**, used when a game is detected. Add games it misses, such as windowed games, under **Programs**.
+  3. **Desktop**, used for everything else. It also restores your settings when you leave another scene, so lighting set here keeps all your devices in sync.
+
+A program needs to stay in front for about 2 seconds before OpenSynapse switches. Settings you change by hand are replaced at the next switch.
+
+**How games are detected:** a fullscreen or borderless-fullscreen window whose program uses at least 15% of the GPU's 3D engine. Browsers and video players are never treated as games.
+
+### Notifications and tray
+
+- **Low-battery notification:** a Windows notification when a wireless device reaches its warning level (20% if the device has none). You're notified once per discharge.
+- Hover over the tray icon to see the active scene and the battery level of each device.
+- **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
+- The app is available in English and Chinese, and follows your Windows language by default. Change it under **Settings** > **Language**.
+
+## Supported devices
+
+OpenSynapse knows about 210 Razer mice, keyboards, mouse mats and accessories (laptops aren't supported). The device list comes from the [openrazer](https://github.com/openrazer/openrazer) project.
+
+So far, only the **DeathAdder V4 Pro** has been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
+
+## FAQ
+
+**Why doesn't the app show the lighting effect my device is using?**
+Razer devices can't report their current effect, so OpenSynapse shows the last effect you set in OpenSynapse.
+
+**Can I change the color of the receiver indicators?**
+No. The color is set by the firmware and the public protocol can't change it.
+
+**My settings changed by themselves.**
+If Smart polling rate or Scenes is on, OpenSynapse changes settings when you switch programs. Turn them off on the **Scenes** page or from the tray menu. Also make sure Razer Synapse isn't running.
+
+**Where are my settings stored?**
+In `%APPDATA%\OpenSynapse\config.json`.
+
+## Build from source
+
+Requirements: Go 1.27.3 or later, and [Bun](https://bun.sh).
 
 ```sh
 bun install
-bun run dev        # live reload
-bun run build      # build/windows-amd64/OpenSynapse.exe + installer
+bun run dev        # run with live reload
+bun run build      # build/windows-amd64/OpenSynapse.exe and the installer
 go test ./...
-go run ./cmd/probe # print device state, read-only
+go run ./cmd/probe # print device state (read-only)
 
-# regenerate the device table from an openrazer checkout
+# regenerate the device list from an openrazer checkout
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
 
+The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2 window. The device list in `internal/razer/data/devices.json` is generated from openrazer by `scripts/gendevices.py`.
+
 ## Credits
 
-- Protocol details and the device table come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The table is generated from its daemon device classes and driver sources; the protocol was reimplemented here and no openrazer code is copied.
-- The UI only borrows Synapse's general style (dark theme, green accent). The icons and artwork are original.
+- Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
+- The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
