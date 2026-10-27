@@ -2,6 +2,10 @@
 
 Each release has a section here; the app shows it when it offers the update.
 
+## 0.1.1
+
+- The images are built into the executable: the portable version is now just OpenSynapse.exe
+
 ## 0.1.0
 
 First release.

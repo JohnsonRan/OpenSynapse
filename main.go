@@ -17,8 +17,13 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-//go:embed resources/tray.png
-var trayIcon []byte
+// Images live in the executable, not in a resources folder next to it.
+var (
+	//go:embed assets/tray.png
+	trayIcon []byte
+	//go:embed assets/icon.png
+	appIcon []byte
+)
 
 var (
 	window   *mygo.Window // main thread only
@@ -161,7 +166,7 @@ func main() {
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { applyBindings(true) }) // buttons work without the app
 
 	// The update window in the app's language; it keeps it until a restart.
-	mygo.Use(updater.New(updater.Options{Language: language()}))
+	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))
 	mygo.Bind(Devices{})
 	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})

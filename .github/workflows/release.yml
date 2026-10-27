@@ -47,8 +47,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: bun run build -- -platform windows/amd64 -upload
-      # The portable version is the app's files and a "portable" marker, which
-      # keeps the settings in its folder. Updates replace only the app's files.
+      # The portable version is the executable and a "portable" marker, which
+      # keeps the settings in its folder. Updates replace only the executable.
       - name: Upload the portable zip
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,7 +56,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           zip_name="opensynapse-${version}-windows-amd64-portable.zip"
           mkdir -p portable/OpenSynapse
-          cp build/windows-amd64/{OpenSynapse.exe,icon.png,tray.png} portable/OpenSynapse/
+          cp build/windows-amd64/OpenSynapse.exe portable/OpenSynapse/
           touch portable/OpenSynapse/portable
           (cd portable && 7z a -tzip "../$zip_name" OpenSynapse)
           gh release upload "$GITHUB_REF_NAME" "$zip_name" --repo "$GITHUB_REPOSITORY" --clobber

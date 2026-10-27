@@ -6,6 +6,8 @@ export default defineConfig({
   identifier: "dev.opensynapse.app",
   // The release workflow checks that the tag is v + this version.
   version: pkg.version,
+  // Not resources/icon.png: that folder is copied next to the executable.
+  icon: "assets/icon.png",
   // `mygo dev` runs devCommand and loads devUrl; `mygo build` runs
   // buildCommand and embeds frontendDist into the app.
   devUrl: "http://localhost:5173",
