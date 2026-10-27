@@ -54,7 +54,10 @@ func (d *Device) txCandidates(name string) []byte {
 	if t, ok := d.txOK[name]; ok {
 		return []byte{t}
 	}
-	out := []byte{d.tx[name]}
+	var out []byte
+	if t, ok := d.tx[name]; ok {
+		out = append(out, t)
+	}
 	for _, t := range []byte{0x1F, 0xFF, 0x3F, 0x9F} {
 		if !slices.Contains(out, t) {
 			out = append(out, t)
@@ -69,6 +72,11 @@ func (d *Device) query(name string, class, cmd, size byte, args ...byte) (Report
 	if !d.has(name) {
 		return Report{}, ErrUnsupported
 	}
+	return d.run(name, class, cmd, size, args...)
+}
+
+// run sends a command under name, trying transaction ids until one answers.
+func (d *Device) run(name string, class, cmd, size byte, args ...byte) (Report, error) {
 	var err error
 	for _, tx := range d.txCandidates(name) {
 		var r Report

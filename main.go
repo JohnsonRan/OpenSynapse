@@ -155,8 +155,12 @@ func main() {
 	}
 	go runAuto()
 	go watchDevices()
+	go runHooks()
+	go keepBindings()
+	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { applyBindings(true) }) // buttons work without the app
 
 	mygo.Bind(Devices{})
+	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})
 	mygo.Bind(Settings{})
 

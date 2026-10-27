@@ -59,6 +59,8 @@ type config struct {
 	Lighting map[string]Lighting `json:"lighting"` // by device ID; devices cannot report their effect
 	Notify   bool                `json:"notify"`   // low-battery notifications
 	Language string              `json:"language"` // "" follows the system
+	Macros   []Macro             `json:"macros"`
+	Bindings []Binding           `json:"bindings"` // device buttons that play macros
 }
 
 var (
@@ -71,6 +73,8 @@ var (
 			Desktop: Scene{Name: "desktop", Apps: []string{}},
 			Scenes:  []Scene{},
 		},
+		Macros:   []Macro{},
+		Bindings: []Binding{},
 	}
 )
 
@@ -172,6 +176,18 @@ func parseConfig(b []byte, defaults config) config {
 	}
 	if v, ok := raw["language"]; ok {
 		_ = json.Unmarshal(v, &c.Language)
+	}
+	if v, ok := raw["macros"]; ok {
+		var m []Macro
+		if json.Unmarshal(v, &m) == nil && m != nil {
+			c.Macros = m
+		}
+	}
+	if v, ok := raw["bindings"]; ok {
+		var b []Binding
+		if json.Unmarshal(v, &b) == nil && b != nil {
+			c.Bindings = b
+		}
 	}
 	return c
 }

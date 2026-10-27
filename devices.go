@@ -97,6 +97,7 @@ func watchDevices() {
 			continue
 		}
 		resetAuto() // a new or switched device gets the current scene and polling rate
+		kickBindings()
 		go refreshTray()
 		if w := currentWindow(); w != nil {
 			_ = DevicesChanged.Emit(w, Devices{}.List())
