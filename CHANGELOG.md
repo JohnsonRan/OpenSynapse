@@ -2,6 +2,12 @@
 
 Each release has a section here; the app shows it when it offers the update.
 
+## 0.2.0
+
+- New About page: the version, software update (check now, last check, automatic checks), and links to GitHub, the changelog, issues and the license
+- Settings now holds only language, start at login and notifications
+- openrazer in the credits opens its project page
+
 ## 0.1.1
 
 - The images are built into the executable: the portable version is now just OpenSynapse.exe
