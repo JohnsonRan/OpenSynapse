@@ -92,7 +92,13 @@ func openWindow() {
 		TitleBarHeight: 40,
 		StateKey:       "main",
 		URL:            "/",
+		// The glass theme's material; the page is opaque while it is off.
+		Transparent: glassSupported,
+		Vibrancy:    glassVibrancy(glassSupported),
 	})
+	if glassSupported && !glassOn() {
+		w.SetVibrancy(mygo.VibrancyNone)
+	}
 	// Closing destroys the webview and its browser processes; the tray keeps running.
 	w.OnClosed(func() { setWindow(nil) })
 	setWindow(w)

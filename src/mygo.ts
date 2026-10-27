@@ -94,6 +94,12 @@ export interface Features {
   lighting: LightingCaps | null;
 }
 
+/** GlassInfo is the theme switch: whether the system can show it, and whether it is on. */
+export interface GlassInfo {
+  supported: boolean;
+  on: boolean;
+}
+
 /** LanguageInfo: Choice is what the user picked ("" = system), Effective what is shown. */
 export interface LanguageInfo {
   choice: string;
@@ -325,6 +331,10 @@ export const Settings = {
   checkForUpdates(): Promise<void> {
     return call("Settings.CheckForUpdates");
   },
+  /** Glass returns the glass theme setting. */
+  glass(): Promise<GlassInfo> {
+    return call("Settings.Glass");
+  },
   /** Language returns the language setting. */
   language(): Promise<LanguageInfo> {
     return call("Settings.Language");
@@ -344,6 +354,10 @@ export const Settings = {
   /** SetAutostart turns starting at login on or off. */
   setAutostart(on: boolean): Promise<void> {
     return call("Settings.SetAutostart", on);
+  },
+  /** SetGlass turns the glass theme on or off; the page restyles itself. */
+  setGlass(on: boolean): Promise<void> {
+    return call("Settings.SetGlass", on);
   },
   /** SetLanguage sets "zh-CN", "en", "ja", or "" to follow the system. */
   setLanguage(lang: string): Promise<void> {

@@ -59,6 +59,7 @@ type config struct {
 	Lighting map[string]Lighting `json:"lighting"` // by device ID; devices cannot report their effect
 	Notify   bool                `json:"notify"`   // low-battery notifications
 	Language string              `json:"language"` // "" follows the system
+	Glass    bool                `json:"glass"`    // glass theme (glass.go)
 	Macros   []Macro             `json:"macros"`
 	Bindings []Binding           `json:"bindings"` // device buttons that play macros
 }
@@ -190,6 +191,9 @@ func parseConfig(b []byte, defaults config) config {
 	}
 	if v, ok := raw["notify"]; ok {
 		_ = json.Unmarshal(v, &c.Notify)
+	}
+	if v, ok := raw["glass"]; ok {
+		_ = json.Unmarshal(v, &c.Glass)
 	}
 	if v, ok := raw["language"]; ok {
 		_ = json.Unmarshal(v, &c.Language)

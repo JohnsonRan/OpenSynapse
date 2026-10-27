@@ -26,6 +26,9 @@ const lang = await Settings.language().catch(() => ({
 }));
 setLang(lang.effective);
 translateDom();
+// The theme before anything paints: its page is translucent over the window material.
+const glass = await Settings.glass().catch(() => ({ supported: false, on: false }));
+document.documentElement.classList.toggle("glass", glass.on);
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const RATES = [125, 500, 1000, 2000, 4000, 8000];
@@ -985,6 +988,18 @@ $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); //
   credits.replaceChildren(before!, link, after);
 }
 document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
+
+const glassSwitch = $<HTMLInputElement>("#glass");
+glassSwitch.checked = glass.on;
+glassSwitch.disabled = !glass.supported;
+$("#glass-hint").textContent = t(glass.supported ? "settings.glassHint" : "settings.glassUnsupported");
+glassSwitch.onchange = () => {
+  const on = glassSwitch.checked;
+  attempt(() => Settings.setGlass(on)).then((ok) => {
+    if (ok) document.documentElement.classList.toggle("glass", on);
+    else glassSwitch.checked = !on;
+  });
+};
 
 const langSel = $<HTMLSelectElement>("#language");
 langSel.innerHTML = [

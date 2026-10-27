@@ -75,6 +75,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - Hover over the tray icon to see the active scene and the battery level of each device.
 - **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
 - The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
+- **Glass effect** (under **Settings**, Windows 11 22H2 or later) makes the window translucent, blurring the desktop and windows behind it.
 
 ### Updates
 
