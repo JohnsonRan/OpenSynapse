@@ -7,8 +7,11 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <nav class="rail">
+    <header class="titlebar">
       <img class="logo" src="/logo.png" alt="" />
+      <span class="wordmark">OPEN<b>SYNAPSE</b></span>
+    </header>
+    <nav class="rail">
       <button class="nav active" data-view="devices" title="设备">
         <svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6v8a6 6 0 0 0 12 0V8a6 6 0 0 0-6-6zm0 2v5M6 10h12" /></svg>
         <span>设备</span>
@@ -49,6 +52,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="perf">性能</button>
             <button class="tab" data-tab="power">电源</button>
+            <button class="tab" data-tab="receiver" id="receiver-tab" hidden>接收器</button>
           </div>
 
           <div id="tab-perf" class="tab-body">
@@ -88,6 +92,18 @@
               <input id="low" type="range" min="5" max="30" step="5" />
             </div>
           </div>
+
+          <div id="tab-receiver" class="tab-body" hidden>
+            <div class="card">
+              <div class="card-head"><h2>指示灯</h2></div>
+              <p class="muted small">HyperPolling 接收器上的三颗指示灯各自显示什么。灯的颜色由固件决定，公开协议不支持修改。</p>
+              <div class="leds">
+                <label><span class="led-dot"></span>左<select data-led="0"></select></label>
+                <label><span class="led-dot"></span>中<select data-led="1"></select></label>
+                <label><span class="led-dot"></span>右<select data-led="2"></select></label>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -103,13 +119,24 @@
         <p class="muted">指定程序在前台时自动切换到高回报率，其他时间回落以省电省 CPU。切换有约 2 秒防抖，后台常驻不占用 WebView。</p>
 
         <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>自动识别游戏</h2>
+              <p class="muted small">前台窗口全屏或无边框全屏，且 GPU 3D 占用 ≥ 15% 时视为游戏；识别过的进程在退出前一直按游戏处理。浏览器和播放器默认排除，误判的程序可在下方规则里单独指定。</p>
+            </div>
+            <label class="switch"><input id="auto-on" type="checkbox" /><i></i></label>
+          </div>
+          <div id="auto-rate" class="seg"></div>
+        </div>
+
+        <div class="card">
           <div class="card-head"><h2>其他程序</h2></div>
           <div id="smart-default" class="seg"></div>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <h2>程序规则</h2>
+            <div><h2>程序规则</h2><p class="muted small">优先级最高，可用来强制或排除某个程序。</p></div>
             <button id="add-rule" class="ghost">＋ 添加</button>
           </div>
           <div id="rules"></div>

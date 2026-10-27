@@ -33,6 +33,9 @@ func openWindow() {
 		MinWidth:        960,
 		MinHeight:       620,
 		BackgroundColor: "#0a0a0a",
+		// No title bar; Windows keeps its own min/max/close (and Snap) over the page.
+		TitleBarStyle:  mygo.TitleBarHidden,
+		TitleBarHeight: 40,
 		StateKey:        "main",
 		URL:             "/",
 	})

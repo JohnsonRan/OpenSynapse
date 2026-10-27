@@ -33,6 +33,8 @@ func main() {
 		show("idle", i, e)
 		l, e := d.LowBattery()
 		show("lowbattery", l, e)
+		leds, e := d.ReceiverLEDs()
+		show("receiverLED", leds, e)
 		d.Close()
 	}
 }

@@ -31,6 +31,8 @@ export interface DeviceState {
   charging: boolean;
   idleTime: number;
   lowBattery: number;
+  /** ReceiverLEDs: left/middle/right indicator modes, empty without a receiver. */
+  receiverLeds: number[];
 }
 
 /** Rule raises the polling rate while an app is in the foreground. */
@@ -46,11 +48,19 @@ export interface SmartConfig {
   /** used when no rule matches */
   defaultRate: number;
   rules: Rule[];
+  /** AutoDetect treats a fullscreen/borderless app with real GPU load as a game. */
+  autoDetect: boolean;
+  autoRate: number;
 }
 
 /** SmartStatus is what the switcher sees right now. */
 export interface SmartStatus {
   foreground: string;
+  fullscreen: boolean;
+  /** 3D load of the foreground app, -1 if not measured */
+  gpu: number;
+  /** default, rule or game */
+  reason: string;
   applied: number;
 }
 
@@ -81,6 +91,13 @@ export const Devices = {
   /** SetPollRate sets the polling rate in Hz. */
   setPollRate(id: string, hz: number): Promise<void> {
     return call("Devices.SetPollRate", id, hz);
+  },
+  /**
+   * SetReceiverLEDs sets the receiver's left/middle/right indicator modes:
+   * 0 off, 1 battery, 2 connection, 3 polling rate, 4 DPI.
+   */
+  setReceiverLEDs(id: string, modes: number[]): Promise<void> {
+    return call("Devices.SetReceiverLEDs", id, modes);
   },
   /** State reads the device's current settings. */
   state(id: string): Promise<DeviceState> {

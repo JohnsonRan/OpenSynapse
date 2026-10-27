@@ -2,45 +2,41 @@ package main
 
 import (
 	"log"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/sys/windows"
 )
 
-// foregroundExe returns the lower-case file name of the foreground app, or "".
-func foregroundExe() string {
-	hwnd := windows.GetForegroundWindow()
-	if hwnd == 0 {
-		return ""
-	}
-	var pid uint32
-	if _, err := windows.GetWindowThreadProcessId(hwnd, &pid); err != nil || pid == 0 {
-		return ""
-	}
-	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
-	if err != nil {
-		return ""
-	}
-	defer windows.CloseHandle(h)
-	buf := make([]uint16, windows.MAX_LONG_PATH)
-	n := uint32(len(buf))
-	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
-		return ""
-	}
-	return strings.ToLower(filepath.Base(windows.UTF16ToString(buf[:n])))
+// gpuGameThreshold is the 3D-engine load (percent) that marks a fullscreen
+// window as a game. Fullscreen video and slides stay well below it.
+const gpuGameThreshold = 15
+
+// notGames are fullscreen regulars that can still load the GPU (browser
+// video, WebGL, players). A manual rule still overrides this.
+var notGames = map[string]bool{
+	"chrome.exe": true, "msedge.exe": true, "firefox.exe": true, "vivaldi.exe": true,
+	"opera.exe": true, "brave.exe": true, "vlc.exe": true, "potplayermini64.exe": true,
+	"mpv.exe": true, "mpc-hc64.exe": true, "powerpnt.exe": true, "explorer.exe": true,
 }
 
-// targetRate picks the rate for the foreground app.
-func targetRate(c SmartConfig, exe string) int {
+const (
+	reasonDefault = "default"
+	reasonRule    = "rule"
+	reasonGame    = "game"
+)
+
+// decide picks the rate for the foreground app: a manual rule first, then
+// auto-detection (fullscreen/borderless with GPU load, or a process already
+// recognized as a game), then the default.
+func decide(c SmartConfig, exe string, fullscreen bool, gpu float64, knownGame bool) (int, string) {
 	for _, r := range c.Rules {
 		if r.Exe == exe {
-			return r.Rate
+			return r.Rate, reasonRule
 		}
 	}
-	return c.DefaultRate
+	if c.AutoDetect && !notGames[exe] && (knownGame || fullscreen && gpu >= gpuGameThreshold) {
+		return c.AutoRate, reasonGame
+	}
+	return c.DefaultRate, reasonDefault
 }
 
 // switcher applies a rate only after the same target was seen twice in a row,
@@ -66,8 +62,11 @@ func (s *switcher) observe(target int) {
 
 // SmartStatus is what the switcher sees right now.
 type SmartStatus struct {
-	Foreground string `json:"foreground"`
-	Applied    int    `json:"applied"`
+	Foreground string  `json:"foreground"`
+	Fullscreen bool    `json:"fullscreen"`
+	GPU        float64 `json:"gpu"`    // 3D load of the foreground app, -1 if not measured
+	Reason     string  `json:"reason"` // default, rule or game
+	Applied    int     `json:"applied"`
 }
 
 var (
@@ -80,6 +79,10 @@ func runSmart() {
 	sw := &switcher{apply: applyRateAll}
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
+	var gpu gpuMeter
+	// Processes recognized as games stay games while they run, so a loading
+	// screen or a windowed menu does not drop the rate.
+	games := map[uint32]string{}
 	for {
 		select {
 		case <-tick.C:
@@ -91,15 +94,30 @@ func runSmart() {
 		cfgMu.Unlock()
 		if !c.Enabled {
 			sw.applied = 0
+			gpu.close()
 			continue
 		}
-		exe := foregroundExe()
-		if exe == "" {
+		f := getForeground()
+		if f.exe == "" {
 			continue // lock screen, UAC prompt, protected process: keep the current rate
 		}
-		sw.observe(targetRate(c, exe))
+		known := games[f.pid] == f.exe
+		load := -1.0
+		if _, why := decide(c, f.exe, f.fullscreen, 0, known); why == reasonDefault && c.AutoDetect && f.fullscreen && !notGames[f.exe] {
+			load = gpu.usage(f.pid) // measured only for an unrecognized fullscreen app
+		} else {
+			gpu.close()
+		}
+		rate, why := decide(c, f.exe, f.fullscreen, load, known)
+		if why == reasonGame && !known {
+			if len(games) > 64 {
+				clear(games) // shortcut: forget old games wholesale; a pid reused by the same exe is the only cost
+			}
+			games[f.pid] = f.exe
+		}
+		sw.observe(rate)
 		smartMu.Lock()
-		smartStatus = SmartStatus{exe, sw.applied}
+		smartStatus = SmartStatus{f.exe, f.fullscreen, load, why, sw.applied}
 		smartMu.Unlock()
 	}
 }

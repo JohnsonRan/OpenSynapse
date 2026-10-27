@@ -65,6 +65,8 @@ type DeviceState struct {
 	Charging    bool             `json:"charging"`
 	IdleTime    int              `json:"idleTime"`
 	LowBattery  int              `json:"lowBattery"`
+	// ReceiverLEDs: left/middle/right indicator modes, empty without a receiver.
+	ReceiverLEDs []int `json:"receiverLeds"`
 }
 
 // Devices controls connected Razer devices.
@@ -106,6 +108,10 @@ func (Devices) State(id string) (DeviceState, error) {
 	st.Charging, _ = d.Charging()
 	st.IdleTime, _ = d.IdleTime()
 	st.LowBattery, _ = d.LowBattery()
+	st.ReceiverLEDs = []int{}
+	if m, err := d.ReceiverLEDs(); err == nil {
+		st.ReceiverLEDs = m[:]
+	}
 	return st, nil
 }
 
@@ -138,6 +144,19 @@ func (Devices) SetIdleTime(id string, sec int) error {
 		return err
 	}
 	return d.SetIdleTime(sec)
+}
+
+// SetReceiverLEDs sets the receiver's left/middle/right indicator modes:
+// 0 off, 1 battery, 2 connection, 3 polling rate, 4 DPI.
+func (Devices) SetReceiverLEDs(id string, modes []int) error {
+	d, err := devices.get(id)
+	if err != nil {
+		return err
+	}
+	if len(modes) != 3 {
+		return errors.New("need 3 LED modes")
+	}
+	return d.SetReceiverLEDs([3]int(modes))
 }
 
 // SetLowBattery sets the low-battery warning threshold (percent).

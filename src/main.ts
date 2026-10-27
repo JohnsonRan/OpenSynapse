@@ -128,7 +128,27 @@ function render() {
   const low = $<HTMLInputElement>("#low");
   low.value = String(Math.round(s.lowBattery / 5) * 5);
   $("#low-val").textContent = low.value;
+
+  const leds = s.receiverLeds ?? [];
+  $("#receiver-tab").hidden = leds.length !== 3;
+  document.querySelectorAll<HTMLSelectElement>("[data-led]").forEach((sel) => {
+    sel.innerHTML = LED_MODES.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+    sel.value = String(leds[+sel.dataset.led!] ?? 0);
+  });
 }
+
+const LED_MODES = ["关闭", "电量", "连接状态", "回报率", "DPI"];
+document.querySelectorAll<HTMLSelectElement>("[data-led]").forEach((sel) => {
+  sel.onchange = () => {
+    if (!dev || !state) return;
+    const modes = [...state.receiverLeds];
+    modes[+sel.dataset.led!] = +sel.value;
+    attempt(() => Devices.setReceiverLEDs(dev!.id, modes), "指示灯已保存").then((ok) => {
+      if (ok) state!.receiverLeds = modes;
+      else sel.value = String(state!.receiverLeds[+sel.dataset.led!]);
+    });
+  };
+});
 
 function renderBattery() {
   const s = state!;
@@ -230,6 +250,8 @@ async function loadSmart() {
   smart = await Smart.config();
   smart.rules ??= [];
   $<HTMLInputElement>("#smart-on").checked = smart.enabled;
+  $<HTMLInputElement>("#auto-on").checked = smart.autoDetect;
+  segmented($("#auto-rate"), RATES, smart.autoRate, (hz) => ((smart!.autoRate = hz), saveSmart()));
   segmented($("#smart-default"), RATES, smart.defaultRate, (hz) => ((smart!.defaultRate = hz), saveSmart()));
   renderRules();
   smartStatus();
@@ -270,6 +292,11 @@ $("#add-rule").onclick = () => {
   renderRules();
   document.querySelector<HTMLInputElement>("#rules .rule:last-child input")?.focus();
 };
+$<HTMLInputElement>("#auto-on").onchange = (e) => {
+  if (!smart) return;
+  smart.autoDetect = (e.target as HTMLInputElement).checked;
+  saveSmart();
+};
 $<HTMLInputElement>("#smart-on").onchange = (e) => {
   if (!smart) return;
   smart.enabled = (e.target as HTMLInputElement).checked;
@@ -284,7 +311,15 @@ async function smartStatus() {
   $("#smart-status").textContent = !on
     ? "已关闭"
     : st && st.foreground
-      ? `前台：${st.foreground} · 当前 ${st.applied || "—"} Hz`
+      ? [
+          `前台：${st.foreground}`,
+          st.fullscreen ? "全屏" : "窗口",
+          st.gpu >= 0 ? `GPU ${st.gpu.toFixed(0)}%` : "",
+          { rule: "命中规则", game: "识别为游戏", default: "默认" }[st.reason] ?? "",
+          `当前 ${st.applied || "—"} Hz`,
+        ]
+          .filter(Boolean)
+          .join(" · ")
       : "等待前台程序…";
 }
 

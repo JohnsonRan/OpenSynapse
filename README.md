@@ -10,7 +10,13 @@ A lightweight, open-source settings app for Razer mice. Built in Go with a [MyGo
 - DPI stages (1–5, X/Y independent) and the current DPI
 - Polling rate, 125–8000 Hz. On wireless, both the mouse and the receiver are set.
 - Battery, charging state, sleep timeout, low-battery threshold
-- **Smart polling rate:** while a listed program is in the foreground (e.g. `cs2.exe` → 8000 Hz), the matching rate is used. Every other program gets the default rate (e.g. 1000 Hz), which saves CPU and wireless battery. The program must stay in front for about 2 s before the rate changes, and the device is written only when the target rate changes. A smart switch overrides any rate you set by hand. Off by default; turn it on from the Smart page or the tray right-click menu.
+- **Smart polling rate:** picks a rate for whatever program is in the foreground, checked in this order:
+  1. Manual rules (e.g. `cs2.exe` → 8000 Hz). They also work as exclusions.
+  2. Auto-detection: a fullscreen or borderless-fullscreen window whose process uses ≥ 15% of the GPU 3D engine counts as a game. Once recognized, a process stays a game until it exits. Browsers and video players are excluded. GPU load is measured only while an unrecognized fullscreen window is in front.
+  3. Otherwise the default rate (e.g. 1000 Hz), which saves CPU and wireless battery.
+
+  The program must stay in front for about 2 s before the rate changes, and the device is written only when the target rate changes. A smart switch overrides any rate you set by hand. Off by default; turn it on from the Smart page or the tray right-click menu.
+- HyperPolling receiver indicators: choose what each of the three LEDs shows (off, battery, connection, polling rate, DPI). LED color is not in the public protocol.
 - Tray app with optional start at login (`--tray`, HKCU Run)
 
 **Quit Razer Synapse before using this.** Both apps write the same HID settings and will overwrite each other.

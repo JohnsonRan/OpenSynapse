@@ -21,14 +21,48 @@ func TestSwitcherDebounce(t *testing.T) {
 	}
 }
 
+func TestDecide(t *testing.T) {
+	c := SmartConfig{DefaultRate: 1000, AutoDetect: true, AutoRate: 4000,
+		Rules: []Rule{{"cs2.exe", 8000}, {"vivaldi.exe", 2000}, {"game.exe", 500}}}
+	cases := []struct {
+		exe        string
+		fullscreen bool
+		gpu        float64
+		known      bool
+		rate       int
+		why        string
+	}{
+		{"cs2.exe", false, -1, false, 8000, reasonRule},     // rule wins even windowed
+		{"game.exe", true, 90, true, 500, reasonRule},       // rule beats detection
+		{"elden.exe", true, 60, false, 4000, reasonGame},    // fullscreen + GPU
+		{"elden.exe", false, -1, true, 4000, reasonGame},    // remembered game, windowed menu
+		{"elden.exe", true, 3, false, 1000, reasonDefault},  // fullscreen video-like load
+		{"elden.exe", true, -1, false, 1000, reasonDefault}, // not measured yet
+		{"code.exe", false, 80, false, 1000, reasonDefault}, // windowed GPU load is not a game
+		{"chrome.exe", true, 80, false, 1000, reasonDefault},
+		{"vivaldi.exe", true, 80, false, 2000, reasonRule},
+	}
+	for _, k := range cases {
+		if rate, why := decide(c, k.exe, k.fullscreen, k.gpu, k.known); rate != k.rate || why != k.why {
+			t.Errorf("%+v: got %d %s", k, rate, why)
+		}
+	}
+	c.AutoDetect = false
+	if rate, _ := decide(c, "elden.exe", true, 90, true); rate != 1000 {
+		t.Error("auto-detect off still detected")
+	}
+}
+
 func TestNormalizeRules(t *testing.T) {
-	c := SmartConfig{DefaultRate: 1000, Rules: []Rule{{` C:\Games\CS2.EXE `, 8000}, {"", 500}}}
+	c := SmartConfig{DefaultRate: 1000, AutoRate: 4000, Rules: []Rule{{` C:\Games\CS2.EXE `, 8000}, {"", 500}}}
 	if err := c.normalize(); err != nil || len(c.Rules) != 1 || c.Rules[0].Exe != "cs2.exe" {
 		t.Fatalf("%v %+v", err, c.Rules)
 	}
-	if targetRate(c, "cs2.exe") != 8000 || targetRate(c, "chrome.exe") != 1000 {
-		t.Fatal("targetRate")
+	c.AutoRate = 333
+	if c.normalize() == nil {
+		t.Fatal("accepted 333 Hz")
 	}
+	c.AutoRate = 4000
 	c.Rules[0].Rate = 333
 	if c.normalize() == nil {
 		t.Fatal("accepted 333 Hz")

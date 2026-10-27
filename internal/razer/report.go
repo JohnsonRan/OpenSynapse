@@ -81,7 +81,7 @@ func (r *Report) check(req *Report) error {
 	}
 }
 
-func be16(b []byte) int { return int(b[0])<<8 | int(b[1]) }
+func be16(b []byte) int  { return int(b[0])<<8 | int(b[1]) }
 func put16(v int) []byte { return []byte{byte(v >> 8), byte(v)} }
 
 // Storage selector for DPI commands.

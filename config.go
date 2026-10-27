@@ -20,6 +20,9 @@ type SmartConfig struct {
 	Enabled     bool   `json:"enabled"`
 	DefaultRate int    `json:"defaultRate"` // used when no rule matches
 	Rules       []Rule `json:"rules"`
+	// AutoDetect treats a fullscreen/borderless app with real GPU load as a game.
+	AutoDetect bool `json:"autoDetect"`
+	AutoRate   int  `json:"autoRate"`
 }
 
 type config struct {
@@ -28,7 +31,7 @@ type config struct {
 
 var (
 	cfgMu sync.Mutex
-	cfg   = config{Smart: SmartConfig{DefaultRate: 1000, Rules: []Rule{{Exe: "cs2.exe", Rate: 8000}}}}
+	cfg   = config{Smart: SmartConfig{DefaultRate: 1000, AutoDetect: true, AutoRate: 8000, Rules: []Rule{{Exe: "cs2.exe", Rate: 8000}}}}
 )
 
 func configPath() string {
@@ -73,8 +76,8 @@ func validRate(hz int) bool {
 }
 
 func (s *SmartConfig) normalize() error {
-	if !validRate(s.DefaultRate) {
-		return errors.New("invalid default rate")
+	if !validRate(s.DefaultRate) || !validRate(s.AutoRate) {
+		return errors.New("invalid rate")
 	}
 	out := s.Rules[:0]
 	for _, r := range s.Rules {

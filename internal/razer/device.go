@@ -201,6 +201,33 @@ func (d *Device) SetLowBattery(pct int) error {
 	return err
 }
 
+// ReceiverLEDs returns what the HyperPolling receiver's left, middle and right
+// indicators show: 0 off, 1 battery, 2 connection, 3 polling rate, 4 DPI.
+func (d *Device) ReceiverLEDs() ([3]int, error) {
+	if !d.Wireless {
+		return [3]int{}, ErrUnsupported
+	}
+	r, err := d.query(0x07, 0x95, 0x03)
+	if err != nil {
+		return [3]int{}, err
+	}
+	a := r.Args()
+	return [3]int{int(a[0]), int(a[1]), int(a[2])}, nil
+}
+
+func (d *Device) SetReceiverLEDs(m [3]int) error {
+	if !d.Wireless {
+		return ErrUnsupported
+	}
+	for _, v := range m {
+		if v < 0 || v > 4 {
+			return errors.New("LED mode must be 0–4")
+		}
+	}
+	_, err := d.query(0x07, 0x15, 0x03, byte(m[0]), byte(m[1]), byte(m[2]))
+	return err
+}
+
 func contains(s []int, v int) bool {
 	for _, x := range s {
 		if x == v {
