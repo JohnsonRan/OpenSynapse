@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -159,6 +160,8 @@ func main() {
 	go keepBindings()
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { applyBindings(true) }) // buttons work without the app
 
+	// The update window in the app's language; it keeps it until a restart.
+	mygo.Use(updater.New(updater.Options{Language: language()}))
 	mygo.Bind(Devices{})
 	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})

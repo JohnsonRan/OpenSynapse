@@ -18,7 +18,11 @@ OpenSynapse 与 Razer Inc. 无关联。
 ## 快速上手
 
 1. 确认系统为 64 位 Windows 10 或 Windows 11，并已安装 [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (Windows 11 和保持更新的 Windows 10 已自带)。
-2. 运行安装程序 `opensynapse-setup-<版本号>-amd64.exe`，或[自行构建](#从源代码构建)。
+2. 从 [Releases](https://github.com/JohnsonRan/OpenSynapse/releases/latest) 下载 OpenSynapse，任选其一:
+   - **安装版** `opensynapse-setup-<版本号>-amd64.exe`：只为当前用户安装，不需要管理员权限。
+   - **便携版** `opensynapse-<版本号>-windows-amd64-portable.zip`：将其中的 `OpenSynapse` 文件夹解压到可写入的位置 (如“文档”)，然后运行 `OpenSynapse.exe`。设置会保存在该文件夹中。
+
+   也可以[自行构建](#从源代码构建)。
 3. 打开 OpenSynapse。所有已连接的设备都会以卡片形式显示在**设备**页面上，选择卡片即可更改其设置。
 
 如果找不到设备，请打开设备电源、插好接收器并退出 Razer Synapse，然后选择**重新扫描**。
@@ -72,6 +76,12 @@ OpenSynapse 与 Razer Inc. 无关联。
 - **开机启动**会在你登录 Windows 时在托盘中启动 OpenSynapse。
 - 界面提供简体中文、英文和日文，默认跟随 Windows 显示语言。可在**设置** > **语言**中更改。
 
+### 更新
+
+安装版和便携版都会自动更新。开启**设置**中的**自动检查更新**后，OpenSynapse 会在后台检查新版本，发现后弹出窗口显示更新说明，可选择安装、跳过或稍后提醒。在该窗口中也可以设为自动下载并安装，更新会在 OpenSynapse 下次启动时生效。选择**检查更新**可立即检查。
+
+更新经过签名，OpenSynapse 只会安装本项目签名的更新。
+
 ## 支持的设备
 
 OpenSynapse 可识别约 210 款 Razer 鼠标、键盘、鼠标垫和配件 (不支持笔记本电脑)。设备列表来自 [openrazer](https://github.com/openrazer/openrazer) 项目。
@@ -99,7 +109,7 @@ Razer 设备无法报告当前灯效，因此 OpenSynapse 显示的是你最后�
 如果 OpenSynapse 崩溃或被任务管理器结束，绑定了宏的按键会继续发送 F13–F24 中的某个键，而这个键本身没有任何作用。重新启动 OpenSynapse 即可恢复。如果想让按键长期恢复原功能，请在**按键**选项卡中将其设为**默认功能**。
 
 **设置保存在哪里？**
-保存在 `%APPDATA%\OpenSynapse\config.json` 中。
+保存在 `%APPDATA%\OpenSynapse\config.json` 中；便携版保存在其文件夹内的 `config.json` 中。
 
 ## 从源代码构建
 
@@ -115,6 +125,8 @@ go run ./cmd/probe # 打印设备状态 (只读)
 # 从 openrazer 源码重新生成设备列表
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
+
+发布新版本时，在 `CHANGELOG.md` 中添加该版本的小节，将 `package.json` 中的 `version` 改为新版本号，然后推送标签 `v<版本号>`。发布工作流会构建安装版和便携版 zip，用 `MYGO_UPDATER_PRIVATE_KEY` 密钥为更新签名，并发布 Release。
 
 本程序使用 Go 编写，窗口基于 [MyGo](https://github.com/egoist/mygo) 和 WebView2。`internal/razer/data/devices.json` 中的设备列表由 `scripts/gendevices.py` 从 openrazer 生成。
 

@@ -117,7 +117,7 @@ func refreshHooks() {
 
 func keyboardProc(code, wparam, lparam uintptr) uintptr {
 	if int32(code) == 0 {
-		k := (*kbdHookData)(unsafe.Pointer(lparam))
+		k := *(**kbdHookData)(unsafe.Pointer(&lparam)) // lparam points at memory Windows owns
 		if k.flags&llkhfInjected == 0 { // never react to our own playback
 			down := wparam == wmKeyDown || wparam == wmSysKeyDown
 			if onTriggerKey(int(k.vk), down) {
@@ -132,7 +132,7 @@ func keyboardProc(code, wparam, lparam uintptr) uintptr {
 
 func mouseProc(code, wparam, lparam uintptr) uintptr {
 	if int32(code) == 0 {
-		m := (*mouseHookData)(unsafe.Pointer(lparam))
+		m := *(**mouseHookData)(unsafe.Pointer(&lparam))
 		if btn, down, ok := mouseButton(uint32(wparam), m.data); ok && m.flags&llmhfInjected == 0 {
 			recordInput(MacroEvent{Kind: "mouse", Code: btn, Down: down}, m.time)
 		}

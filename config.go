@@ -98,7 +98,24 @@ func rememberLighting(id string, l Lighting) {
 	cfg.Lighting[id] = l
 }
 
+// portableDir is the folder of the portable version, which a file named
+// "portable" next to the executable marks, or "". Its settings stay in it.
+var portableDir = func() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Dir(exe)
+	if _, err := os.Stat(filepath.Join(dir, "portable")); err != nil {
+		return ""
+	}
+	return dir
+}()
+
 func configPath() string {
+	if portableDir != "" {
+		return filepath.Join(portableDir, "config.json")
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		dir = "."

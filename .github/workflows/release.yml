@@ -1,0 +1,68 @@
+name: Release
+
+# Push a tag v<version of package.json> to build, sign and publish a release:
+# the installer, the portable zip, and the signed update files that installed
+# and portable copies update from.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # the release, and the uploads to it
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the version
+        run: test "$GITHUB_REF_NAME" = "v$(jq -r .version package.json)"
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag --title "OpenSynapse $GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build:
+    needs: draft-release
+    runs-on: ubuntu-latest # MyGo needs no cgo: Linux builds the Windows app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Install NSIS, for the installer
+        run: sudo apt-get update && sudo apt-get install -y nsis zip
+      - name: Build and upload the installer and the update files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: bun run build -- -platform windows/amd64 -upload
+      # The portable version is the app's files and a "portable" marker, which
+      # keeps the settings in its folder. Updates replace only the app's files.
+      - name: Upload the portable zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          zip_name="opensynapse-${version}-windows-amd64-portable.zip"
+          mkdir -p portable/OpenSynapse
+          cp build/windows-amd64/{OpenSynapse.exe,icon.png,tray.png} portable/OpenSynapse/
+          touch portable/OpenSynapse/portable
+          (cd portable && zip -r "../$zip_name" OpenSynapse)
+          gh release upload "$GITHUB_REF_NAME" "$zip_name" --repo "$GITHUB_REPOSITORY" --clobber
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release, which installed copies then update to
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

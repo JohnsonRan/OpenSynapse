@@ -18,7 +18,11 @@ OpenSynapse は Razer Inc. とは関係ありません。
 ## はじめに
 
 1. 64 ビット版の Windows 10 または Windows 11 で、[Microsoft Edge WebView2 ランタイム](https://developer.microsoft.com/microsoft-edge/webview2/)がインストールされていることを確認します（Windows 11 と最新の Windows 10 には標準で含まれています）。
-2. インストーラー `opensynapse-setup-<バージョン>-amd64.exe` を実行するか、[ソースからビルド](#ソースからビルド)します。
+2. [Releases](https://github.com/JohnsonRan/OpenSynapse/releases/latest) から、次のいずれかをダウンロードします。
+   - **インストーラー版** `opensynapse-setup-<バージョン>-amd64.exe`：現在のユーザーにのみインストールされ、管理者権限は不要です。
+   - **ポータブル版** `opensynapse-<バージョン>-windows-amd64-portable.zip`：`OpenSynapse` フォルダーを書き込み可能な場所（ドキュメントなど）に展開し、`OpenSynapse.exe` を実行します。設定はそのフォルダーに保存されます。
+
+   [ソースからビルド](#ソースからビルド)することもできます。
 3. OpenSynapse を開きます。接続されているデバイスは [**デバイス**] ページにカードとして表示されます。カードを選択すると設定を変更できます。
 
 デバイスが表示されない場合は、デバイスの電源を入れてレシーバーを接続し、Razer Synapse を終了してから [**再スキャン**] を選択してください。
@@ -72,6 +76,12 @@ OpenSynapse は Razer Inc. とは関係ありません。
 - [**サインイン時に起動**] を有効にすると、Windows へのサインイン時に OpenSynapse がトレイで起動します。
 - 表示言語は日本語、英語、中国語（簡体字）から選べます。既定では Windows の言語に従い、[**設定**] > [**言語**] で変更できます。
 
+### 更新
+
+インストーラー版とポータブル版はどちらも自動で更新できます。[**設定**] の [**更新を自動的に確認**] をオンにすると、OpenSynapse はバックグラウンドで新しいバージョンを確認し、見つかるとリリース ノートをウィンドウで表示します。インストール、スキップ、後で通知から選べます。このウィンドウで、確認せずに自動でインストールするようにも設定できます。更新は次回 OpenSynapse を起動したときに反映されます。すぐに確認するには [**更新を確認**] を選択します。
+
+更新には署名が付いており、OpenSynapse はこのプロジェクトが署名した更新だけをインストールします。
+
 ## 対応デバイス
 
 約 210 種類の Razer マウス、キーボード、マウスパッド、アクセサリーを認識します（ノート PC には対応していません）。デバイスの一覧は [openrazer](https://github.com/openrazer/openrazer) プロジェクトに基づいています。
@@ -99,7 +109,7 @@ Razer デバイスは現在の効果を報告できないため、OpenSynapse �
 OpenSynapse がクラッシュしたり、タスク マネージャーで終了されたりした場合、マクロを割り当てたボタンは F13～F24 のいずれかのキーを送り続けますが、このキー自体には何の動作もありません。OpenSynapse をもう一度起動すると元どおり使えるようになります。ボタンを元の機能に戻したい場合は、[**ボタン**] タブで [**既定の機能**] に設定してください。
 
 **設定はどこに保存されますか？**
-`%APPDATA%\OpenSynapse\config.json` に保存されます。
+`%APPDATA%\OpenSynapse\config.json` に保存されます。ポータブル版では、そのフォルダー内の `config.json` に保存されます。
 
 ## ソースからビルド
 
@@ -115,6 +125,8 @@ go run ./cmd/probe # デバイスの状態を表示（読み取りのみ）
 # openrazer のソースからデバイス一覧を再生成
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
+
+リリースするには、`CHANGELOG.md` にそのバージョンのセクションを追加し、`package.json` の `version` を更新して、タグ `v<バージョン>` をプッシュします。リリース ワークフローがインストーラーとポータブル版の zip をビルドし、`MYGO_UPDATER_PRIVATE_KEY` シークレットで更新に署名して、リリースを公開します。
 
 本アプリは Go で書かれており、ウィンドウには [MyGo](https://github.com/egoist/mygo) と WebView2 を使っています。`internal/razer/data/devices.json` のデバイス一覧は、`scripts/gendevices.py` で openrazer から生成しています。
 

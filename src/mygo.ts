@@ -4,6 +4,12 @@ import { call, event } from "mygo-runtime";
 
 // ---- Types ----
 
+/** AppInfo is the running version and how it was installed. */
+export interface AppInfo {
+  version: string;
+  portable: boolean;
+}
+
 /** AutoStatus is what the switchers see right now. */
 export interface AutoStatus {
   foreground: string;
@@ -301,9 +307,21 @@ export const Scenes = {
 
 /** Settings holds app-level options. */
 export const Settings = {
+  /** App returns the running version. */
+  app(): Promise<AppInfo> {
+    return call("Settings.App");
+  },
+  /** AutoUpdate reports whether OpenSynapse checks for updates in the background. */
+  autoUpdate(): Promise<boolean> {
+    return call("Settings.AutoUpdate");
+  },
   /** Autostart reports whether OpenSynapse starts (to the tray) at login. */
   autostart(): Promise<boolean> {
     return call("Settings.Autostart");
+  },
+  /** CheckForUpdates checks now; the update window shows the result. */
+  checkForUpdates(): Promise<void> {
+    return call("Settings.CheckForUpdates");
   },
   /** Language returns the language setting. */
   language(): Promise<LanguageInfo> {
@@ -312,6 +330,10 @@ export const Settings = {
   /** Notify reports whether low-battery notifications are on. */
   notify(): Promise<boolean> {
     return call("Settings.Notify");
+  },
+  /** SetAutoUpdate turns background update checks on or off. */
+  setAutoUpdate(on: boolean): Promise<void> {
+    return call("Settings.SetAutoUpdate", on);
   },
   /** SetAutostart turns starting at login on or off. */
   setAutostart(on: boolean): Promise<void> {

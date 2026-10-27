@@ -951,6 +951,11 @@ $<HTMLInputElement>("#notify").onchange = (e) => {
   attempt(() => Settings.setNotify(on), t(on ? "settings.notifyOn" : "settings.notifyOff"));
 };
 
+Settings.app().then((a) => ($("#update-version").textContent = t("update.version", { version: a.version }) + (a.portable ? ` · ${t("update.portable")}` : "")));
+Settings.autoUpdate().then((on) => ($<HTMLInputElement>("#auto-update").checked = on));
+$<HTMLInputElement>("#auto-update").onchange = (e) => attempt(() => Settings.setAutoUpdate((e.target as HTMLInputElement).checked));
+$("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); // MyGo's update window shows the result
+
 const langSel = $<HTMLSelectElement>("#language");
 langSel.innerHTML = [
   ["", t("settings.langSystem")],

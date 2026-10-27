@@ -18,7 +18,11 @@ OpenSynapse is not affiliated with Razer Inc.
 ## Get started
 
 1. Make sure you're on 64-bit Windows 10 or Windows 11 with the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) installed (it comes with Windows 11 and up-to-date Windows 10).
-2. Run the installer, `opensynapse-setup-<version>-amd64.exe`, or [build it yourself](#build-from-source).
+2. Download OpenSynapse from [Releases](https://github.com/JohnsonRan/OpenSynapse/releases/latest), as either:
+   - the **installer**, `opensynapse-setup-<version>-amd64.exe`, which installs for your account only and needs no administrator rights, or
+   - the **portable version**, `opensynapse-<version>-windows-amd64-portable.zip`. Extract the `OpenSynapse` folder to a place you can write to, such as your Documents, and run `OpenSynapse.exe`. It keeps its settings in that folder.
+
+   You can also [build it yourself](#build-from-source).
 3. Open OpenSynapse. Every connected device appears as a card on the **Devices** page. Select a card to change its settings.
 
 If a device is missing, turn it on, plug in its receiver, quit Razer Synapse, and then select **Scan again**.
@@ -72,6 +76,12 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
 - The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
 
+### Updates
+
+The installed and the portable version update themselves. With **Check for updates automatically** on (under **Settings**), OpenSynapse checks for a new version in the background and shows it in a window with its release notes, where you can install it, skip it or be reminded later. That window can also install updates without asking; they take effect the next time OpenSynapse starts. Select **Check for updates** to check right away.
+
+Updates are signed, and OpenSynapse installs only updates signed by this project.
+
 ## Supported devices
 
 OpenSynapse knows about 210 Razer mice, keyboards, mouse mats and accessories (laptops aren't supported). The device list comes from the [openrazer](https://github.com/openrazer/openrazer) project.
@@ -99,7 +109,7 @@ Some games' anti-cheat software blocks simulated input. Also make sure OpenSynap
 If OpenSynapse crashed or was ended from Task Manager, a button bound to a macro keeps sending its F13–F24 key, which does nothing on its own. Start OpenSynapse again and the button works again. To give the button its original function back for good, set it to **Default** on the **Buttons** tab.
 
 **Where are my settings stored?**
-In `%APPDATA%\OpenSynapse\config.json`.
+In `%APPDATA%\OpenSynapse\config.json`, or for the portable version in `config.json` in its folder.
 
 ## Build from source
 
@@ -115,6 +125,8 @@ go run ./cmd/probe # print device state (read-only)
 # regenerate the device list from an openrazer checkout
 uv run --no-project python scripts/gendevices.py ../openrazer
 ```
+
+To release, add a section for the version to `CHANGELOG.md`, set `version` in `package.json`, and push the tag `v<version>`. The release workflow builds the installer and the portable zip, signs the updates with the `MYGO_UPDATER_PRIVATE_KEY` secret, and publishes the release.
 
 The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2 window. The device list in `internal/razer/data/devices.json` is generated from openrazer by `scripts/gendevices.py`.
 
