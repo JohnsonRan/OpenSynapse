@@ -2,8 +2,12 @@ import { isCallError } from "mygo-runtime";
 import {
   Devices,
   events,
+  Macros,
   Settings,
   Scenes,
+  type ButtonInfo,
+  type Macro,
+  type MacroEvent,
   type DeviceInfo,
   type DeviceState,
   type DPIStage,
@@ -85,11 +89,13 @@ const fromHex = (h: string): RGB => ({ r: parseInt(h.slice(1, 3), 16), g: parseI
 // ---------- navigation ----------
 
 function showView(name: string) {
+  if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
   const rail = name === "device" ? "devices" : name;
   document.querySelectorAll<HTMLElement>(".nav").forEach((x) => x.classList.toggle("active", x.dataset.view === rail));
   if (name === "devices") loadDevices();
   if (name === "scenes") loadScenes();
+  if (name === "macros") loadMacros();
 }
 
 document.querySelectorAll<HTMLButtonElement>(".nav").forEach((b) => (b.onclick = () => showView(b.dataset.view!)));
@@ -197,6 +203,7 @@ async function openDevice(d: DeviceInfo) {
   showTab(first ?? "perf");
   document.querySelector<HTMLElement>(".tabs")!.hidden = !first;
   showView("device");
+  loadButtons(d);
   if (!smart) smart = await Scenes.smart().catch(() => undefined);
   await refreshState();
 }
@@ -435,6 +442,246 @@ $<HTMLInputElement>("#brightness").oninput = (e) => {
   const v = +(e.target as HTMLInputElement).value;
   $("#bright-val").textContent = String(v);
   saveBrightness(v);
+};
+
+// --- buttons ---
+
+const buttonName = (id: number) => ([1, 2, 3, 4, 5, 9, 10, 96].includes(id) ? t(`btn.${id}` as "btn.1") : t("btn.other", { n: id }));
+
+// The tab shows only for devices that answer Synapse's button commands.
+async function loadButtons(d: DeviceInfo) {
+  const tab = document.querySelector<HTMLElement>('.tab[data-tab="buttons"]')!;
+  tab.hidden = true;
+  let buttons: ButtonInfo[];
+  let all: Macro[];
+  try {
+    [buttons, all] = await Promise.all([Devices.buttons(d.id), Macros.list()]);
+  } catch {
+    return;
+  }
+  if (dev?.id !== d.id) return;
+  tab.hidden = false;
+  document.querySelector<HTMLElement>(".tabs")!.hidden = false;
+  $("#button-list").replaceChildren(
+    ...buttons.map((b) => {
+      const row = document.createElement("label");
+      row.className = "button-row";
+      const sel = document.createElement("select");
+      sel.innerHTML = option("", t("buttons.default"), !b.macro) + all.map((m) => option(m.id, esc(m.name), m.id === b.macro)).join("");
+      sel.disabled = b.id === 1; // left button: see Devices.BindButton
+      sel.onchange = () =>
+        attempt(() => Devices.bindButton(d.id, b.id, sel.value), t("buttons.saved")).then((ok) => {
+          if (ok) b.macro = sel.value;
+          else sel.value = b.macro;
+        });
+      const name = document.createElement("span");
+      name.textContent = buttonName(b.id);
+      row.append(name, sel);
+      return row;
+    }),
+  );
+}
+
+// ---------- macros ----------
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// Virtual-key names; letters, digits and F-keys are computed.
+const VK_NAMES: Record<number, string> = {
+  8: "Backspace", 9: "Tab", 13: "Enter", 16: "Shift", 17: "Ctrl", 18: "Alt", 19: "Pause", 20: "Caps Lock", 27: "Esc", 32: "Space",
+  33: "Page Up", 34: "Page Down", 35: "End", 36: "Home", 37: "←", 38: "↑", 39: "→", 40: "↓", 44: "Print Screen", 45: "Insert", 46: "Delete",
+  91: "Win", 92: "Right Win", 93: "Menu", 106: "Num *", 107: "Num +", 109: "Num -", 110: "Num .", 111: "Num /", 144: "Num Lock", 145: "Scroll Lock",
+  160: "Left Shift", 161: "Right Shift", 162: "Left Ctrl", 163: "Right Ctrl", 164: "Left Alt", 165: "Right Alt",
+  173: "Mute", 174: "Volume Down", 175: "Volume Up", 176: "Next Track", 177: "Previous Track", 179: "Play/Pause",
+  186: ";", 187: "=", 188: ",", 189: "-", 190: ".", 191: "/", 192: "`", 219: "[", 220: "\\", 221: "]", 222: "'",
+};
+function vkName(vk: number) {
+  if ((vk >= 48 && vk <= 57) || (vk >= 65 && vk <= 90)) return String.fromCharCode(vk);
+  if (vk >= 96 && vk <= 105) return `Num ${vk - 96}`;
+  if (vk >= 112 && vk <= 135) return `F${vk - 111}`;
+  return VK_NAMES[vk] ?? `VK ${vk}`;
+}
+const MOUSE_BUTTONS = [1, 2, 3, 4, 5];
+const inputName = (e: MacroEvent) => (e.kind === "mouse" ? buttonName(e.code) : vkName(e.code));
+const MODES = ["once", "repeat", "toggle", "hold"] as const;
+
+let macros: Macro[] = [];
+let macro: Macro | undefined; // being edited
+let recording = false;
+
+const saveMacro = debounce(() => {
+  const m = macro;
+  if (!m) return;
+  attempt(async () => {
+    const saved = await Macros.save(m);
+    if (!m.id) {
+      m.id = saved.id; // the first save of a new macro assigns its ID
+      renderMacroList();
+    }
+  });
+}, 400);
+
+async function loadMacros() {
+  macros = (await Macros.list().catch(() => [])) ?? [];
+  if (macro && !macros.some((m) => m.id === macro!.id)) macro = undefined;
+  macro = macros.find((m) => m.id === macro?.id) ?? macros[0];
+  renderMacroList();
+  renderMacro();
+}
+
+function renderMacroList() {
+  $("#macro-list").replaceChildren(
+    ...macros.map((m) => {
+      const b = document.createElement("button");
+      b.className = "macro-item" + (m === macro ? " on" : "");
+      b.textContent = m.name;
+      b.onclick = () => {
+        if (recording) return;
+        macro = m;
+        renderMacroList();
+        renderMacro();
+      };
+      return b;
+    }),
+  );
+  $("#macro-none").hidden = macros.length > 0;
+}
+
+function renderMacro() {
+  $("#macro-edit").hidden = !macro;
+  if (!macro) return;
+  const m = macro;
+  const name = $<HTMLInputElement>("#macro-name");
+  name.value = m.name;
+  name.onchange = () => {
+    m.name = name.value.trim() || m.name;
+    name.value = m.name;
+    renderMacroList();
+    saveMacro();
+  };
+  const mode = $<HTMLSelectElement>("#macro-mode");
+  mode.innerHTML = MODES.map((k) => option(k, t(`mode.${k}` as "mode.once"), m.mode === k)).join("");
+  const count = $<HTMLInputElement>("#macro-count");
+  const syncCount = () => ($("#macro-count-row").style.visibility = m.mode === "repeat" ? "" : "hidden");
+  count.value = String(m.count || 1);
+  syncCount();
+  mode.onchange = () => {
+    m.mode = mode.value;
+    if (m.mode === "repeat" && !m.count) m.count = 1;
+    syncCount();
+    saveMacro();
+  };
+  count.onchange = () => {
+    m.count = Math.min(999, Math.max(1, Math.round(+count.value) || 1));
+    count.value = String(m.count);
+    saveMacro();
+  };
+  $("#macro-record").textContent = t(recording ? "macros.stop" : "macros.record");
+  $("#macro-recording").hidden = !recording;
+  renderSteps();
+}
+
+function renderSteps() {
+  const m = macro!;
+  const box = $("#macro-steps");
+  if (!m.events.length) {
+    box.replaceChildren(Object.assign(document.createElement("p"), { className: "muted small", textContent: t("macros.noSteps") }));
+    return;
+  }
+  box.replaceChildren(
+    ...m.events.map((e, i) => {
+      const row = document.createElement("div");
+      row.className = "step";
+      row.innerHTML = `
+        <span class="step-delay"><input type="number" min="0" max="600000" step="10" title="${t("macros.delay")}" /> ms</span>
+        <span class="step-what ${e.down ? "down" : "up"}"></span>
+        <button class="ghost x" title="${t("macros.deleteStep")}">✕</button>`;
+      row.querySelector(".step-what")!.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
+      const delay = row.querySelector<HTMLInputElement>("input")!;
+      delay.value = String(e.delay);
+      delay.onchange = () => {
+        e.delay = Math.min(600000, Math.max(0, Math.round(+delay.value) || 0));
+        delay.value = String(e.delay);
+        saveMacro();
+      };
+      row.querySelector<HTMLButtonElement>(".x")!.onclick = () => {
+        m.events.splice(i, 1);
+        renderSteps();
+        saveMacro();
+      };
+      return row;
+    }),
+  );
+}
+
+// A press and its release, as a manual add.
+function addPress(kind: string, code: number) {
+  if (!macro) return;
+  macro.events.push({ kind, code, down: true, delay: macro.events.length ? 50 : 0 }, { kind, code, down: false, delay: 50 });
+  renderSteps();
+  saveMacro();
+}
+
+$("#add-macro").onclick = () => {
+  if (recording) return;
+  macro = { id: "", name: t("macros.newName", { n: macros.length + 1 }), events: [], mode: "once", count: 1 };
+  macros.push(macro);
+  renderMacroList();
+  renderMacro();
+  saveMacro();
+  $<HTMLInputElement>("#macro-name").select();
+};
+
+$("#macro-delete").onclick = () => {
+  const m = macro;
+  if (!m || recording) return;
+  attempt(async () => {
+    if (m.id) await Macros.delete(m.id);
+    macros = macros.filter((x) => x !== m);
+    macro = macros[0];
+    renderMacroList();
+    renderMacro();
+  });
+};
+
+$("#macro-record").onclick = async () => {
+  if (!macro) return;
+  if (!recording) {
+    if (!(await attempt(() => Macros.startRecording()))) return;
+    recording = true;
+  } else {
+    recording = false;
+    try {
+      const ev = await Macros.stopRecording();
+      if (ev.length && macro.events.length) ev[0]!.delay = 50;
+      macro.events.push(...ev);
+      toast(t("macros.recorded", { n: ev.length }));
+      saveMacro();
+    } catch (e) {
+      toast(isCallError(e) ? e.message : String(e), true);
+    }
+  }
+  renderMacro();
+};
+
+// The next key pressed in the window is added.
+$("#add-key").onclick = () => {
+  const b = $<HTMLButtonElement>("#add-key");
+  b.textContent = t("macros.pressKey");
+  const onKey = (e: KeyboardEvent) => {
+    e.preventDefault();
+    window.removeEventListener("keydown", onKey, true);
+    b.textContent = t("macros.addKey");
+    addPress("key", e.keyCode); // Windows virtual-key code
+  };
+  window.addEventListener("keydown", onKey, true);
+};
+
+const addMouse = $<HTMLSelectElement>("#add-mouse");
+addMouse.innerHTML = option("", t("macros.addMouse"), true) + MOUSE_BUTTONS.map((b) => option(b, buttonName(b), false)).join("");
+addMouse.onchange = () => {
+  if (addMouse.value) addPress("mouse", +addMouse.value);
+  addMouse.value = "";
 };
 
 // ---------- scenes ----------

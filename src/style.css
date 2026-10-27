@@ -957,3 +957,117 @@ h3 {
 .list-row.about .muted {
   line-height: 1.7;
 }
+
+/* ---------- buttons ---------- */
+
+.button-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ---------- macros ---------- */
+
+.macros {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.macro-side {
+  display: grid;
+  gap: 6px;
+}
+
+.macro-item {
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--fg);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.macro-item.on {
+  border-left-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.macro-top {
+  display: grid;
+  grid-template-columns: 1fr 36px;
+  gap: 8px;
+}
+
+.macro-top input {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.macro-opts {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+  margin: 12px 0 4px;
+}
+
+.macro-opts label {
+  display: grid;
+  gap: 4px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 120px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.step-delay {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.step-delay input {
+  width: 80px;
+}
+
+.step-what.down::before {
+  content: "↓ ";
+  color: var(--accent);
+}
+
+.step-what.up::before {
+  content: "↑ ";
+  color: var(--muted);
+}
+
+.step .x,
+.macro-top .x {
+  padding: 0;
+}
+
+#macro-steps {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.macro-add {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.macro-add select {
+  width: auto;
+}

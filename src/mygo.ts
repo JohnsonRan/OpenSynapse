@@ -20,6 +20,12 @@ export interface AutoStatus {
   rateWhy: string;
 }
 
+/** ButtonInfo is a remappable button and the macro it plays ("" for none). */
+export interface ButtonInfo {
+  id: number;
+  macro: string;
+}
+
 export interface DPIStage {
   x: number;
   y: number;
@@ -93,6 +99,26 @@ export interface LightingCaps {
   brightness: boolean;
 }
 
+/** Macro is a recorded or edited input sequence. */
+export interface Macro {
+  id: string;
+  name: string;
+  events: MacroEvent[];
+  /** once, repeat (Count times), toggle (until pressed again), hold (while held) */
+  mode: string;
+  /** for repeat */
+  count: number;
+}
+
+/** MacroEvent is one input, sent Delay ms after the previous one. */
+export interface MacroEvent {
+  /** key (Code: virtual-key code) or mouse (Code: 1 left, 2 right, 3 middle, 4 back, 5 forward) */
+  kind: string;
+  code: number;
+  down: boolean;
+  delay: number;
+}
+
 export interface RGB {
   r: number;
   g: number;
@@ -149,6 +175,21 @@ export interface SmartPoll {
 
 /** Devices controls connected Razer devices. */
 export const Devices = {
+  /**
+   * BindButton makes a button play a macro; an empty macro restores the button.
+   * The left button cannot be bound: if OpenSynapse is not running it would
+   * only send F13, leaving no way to click.
+   */
+  bindButton(id: string, button: number, macro: string): Promise<void> {
+    return call("Devices.BindButton", id, button, macro);
+  },
+  /**
+   * Buttons lists the device's remappable buttons. It fails on devices without
+   * Synapse's button commands.
+   */
+  buttons(id: string): Promise<ButtonInfo[]> {
+    return call("Devices.Buttons", id);
+  },
   /** List returns connected devices. */
   list(): Promise<DeviceInfo[]> {
     return call("Devices.List");
@@ -202,6 +243,30 @@ export const Devices = {
   /** TakeTarget returns, once, the page a tray click asked a new window to show. */
   takeTarget(): Promise<string> {
     return call("Devices.TakeTarget");
+  },
+} as const;
+
+/** Macros records, edits and stores macros. */
+export const Macros = {
+  /** Delete removes a macro that no button plays. */
+  delete(id: string): Promise<void> {
+    return call("Macros.Delete", id);
+  },
+  /** List returns the saved macros. */
+  list(): Promise<Macro[]> {
+    return call("Macros.List");
+  },
+  /** Save stores a macro; one without an ID is new. It returns the stored macro. */
+  save(m: Macro): Promise<Macro> {
+    return call("Macros.Save", m);
+  },
+  /** StartRecording captures keys and mouse buttons until StopRecording. */
+  startRecording(): Promise<void> {
+    return call("Macros.StartRecording");
+  },
+  /** StopRecording returns what was recorded. */
+  stopRecording(): Promise<MacroEvent[]> {
+    return call("Macros.StopRecording");
   },
 } as const;
 

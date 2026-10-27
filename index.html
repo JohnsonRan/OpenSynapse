@@ -20,6 +20,10 @@
         <svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5" /></svg>
         <span data-i18n="nav.scenes"></span>
       </button>
+      <button class="nav" data-view="macros" data-i18n-title="nav.macros">
+        <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h2M11 10h2M15 10h2M7 14h10" /></svg>
+        <span data-i18n="nav.macros"></span>
+      </button>
       <button class="nav" data-view="settings" data-i18n-title="nav.settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.20 9.58L21.85 10.28L21.85 13.72L19.20 14.42L18.81 15.38L20.18 17.75L17.75 20.18L15.38 18.81L14.42 19.20L13.72 21.85L10.28 21.85L9.58 19.20L8.62 18.81L6.25 20.18L3.82 17.75L5.19 15.38L4.80 14.42L2.15 13.72L2.15 10.28L4.80 9.58L5.19 8.62L3.82 6.25L6.25 3.82L8.62 5.19L9.58 4.80L10.28 2.15L13.72 2.15L14.42 4.80L15.38 5.19L17.75 3.82L20.18 6.25L18.81 8.62Z" /></svg>
         <span data-i18n="nav.settings"></span>
@@ -64,6 +68,7 @@
           <button class="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
           <button class="tab" data-tab="power" data-i18n="tab.power"></button>
           <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
+          <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
         </div>
 
         <div id="tab-perf" class="tab-body">
@@ -135,6 +140,52 @@
               <label><span class="led-dot"></span><span data-i18n="receiver.right"></span><select data-led="2"></select></label>
             </div>
           </div>
+        </div>
+
+        <div id="tab-buttons" class="tab-body" hidden>
+          <div class="card">
+            <div class="card-head"><h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="buttons.more">i</span></h2></div>
+            <p class="muted small" data-i18n="buttons.hint"></p>
+            <div id="button-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Macros -->
+      <section id="view-macros" class="view" hidden>
+        <header class="device-head">
+          <div>
+            <div class="eyebrow" data-i18n="macros.eyebrow"></div>
+            <h1><span data-i18n="macros.title"></span><span class="info" tabindex="0" data-i18n-title="macros.more">i</span></h1>
+          </div>
+        </header>
+        <p class="muted small" data-i18n="macros.intro"></p>
+        <div class="macros">
+          <div class="macro-side">
+            <div id="macro-list"></div>
+            <button id="add-macro" class="ghost" data-i18n="macros.add"></button>
+          </div>
+          <div id="macro-edit" class="card" hidden>
+            <div class="macro-top">
+              <input id="macro-name" maxlength="32" data-i18n-title="macros.name" />
+              <button id="macro-delete" class="ghost x" data-i18n-title="macros.delete">✕</button>
+            </div>
+            <div class="macro-opts">
+              <label><span class="muted small" data-i18n="macros.mode"></span><select id="macro-mode"></select></label>
+              <label id="macro-count-row"><span class="muted small" data-i18n="macros.count"></span><input id="macro-count" type="number" min="1" max="999" /></label>
+            </div>
+            <div class="card-head sub-head">
+              <h3 data-i18n="macros.steps"></h3>
+              <button id="macro-record" class="ghost"></button>
+            </div>
+            <p id="macro-recording" class="small accent" data-i18n="macros.recording" hidden></p>
+            <div id="macro-steps"></div>
+            <div class="row macro-add">
+              <button id="add-key" class="ghost" data-i18n="macros.addKey"></button>
+              <select id="add-mouse"></select>
+            </div>
+          </div>
+          <div id="macro-none" class="empty" hidden><p class="muted" data-i18n="macros.none"></p></div>
         </div>
       </section>
 
