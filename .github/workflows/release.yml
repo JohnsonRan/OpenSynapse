@@ -29,7 +29,12 @@ jobs:
 
   build:
     needs: draft-release
-    runs-on: ubuntu-latest # MyGo needs no cgo: Linux builds the Windows app
+    # Windows: generating the bindings builds the app for the host, and the app
+    # is Windows only. mygo build downloads NSIS itself.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -37,8 +42,6 @@ jobs:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - name: Install NSIS, for the installer
-        run: sudo apt-get update && sudo apt-get install -y nsis zip
       - name: Build and upload the installer and the update files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,7 +58,7 @@ jobs:
           mkdir -p portable/OpenSynapse
           cp build/windows-amd64/{OpenSynapse.exe,icon.png,tray.png} portable/OpenSynapse/
           touch portable/OpenSynapse/portable
-          (cd portable && zip -r "../$zip_name" OpenSynapse)
+          (cd portable && 7z a -tzip "../$zip_name" OpenSynapse)
           gh release upload "$GITHUB_REF_NAME" "$zip_name" --repo "$GITHUB_REPOSITORY" --clobber
 
   publish:
