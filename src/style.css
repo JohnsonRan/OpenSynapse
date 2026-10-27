@@ -1154,3 +1154,15 @@ button.link svg {
 .about-foot p {
   margin: 0;
 }
+
+button.inline-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+button.inline-link:hover {
+  text-decoration: underline;
+}

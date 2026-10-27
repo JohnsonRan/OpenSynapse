@@ -976,6 +976,14 @@ const loadAbout = () => Settings.app().then(renderAbout).catch(() => {});
 events.aboutChanged.on(renderAbout);
 $<HTMLInputElement>("#auto-update").onchange = (e) => attempt(() => Settings.setAutoUpdate((e.target as HTMLInputElement).checked));
 $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); // MyGo's update window shows the result
+// The name openrazer in the credits links to the project.
+{
+  const credits = $("#about-credits");
+  const link = Object.assign(document.createElement("button"), { className: "inline-link", textContent: "openrazer" });
+  link.dataset.link = "openrazer";
+  const [before, after = ""] = credits.textContent!.split("openrazer");
+  credits.replaceChildren(before!, link, after);
+}
 document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
 
 const langSel = $<HTMLSelectElement>("#language");
