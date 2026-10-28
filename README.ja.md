@@ -19,7 +19,12 @@ OpenSynapse は Razer Inc. とは関係ありません。
 
 1. 64 ビット版の Windows 10 または Windows 11 で、[Microsoft Edge WebView2 ランタイム](https://developer.microsoft.com/microsoft-edge/webview2/)がインストールされていることを確認します（Windows 11 と最新の Windows 10 には標準で含まれています）。
 2. [Releases](https://github.com/JohnsonRan/OpenSynapse/releases/latest) から、次のいずれかをダウンロードします。
-   - **インストーラー版** `opensynapse-setup-<バージョン>-amd64.exe`：現在のユーザーにのみインストールされ、管理者権限は不要です。
+   - **インストーラー版** `opensynapse-setup-<バージョン>-amd64.exe`：現在のユーザーにのみインストールされ、管理者権限は不要です。PowerShell で次のコマンドを実行して、ダウンロードとインストールを一度に行うこともできます。
+
+     ```powershell
+     irm https://github.com/JohnsonRan/OpenSynapse/releases/latest/download/install.ps1 | iex
+     ```
+
    - **ポータブル版** `opensynapse-<バージョン>-windows-amd64-portable.zip`：`OpenSynapse` フォルダーを書き込み可能な場所（ドキュメントなど）に展開し、`OpenSynapse.exe` を実行します。設定はそのフォルダーに保存されます。
 
    [ソースからビルド](#ソースからビルド)することもできます。
