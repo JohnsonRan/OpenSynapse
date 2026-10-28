@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -53,15 +55,21 @@ func (h *audioHub) rescan() error {
 func reconcileSceneAudio(present []string) {
 	sceneAudio.Lock()
 	defer sceneAudio.Unlock()
+	changed := false
 	for id := range sceneAudio.eqBase {
 		if !slices.Contains(present, id) {
 			delete(sceneAudio.eqBase, id)
+			changed = true
 		}
 	}
 	for id := range sceneAudio.eqOn {
 		if !slices.Contains(present, id) {
 			delete(sceneAudio.eqOn, id)
+			changed = true
 		}
+	}
+	if changed {
+		_ = savePendingAudio()
 	}
 }
 
@@ -148,7 +156,7 @@ func (Audio) SetEQ(id string, e walkplay.EQ) error {
 	// The saved EQ is the user's now: leaving a scene keeps it.
 	delete(sceneAudio.eqBase, id)
 	delete(sceneAudio.eqOn, id)
-	return nil
+	return savePendingAudio() // else a restart would put the old EQ back over this one
 }
 
 // SetDACFilter picks the DAC's digital filter (1–5).
@@ -337,6 +345,10 @@ func (sd *sceneDevice) apply(flow winaudio.Flow, want string) {
 				return
 			}
 			sd.base = cur
+			if err := savePendingAudio(); err != nil {
+				sd.base = ""
+				return
+			}
 		}
 		if err := setSoundDefault(want); err != nil {
 			sd.on = "" // it may have switched some roles: try again on the next tick
@@ -370,6 +382,7 @@ func (sd *sceneDevice) apply(flow winaudio.Flow, want string) {
 func applySceneAudio(s *Scene) {
 	sceneAudio.Lock()
 	defer sceneAudio.Unlock()
+	defer savePendingAudio()
 	if sceneAudio.quitting && s != nil {
 		return
 	}
@@ -396,6 +409,10 @@ func applySceneAudio(s *Scene) {
 				continue // busy or gone: try on the next tick
 			}
 			sceneAudio.eqBase[d.ID] = b
+			if err := savePendingAudio(); err != nil {
+				delete(sceneAudio.eqBase, d.ID)
+				continue
+			}
 		}
 		if playEQ(d, eq.EQ) {
 			sceneAudio.eqOn[d.ID] = string(key)
@@ -437,6 +454,10 @@ func (v *sceneVolume) apply(want *int) {
 			return
 		}
 		v.base[dev] = b
+		if err := savePendingAudio(); err != nil {
+			delete(v.base, dev)
+			return
+		}
 	}
 	if setSoundVolume(dev, *want) == nil {
 		v.on = fmt.Sprintf("%s:%d", dev, *want)
@@ -514,4 +535,75 @@ func (Settings) AudioDevices() (AudioDevices, error) {
 // SetDefaultDevice makes a playback or recording device the default.
 func (Settings) SetDefaultDevice(id string) error {
 	return winaudio.SetDefault(id)
+}
+
+// pendingAudio is what scenes changed and must put back, kept in a file so
+// that a crash, a forced end or a lost quit still restores it at the next start.
+type pendingAudio struct {
+	EQ     map[string]walkplay.EQ `json:"eq,omitempty"`
+	Output string                 `json:"output,omitempty"`
+	Input  string                 `json:"input,omitempty"`
+	Volume map[string]int         `json:"volume,omitempty"`
+}
+
+var (
+	lastPending    []byte // what the file holds, so it is written only on a change
+	lastPendingErr string
+)
+
+func pendingPath() string { return filepath.Join(filepath.Dir(configPath()), "scene-audio.json") }
+
+// savePendingAudio writes the baselines, or removes the file when none are
+// left; sceneAudio is locked.
+func savePendingAudio() error {
+	p := pendingAudio{EQ: sceneAudio.eqBase, Output: sceneAudio.out.base, Input: sceneAudio.in.base, Volume: sceneAudio.volume.base}
+	b, _ := json.Marshal(p)
+	if string(b) == string(lastPending) {
+		return nil
+	}
+	var err error
+	if len(p.EQ) == 0 && p.Output == "" && p.Input == "" && len(p.Volume) == 0 {
+		if err = os.Remove(pendingPath()); errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+	} else if err = os.WriteFile(pendingPath()+".tmp", b, 0o644); err == nil {
+		err = os.Rename(pendingPath()+".tmp", pendingPath())
+	}
+	if err != nil {
+		msg := err.Error()
+		if msg != lastPendingErr {
+			log.Println("scene audio state:", err)
+			lastPendingErr = msg
+		}
+		return err
+	}
+	lastPendingErr = ""
+	lastPending = b
+	return nil
+}
+
+// loadPendingAudio takes back what a previous run left to restore; the first
+// tick puts it back unless a scene that sets it is active.
+func loadPendingAudio() {
+	b, err := os.ReadFile(pendingPath())
+	if err != nil {
+		return
+	}
+	var p pendingAudio
+	if json.Unmarshal(b, &p) != nil {
+		return
+	}
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	for id, e := range p.EQ {
+		if e.Check() == nil {
+			sceneAudio.eqBase[id] = e
+			sceneAudio.eqOn[id] = "?" // plays something else: the next tick decides
+		}
+	}
+	sceneAudio.out.base, sceneAudio.in.base = p.Output, p.Input
+	for dev, v := range p.Volume {
+		sceneAudio.volume.base[dev] = v
+	}
+	lastPending = b
 }

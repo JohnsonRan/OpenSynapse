@@ -168,6 +168,7 @@ func main() {
 	if err := dongles.rescan(); err != nil {
 		log.Println("scan audio:", err)
 	}
+	loadPendingAudio() // after the scan, which forgets dongles that are gone
 	go runAuto()
 	go watchDevices()
 	go runHooks()

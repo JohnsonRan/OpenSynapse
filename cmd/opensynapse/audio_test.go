@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
@@ -65,6 +68,7 @@ func mustJSON(t *testing.T, v any) string {
 }
 
 func TestSceneDeviceRestoresTheDefault(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir()) // it saves the restore state: keep it off the real one
 	cur, sets := "speakers", 0
 	var failOn string
 	soundDefault = func(winaudio.Flow) (string, error) { return cur, nil }
@@ -133,6 +137,7 @@ func TestSceneDeviceRestoresTheDefault(t *testing.T) {
 }
 
 func TestReconcileSceneAudio(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir()) // it saves the restore state: keep it off the real one
 	sceneAudio.Lock()
 	sceneAudio.eqBase["d1"] = flatEQ()
 	sceneAudio.eqOn["d1"] = "on1"
@@ -215,6 +220,7 @@ func TestSameEQ(t *testing.T) {
 }
 
 func TestSceneVolumeRestoresEachDevice(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir()) // it saves the restore state: keep it off the real one
 	def := "speakers"
 	vols := map[string]int{"speakers": 30, "headset": 50}
 	sets := 0
@@ -242,5 +248,195 @@ func TestSceneVolumeRestoresEachDevice(t *testing.T) {
 	v.apply(nil)
 	if vols["speakers"] != 30 || vols["headset"] != 50 || len(v.base) != 0 {
 		t.Fatalf("restored %v, pending %v", vols, v.base)
+	}
+}
+
+// What scenes changed survives the app ending without its quit.
+func TestPendingAudioSurvivesARestart(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	os.MkdirAll(filepath.Dir(configPath()), 0o755)
+	sceneAudio.Lock()
+	sceneAudio.eqBase["d1"] = flatEQ()
+	sceneAudio.out.base = "speakers"
+	sceneAudio.volume.base["speakers"] = 40
+	savePendingAudio()
+	clear(sceneAudio.eqBase)
+	clear(sceneAudio.eqOn)
+	clear(sceneAudio.volume.base)
+	sceneAudio.out.base = ""
+	sceneAudio.Unlock()
+	lastPending = nil
+
+	loadPendingAudio()
+	sceneAudio.Lock()
+	ok := sameEQ(sceneAudio.eqBase["d1"], flatEQ()) && sceneAudio.out.base == "speakers" && sceneAudio.volume.base["speakers"] == 40
+	clear(sceneAudio.eqBase)
+	clear(sceneAudio.eqOn)
+	clear(sceneAudio.volume.base)
+	sceneAudio.out.base = ""
+	savePendingAudio() // nothing left: the file goes
+	sceneAudio.Unlock()
+	if !ok {
+		t.Fatal("baselines not restored from the file")
+	}
+	if _, err := os.Stat(pendingPath()); !os.IsNotExist(err) {
+		t.Fatal("file left behind with nothing pending")
+	}
+}
+
+// Baseline is saved to disk before calling the hardware setter.
+func TestBaselineSavedBeforeHardwareWrite(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	os.MkdirAll(filepath.Dir(configPath()), 0o755)
+	lastPending = nil
+	defer func() {
+		sceneAudio.Lock()
+		clear(sceneAudio.eqBase)
+		clear(sceneAudio.eqOn)
+		sceneAudio.out, sceneAudio.in = sceneDevice{}, sceneDevice{}
+		sceneAudio.volume = sceneVolume{base: map[string]int{}}
+		_ = savePendingAudio()
+		sceneAudio.Unlock()
+		lastPending = nil
+	}()
+
+	def := "speakers"
+	checkedVolume := false
+	checkedDefault := false
+	soundDefault = func(winaudio.Flow) (string, error) { return def, nil }
+	soundVolume = func(id string) (int, error) { return 30, nil }
+	setSoundVolume = func(id string, v int) error {
+		b, err := os.ReadFile(pendingPath())
+		if err != nil {
+			t.Errorf("pending file not found during volume write: %v", err)
+			return nil
+		}
+		var p pendingAudio
+		if err := json.Unmarshal(b, &p); err != nil {
+			t.Errorf("invalid pending json: %v", err)
+			return nil
+		}
+		if p.Volume["speakers"] != 30 {
+			t.Errorf("expected baseline volume 30 in pending file, got: %v", p.Volume)
+		}
+		checkedVolume = true
+		return nil
+	}
+	setSoundDefault = func(id string) error {
+		b, err := os.ReadFile(pendingPath())
+		if err != nil {
+			t.Errorf("pending file not found during default device write: %v", err)
+			return nil
+		}
+		var p pendingAudio
+		if err := json.Unmarshal(b, &p); err != nil {
+			t.Errorf("invalid pending json: %v", err)
+			return nil
+		}
+		if p.Output != "speakers" {
+			t.Errorf("expected baseline output 'speakers' in pending file, got: %v", p.Output)
+		}
+		checkedDefault = true
+		return nil
+	}
+	defer func() {
+		soundDefault, soundVolume, setSoundVolume, setSoundDefault = winaudio.Default, winaudio.Volume, winaudio.SetVolume, winaudio.SetDefault
+	}()
+
+	sceneAudio.Lock()
+	sceneAudio.out.apply(winaudio.Playback, "headset")
+	loud := 80
+	sceneAudio.volume.apply(&loud)
+	sceneAudio.Unlock()
+
+	if !checkedDefault {
+		t.Fatal("setSoundDefault was not executed")
+	}
+	if !checkedVolume {
+		t.Fatal("setSoundVolume was not executed")
+	}
+}
+
+func TestBaselinePersistenceFailureSkipsHardwareWrite(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("APPDATA", tmp)
+	os.MkdirAll(filepath.Dir(configPath()), 0o755)
+	// Create pendingPath().tmp as a directory so WriteFile fails
+	os.MkdirAll(pendingPath()+".tmp", 0o755)
+	lastPending = nil
+	defer func() {
+		os.RemoveAll(pendingPath() + ".tmp")
+		sceneAudio.Lock()
+		clear(sceneAudio.eqBase)
+		clear(sceneAudio.eqOn)
+		sceneAudio.out, sceneAudio.in = sceneDevice{}, sceneDevice{}
+		sceneAudio.volume = sceneVolume{base: map[string]int{}}
+		_ = savePendingAudio()
+		sceneAudio.Unlock()
+		lastPending = nil
+	}()
+
+	setterCalled := false
+	soundDefault = func(winaudio.Flow) (string, error) { return "speakers", nil }
+	soundVolume = func(id string) (int, error) { return 30, nil }
+	setSoundVolume = func(id string, v int) error {
+		setterCalled = true
+		return nil
+	}
+	defer func() {
+		soundDefault, soundVolume, setSoundVolume = winaudio.Default, winaudio.Volume, winaudio.SetVolume
+	}()
+
+	sceneAudio.Lock()
+	loud := 80
+	sceneAudio.volume.apply(&loud)
+	if setterCalled {
+		t.Fatal("hardware setter was called despite persistence failure")
+	}
+	if _, ok := sceneAudio.volume.base["speakers"]; ok {
+		t.Fatal("volume.base retained baseline despite persistence failure")
+	}
+	sceneAudio.Unlock()
+}
+
+func TestManualEQSaveClearsPersistedBaseline(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	os.MkdirAll(filepath.Dir(configPath()), 0o755)
+	lastPending = nil
+	defer func() {
+		sceneAudio.Lock()
+		clear(sceneAudio.eqBase)
+		clear(sceneAudio.eqOn)
+		_ = savePendingAudio()
+		sceneAudio.Unlock()
+		lastPending = nil
+	}()
+
+	sceneAudio.Lock()
+	sceneAudio.eqBase["d1"] = flatEQ()
+	if err := savePendingAudio(); err != nil {
+		t.Fatal(err)
+	}
+	sceneAudio.Unlock()
+
+	// Verify file has d1
+	b, err := os.ReadFile(pendingPath())
+	if err != nil || !strings.Contains(string(b), "d1") {
+		t.Fatalf("expected d1 in pending file: %s %v", b, err)
+	}
+
+	// Bookkeeping as done in Audio.SetEQ:
+	sceneAudio.Lock()
+	delete(sceneAudio.eqBase, "d1")
+	delete(sceneAudio.eqOn, "d1")
+	_ = savePendingAudio()
+	sceneAudio.Unlock()
+
+	// Verify pending file no longer has d1
+	if _, err := os.Stat(pendingPath()); !os.IsNotExist(err) {
+		b, _ := os.ReadFile(pendingPath())
+		if strings.Contains(string(b), "d1") {
+			t.Fatalf("pending file still contains d1 after SetEQ bookkeeping: %s", b)
+		}
 	}
 }
