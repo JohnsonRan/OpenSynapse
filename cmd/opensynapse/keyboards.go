@@ -18,7 +18,7 @@ import (
 type keyboardHub struct {
 	mu      sync.Mutex
 	devs    []*leobog.Device
-	written map[string]*[leobog.Layers]leobog.Layer // keymap sent since the scan; nil: the remembered one
+	written map[string]*[leobog.Layers]leobog.Layer // keymap sent since the scan; nil: the remembered one; &unknownKeymap: needs rewrite
 	scanMu  sync.Mutex
 }
 
@@ -39,12 +39,25 @@ func (h *keyboardHub) rescan() error {
 	h.mu.Lock()
 	old := h.devs
 	h.devs = found
-	h.written = map[string]*[leobog.Layers]leobog.Layer{} // unknown again: taken as the remembered keymap, a needless write at worst
+	h.written = nextWritten(h.written)
 	h.mu.Unlock()
 	for _, d := range old {
 		d.Close()
 	}
 	return nil
+}
+
+// nextWritten builds the keymap cache after a rescan: keymaps written before
+// are dropped (taken as the remembered map), but failed writes stay marked
+// unknown so a reconnecting keyboard has its keymap rewritten.
+func nextWritten(old map[string]*[leobog.Layers]leobog.Layer) map[string]*[leobog.Layers]leobog.Layer {
+	next := map[string]*[leobog.Layers]leobog.Layer{}
+	for id, w := range old {
+		if w == &unknownKeymap {
+			next[id] = w
+		}
+	}
+	return next
 }
 
 func (h *keyboardHub) list() []*leobog.Device {
@@ -93,6 +106,8 @@ func keyboardMemory(id string) KeyboardMemory {
 }
 
 // rememberKeyboard changes a keyboard's memory and saves it if it changed.
+// change runs under cfgMu, which the input hook takes: it must not wait on a
+// device (d.mu is held for seconds during a factory reset).
 func rememberKeyboard(id string, change func(*KeyboardMemory)) error {
 	cfgMu.Lock()
 	if cfg.Keyboards == nil {
@@ -118,7 +133,8 @@ func setKeyboardLighting(d *leobog.Device, l leobog.Lighting) error {
 	if err := d.SetLighting(l); err != nil {
 		return err
 	}
-	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Colors = d.Colors() })
+	c := d.Colors() // not inside: that would wait on the device while holding cfgMu
+	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Colors = c })
 }
 
 // Keyboards controls LEOBOG keyboards.

@@ -581,6 +581,10 @@ export const Keyboards = {
   openSupport(): Promise<void> {
     return call("Keyboards.OpenSupport");
   },
+  /** Reset restores the keyboard's factory keys and lighting, and unbinds its macros. */
+  reset(id: string): Promise<void> {
+    return call("Keyboards.Reset", id);
+  },
   /** ResetKeys gives every key its factory action and unbinds its macros. */
   resetKeys(id: string): Promise<void> {
     return call("Keyboards.ResetKeys", id);

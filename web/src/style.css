@@ -1715,3 +1715,19 @@ input::placeholder {
 .scene-hl .color {
   width: 48px;
 }
+
+.kb-resets {
+  justify-content: flex-end;
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.ghost.danger {
+  color: var(--danger);
+}
+
+/* A page waiting on the device, e.g. during a factory reset. */
+.view[inert] {
+  opacity: 0.6;
+  cursor: progress;
+}

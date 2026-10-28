@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
@@ -72,6 +73,10 @@ type Model struct {
 	// defaultLayers are the factory remaps as the driver writes them after
 	// restoring defaults: 4 bytes per matrix index, one hex string per layer.
 	defaultLayers [Layers]string
+	// What the driver's factory reset writes besides: the config block
+	// (bytes 8–133), and the keys the custom effect lights white.
+	factoryConfig string
+	factoryKeys   []int
 }
 
 // Models are the keyboards this package drives.
@@ -174,20 +179,32 @@ func header(cmd, length, last byte) []byte {
 	return r
 }
 
+// busyWait and busyTries: still storing a write (a factory reset is 7), the
+// keyboard answers a read with that write; it is asked again a moment later.
+var (
+	busyWait  = 100 * time.Millisecond
+	busyTries = 5
+)
+
 // request sends a read and returns its answer, checked to be that read's.
 func (d *Device) request(req []byte) ([]byte, error) {
 	cmd := req[1]
-	if err := d.port.set(req); err != nil {
-		return nil, err
+	for try := 1; ; try++ {
+		if err := d.port.set(req); err != nil {
+			return nil, err
+		}
+		r, err := d.port.get()
+		if err != nil {
+			return nil, err
+		}
+		if len(r) == reportLen && r[0] == reportID && r[1] == cmd {
+			return r, nil
+		}
+		if try == busyTries {
+			return nil, errors.New("keyboard answered another request")
+		}
+		time.Sleep(busyWait)
 	}
-	r, err := d.port.get()
-	if err != nil {
-		return nil, err
-	}
-	if len(r) != reportLen || r[0] != reportID || r[1] != cmd {
-		return nil, errors.New("keyboard answered another request")
-	}
-	return r, nil
 }
 
 // identify checks that the keyboard answers like the recorded firmware.
@@ -487,6 +504,76 @@ func keymapReport(layer int, l *Layer) []byte {
 	}
 	copy(w[reportLen-2:], magic)
 	return w
+}
+
+// FactoryKeyColors are the custom effect's colors after a factory reset.
+func (m *Model) FactoryKeyColors() KeyColors {
+	var c KeyColors
+	for _, k := range m.factoryKeys {
+		c[k] = razer.RGB{R: 0xff, G: 0xff, B: 0xff}
+	}
+	return c
+}
+
+// storedLayers: the firmware keeps 4 layers; the driver edits the first two
+// and the third (Fn2, entered some way not known here), and resets all four.
+const storedLayers = 4
+
+// resetGap is the pause between a reset's writes, about the driver's: each
+// goes to flash, and back to back they once garbled the config block and
+// left every key dead. A write the keyboard refuses (still storing the one
+// before, "device not functioning") is sent again resetTries times; every
+// report is a whole block, so sending it twice is harmless. After the last,
+// the keyboard is left alone for resetSettle to finish storing.
+var (
+	resetGap    = 100 * time.Millisecond
+	resetTries  = 5
+	resetSettle = 2 * time.Second
+)
+
+// Reset writes what the driver's factory reset writes, in its order: every
+// layer's factory keys, the factory config, palette and per-key colors. The
+// whole config block is written, not read and changed: a garbled block
+// (keys dead) is then repaired too.
+func (d *Device) Reset() error {
+	cfg, err := hex.DecodeString(d.factoryConfig)
+	if err != nil || len(cfg) != offMagic-8 {
+		return errors.New("no factory settings known for this keyboard")
+	}
+	w := header(cmdConfig, configLen, 0)
+	copy(w[8:], cfg)
+	copy(w[offMagic:], magic)
+	def := d.DefaultLayers()
+	colors, keys := DefaultColors(), d.FactoryKeyColors()
+	reports := [][]byte{}
+	for i := range storedLayers {
+		var l Layer
+		if i < Layers {
+			l = def[i]
+		}
+		reports = append(reports, keymapReport(i, &l))
+	}
+	reports = append(reports, w, palette(&colors), keyReport(cmdKeys, &keys))
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i, r := range reports {
+		if i > 0 {
+			time.Sleep(resetGap)
+		}
+		for try := 1; ; try++ {
+			err := d.port.set(r)
+			if err == nil {
+				break
+			}
+			if try == resetTries {
+				return err
+			}
+			time.Sleep(3 * resetGap)
+		}
+	}
+	d.colors, d.keyColors = colors, keys
+	time.Sleep(resetSettle) // d.mu held: nothing reads or writes meanwhile
+	return nil
 }
 
 // SetKeymap writes both layers, as the driver does after any change.

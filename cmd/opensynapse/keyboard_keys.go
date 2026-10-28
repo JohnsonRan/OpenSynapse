@@ -48,6 +48,14 @@ func keymapOf(d *leobog.Device, restore bool) [leobog.Layers]leobog.Layer {
 	return km
 }
 
+// unknownKeymap marks a keyboard whose keymap was left unknown by a failed write.
+var unknownKeymap [leobog.Layers]leobog.Layer
+
+var (
+	deviceReset     = (*leobog.Device).Reset
+	deviceSetKeymap = (*leobog.Device).SetKeymap
+)
+
 // syncKeymaps writes the keymap to keyboards that hold another; bindMu is held.
 func syncKeymaps(restore bool) {
 	for _, d := range keyboards.list() {
@@ -62,7 +70,7 @@ func syncKeymaps(restore bool) {
 		if *have == want {
 			continue
 		}
-		if err := d.SetKeymap(want); err != nil {
+		if err := deviceSetKeymap(d, want); err != nil {
 			log.Println("keymap of", d.ID, err)
 			continue
 		}
@@ -205,11 +213,41 @@ func (Keyboards) ResetKeys(id string) error {
 	}
 	refreshHooks()
 	// Written even if the app thinks it is there: the official driver may have changed it.
-	if err := d.SetKeymap(d.DefaultLayers()); err != nil {
+	if err := deviceSetKeymap(d, d.DefaultLayers()); err != nil {
 		return err
 	}
 	keyboards.mu.Lock()
 	keyboards.written[d.ID] = nil
 	keyboards.mu.Unlock()
+	return saveConfig()
+}
+
+// Reset restores the keyboard's factory keys and lighting, and unbinds its macros.
+func (Keyboards) Reset(id string) error {
+	bindMu.Lock()
+	defer bindMu.Unlock()
+	d, err := keyboards.get(id)
+	if err != nil {
+		return err
+	}
+	if err := deviceReset(d); err != nil {
+		keyboards.mu.Lock()
+		keyboards.written[d.ID] = &unknownKeymap
+		keyboards.mu.Unlock()
+		return err
+	}
+	cfgMu.Lock()
+	cfg.Bindings = slices.DeleteFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name })
+	cfgMu.Unlock()
+	refreshHooks()
+	keyboards.mu.Lock()
+	keyboards.written[d.ID] = nil
+	keyboards.mu.Unlock()
+	colors, keys := d.Colors(), d.KeyColors()
+	if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) {
+		m.Keymap, m.Colors, m.KeyColors = nil, colors, keys
+	}); err != nil {
+		return err
+	}
 	return saveConfig()
 }

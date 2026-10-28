@@ -938,6 +938,34 @@ function renderKbKeys() {
   };
 }
 
+// Factory reset takes a second click within 4 s.
+let factoryArmed = 0;
+$("#kb-factory").onclick = async () => {
+  const b = $("#kb-factory");
+  if (!factoryArmed) {
+    b.textContent = t("kb.factoryConfirm");
+    factoryArmed = window.setTimeout(() => ((factoryArmed = 0), (b.textContent = t("kb.factory"))), 4000);
+    return;
+  }
+  clearTimeout(factoryArmed);
+  factoryArmed = 0;
+  if (!dev) return;
+  const id = dev.id;
+  // The reset takes a few seconds while the keyboard stores it; the page waits,
+  // until it shows the reset settings: an edit before would send the old ones back.
+  const view = $("#view-device");
+  view.inert = true;
+  b.textContent = t("kb.factoryRunning");
+  try {
+    if (!(await attempt(() => Keyboards.reset(id), t("kb.factoryDone")))) return;
+    kbSel = -1;
+    if (dev?.id === id) await loadKeyboard(id);
+  } finally {
+    view.inert = false;
+    b.textContent = t("kb.factory");
+  }
+};
+
 $("#kb-keys-reset").onclick = async () => {
   if (!dev || !kbKeys) return;
   if (!(await attempt(() => Keyboards.resetKeys(dev!.id), t("buttons.saved")))) return;

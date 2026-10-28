@@ -3,6 +3,7 @@ package leobog
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"testing"
 
@@ -62,11 +63,17 @@ type fakePort struct {
 	t       *testing.T
 	sent    [][]byte
 	pending []byte
+	busy    int // reads still answered with the last write, as while storing it
+	refuse  int // writes refused, as while storing the one before
 }
 
 const recHello = "068201000100060003000000009b"
 
 func (f *fakePort) set(r []byte) error {
+	if f.refuse > 0 && r[1]&readFlag == 0 {
+		f.refuse--
+		return errors.New("device not functioning")
+	}
 	switch r[1] {
 	// reads answer only the exact requests the driver sends
 	case cmdHello:
@@ -79,6 +86,10 @@ func (f *fakePort) set(r []byte) error {
 			f.t.Fatalf("config read % x", r[:8])
 		}
 		f.pending = report(f.t, recRead)
+		if f.busy > 0 {
+			f.busy--
+			f.pending = f.sent[len(f.sent)-1]
+		}
 	default:
 		f.sent = append(f.sent, r)
 	}
@@ -178,5 +189,79 @@ func TestFrameMatchesDriver(t *testing.T) {
 	w := keyReport(cmdFrame, &c)
 	if !bytes.Equal(w[:8], []byte{6, 8, 0, 0, 1, 0, 0x7a, 1}) || !bytes.Equal(w[8+3*4:8+3*10], []byte{0, 0x8f, 0, 0, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0c, 0x52}) {
 		t.Fatalf("got % x", w[:40])
+	}
+}
+
+// The driver's factory reset, as recorded: four keymap reports (the last two
+// empty), the config with effect 11 and the factory settings, the default
+// palette, and the game keys white.
+func TestResetMatchesDriver(t *testing.T) {
+	noResetPauses(t)
+	f := &fakePort{t: t, refuse: resetTries - 1} // the first write goes through on its last try
+	d := &Device{Model: hi75, port: f}
+	if err := d.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.sent) != 7 {
+		t.Fatalf("sent %d reports", len(f.sent))
+	}
+	for i, r := range f.sent[:4] {
+		if r[1] != cmdKeymap || r[2] != byte(i) || !bytes.Equal(r[reportLen-2:], magic) {
+			t.Fatalf("keymap %d: % x", i, r[:8])
+		}
+	}
+	if bytes.ContainsFunc(f.sent[3][8:reportLen-2], func(r rune) bool { return r != 0 }) {
+		t.Fatal("layer 3 is not empty")
+	}
+	cfg := f.sent[4]
+	// The block the driver wrote, header to magic; the rest is zero.
+	const recWrite = "0604000001008000000303020000040407000b200100000000000100020100ff0400000001000301000000000000000000000000000000000000000000000000ffff0447044704470447044704470447044704470447044704470447044704470447044704470447043707470747074407440744074407440744074404030404040404040404" + "5aa5"
+	if !bytes.Equal(cfg, report(t, recWrite)) {
+		t.Fatalf("config % x", cfg[8:48])
+	}
+	colors := DefaultColors()
+	if !bytes.Equal(f.sent[5], palette(&colors)) {
+		t.Fatal("palette is not the default")
+	}
+	k := f.sent[6]
+	if k[1] != cmdKeys || k[offRed+9] != 0xff || k[offBlue+89] != 0xff || k[offGreen+1] != 0 {
+		t.Fatal("factory key colors")
+	}
+	if d.KeyColors() != hi75.FactoryKeyColors() || d.Colors() != DefaultColors() {
+		t.Fatal("device kept the old colors")
+	}
+}
+
+// Busy storing a write, the keyboard answers reads with it for a while; the
+// read is asked again rather than failing the call after a reset.
+func TestReadWaitsWhileBusy(t *testing.T) {
+	orig := busyWait
+	busyWait = 0
+	t.Cleanup(func() { busyWait = orig })
+	f := &fakePort{t: t, sent: [][]byte{report(t, "0603030001000002")}}
+	d := &Device{Model: hi75, port: f}
+	f.busy = busyTries - 1
+	if _, err := d.Lighting(); err != nil {
+		t.Fatal(err)
+	}
+	f.busy = busyTries
+	if _, err := d.Lighting(); err == nil {
+		t.Fatal("accepted a stale answer")
+	}
+}
+
+func noResetPauses(t *testing.T) {
+	gap, settle := resetGap, resetSettle
+	resetGap, resetSettle = 0, 0
+	t.Cleanup(func() { resetGap, resetSettle = gap, settle })
+}
+
+// A write refused every time stops the reset with the keyboard's error.
+func TestResetGivesUpOnRefusedWrite(t *testing.T) {
+	noResetPauses(t)
+	f := &fakePort{t: t, refuse: resetTries}
+	d := &Device{Model: hi75, port: f}
+	if err := d.Reset(); err == nil || len(f.sent) != 0 {
+		t.Fatalf("err %v, sent %d", err, len(f.sent))
 	}
 }
