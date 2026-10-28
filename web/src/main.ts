@@ -672,17 +672,24 @@ let macros: Macro[] = [];
 let macro: Macro | undefined; // being edited
 let recording = false;
 
-const saveMacro = debounce(() => {
-  const m = macro;
-  if (!m) return;
-  attempt(async () => {
-    const saved = await Macros.save(m);
-    if (!m.id) {
-      m.id = saved.id; // the first save of a new macro assigns its ID
-      renderMacroList();
-    }
-  });
-}, 400);
+// A macro's saves run one after another, so later ones carry the ID the first assigns.
+const macroSaves = new WeakMap<Macro, Promise<unknown>>();
+const deletedMacros = new WeakSet<Macro>(); // being deleted: queued saves are dropped
+
+function saveMacro(m: Macro) {
+  const next = (macroSaves.get(m) ?? Promise.resolve()).then(() =>
+    deletedMacros.has(m)
+      ? undefined
+      : attempt(async () => {
+          const saved = await Macros.save(m);
+          if (!m.id) {
+            m.id = saved.id;
+            renderMacroList();
+          }
+        }),
+  );
+  macroSaves.set(m, next);
+}
 
 async function loadMacros() {
   macros = (await Macros.list().catch(() => [])) ?? [];
@@ -720,7 +727,7 @@ function renderMacro() {
     m.name = name.value.trim() || m.name;
     name.value = m.name;
     renderMacroList();
-    saveMacro();
+    saveMacro(m);
   };
   const mode = $<HTMLSelectElement>("#macro-mode");
   mode.innerHTML = MODES.map((k) => option(k, t(`mode.${k}` as "mode.once"), m.mode === k)).join("");
@@ -732,12 +739,12 @@ function renderMacro() {
     m.mode = mode.value;
     if (m.mode === "repeat" && !m.count) m.count = 1;
     syncCount();
-    saveMacro();
+    saveMacro(m);
   };
   count.onchange = () => {
     m.count = Math.min(999, Math.max(1, Math.round(+count.value) || 1));
     count.value = String(m.count);
-    saveMacro();
+    saveMacro(m);
   };
   $("#macro-record").textContent = t(recording ? "macros.stop" : "macros.record");
   $("#macro-recording").hidden = !recording;
@@ -764,19 +771,19 @@ function renderSteps() {
         what.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
       } else {
         what.className = `step-what amount ${e.kind}`;
-        what.append(stepAmount(e));
+        what.append(stepAmount(m, e));
       }
       const delay = row.querySelector<HTMLInputElement>("input")!;
       delay.value = String(e.delay);
       delay.onchange = () => {
         e.delay = Math.min(600000, Math.max(0, Math.round(+delay.value) || 0));
         delay.value = String(e.delay);
-        saveMacro();
+        saveMacro(m);
       };
       row.querySelector<HTMLButtonElement>(".x")!.onclick = () => {
         m.events.splice(i, 1);
         renderSteps();
-        saveMacro();
+        saveMacro(m);
       };
       return row;
     }),
@@ -784,7 +791,7 @@ function renderSteps() {
 }
 
 // The editable amount of a move or wheel step: X and Y, or notches.
-function stepAmount(e: MacroEvent) {
+function stepAmount(m: Macro, e: MacroEvent) {
   const box = document.createElement("span");
   const num = (label: string, get: () => number, set: (v: number) => void) => {
     const l = document.createElement("label");
@@ -794,7 +801,7 @@ function stepAmount(e: MacroEvent) {
     input.onchange = () => {
       set(Math.round(+input.value) || 0);
       input.value = String(get());
-      saveMacro();
+      saveMacro(m);
     };
     l.append(label, input);
     return l;
@@ -820,10 +827,11 @@ const step = (kind: string, code: number, down: boolean, x = 0, y = 0): MacroEve
 // A press and its release, or a move or wheel step, as a manual add.
 function addSteps(...ev: MacroEvent[]) {
   if (!macro) return;
-  if (!macro.events.length) ev[0]!.delay = 0;
-  macro.events.push(...ev);
+  const m = macro;
+  if (!m.events.length) ev[0]!.delay = 0;
+  m.events.push(...ev);
   renderSteps();
-  saveMacro();
+  saveMacro(m);
 }
 const addPress = (kind: string, code: number) => addSteps(step(kind, code, true), step(kind, code, false));
 
@@ -833,15 +841,23 @@ $("#add-macro").onclick = () => {
   macros.push(macro);
   renderMacroList();
   renderMacro();
-  saveMacro();
+  saveMacro(macro);
   $<HTMLInputElement>("#macro-name").select();
 };
 
 $("#macro-delete").onclick = () => {
   const m = macro;
   if (!m || recording) return;
+  deletedMacros.add(m);
   attempt(async () => {
-    if (m.id) await Macros.delete(m.id);
+    await macroSaves.get(m);
+    try {
+      if (m.id) await Macros.delete(m.id);
+    } catch (e) {
+      deletedMacros.delete(m); // still there (e.g. bound to a button): keep it, with the edits dropped while deleting
+      saveMacro(m);
+      throw e;
+    }
     macros = macros.filter((x) => x !== m);
     macro = macros[0];
     renderMacroList();
@@ -851,6 +867,7 @@ $("#macro-delete").onclick = () => {
 
 $("#macro-record").onclick = async () => {
   if (!macro) return;
+  const m = macro;
   if (!recording) {
     if (!(await attempt(() => Macros.startRecording($<HTMLInputElement>("#record-moves").checked)))) return;
     recording = true;
@@ -858,10 +875,10 @@ $("#macro-record").onclick = async () => {
     recording = false;
     try {
       const ev = await Macros.stopRecording();
-      if (ev.length && macro.events.length) ev[0]!.delay = 50;
-      macro.events.push(...ev);
+      if (ev.length && m.events.length) ev[0]!.delay = 50;
+      m.events.push(...ev);
       toast(t("macros.recorded", { n: ev.length }));
-      saveMacro();
+      saveMacro(m);
     } catch (e) {
       toast(isCallError(e) ? e.message : String(e), true);
     }
