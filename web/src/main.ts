@@ -9,6 +9,8 @@ import {
   type AppInfo,
   type AudioState,
   type Band,
+  type EQ,
+  type EQPreset,
   type ButtonAction,
   type ButtonInfo,
   type Macro,
@@ -655,8 +657,35 @@ async function loadButtons(d: DeviceInfo) {
 // ---------- audio dongles ----------
 
 let audio: AudioState | undefined;
+let userPresets: EQPreset[] = [];
+let chosenPreset = ""; // the menu value picked or saved last: presets can hold the same EQ
 const BAND_TYPES = ["lowShelf", "peak", "highShelf"] as const;
 const FLAT_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
+// The preamp that keeps the loudest point of the curve at or below 0 dB, so boosts never clip.
+function headroom(bands: Band[]) {
+  let peak = 0;
+  for (let i = 0; i <= 300; i++) {
+    const f = 20 * 1000 ** (i / 300);
+    peak = Math.max(peak, bands.reduce((sum, b) => sum + bandDb(b, f), 0));
+  }
+  return -Math.min(10, Math.ceil(peak - 0.01));
+}
+
+// A flat EQ with some bands changed. Keys in the order the Go side sends them,
+// so presets compare equal as JSON.
+function eqWith(changes: Record<number, Partial<Band>> = {}): EQ {
+  const bands = FLAT_FREQS.map((freq, i) => ({ freq, q: 0.75, gain: 0, type: "peak", ...changes[i] }));
+  return { bands, preamp: headroom(bands) };
+}
+const BUILTIN_PRESETS = {
+  flat: eqWith(),
+  bass: eqWith({ 0: { type: "lowShelf", freq: 105, q: 0.7, gain: 6 } }),
+  treble: eqWith({ 9: { type: "highShelf", freq: 8000, q: 0.7, gain: 4 } }),
+  vocal: eqWith({ 1: { gain: -2 }, 3: { gain: -1 }, 5: { q: 1, gain: 2 }, 6: { q: 1, gain: 3 }, 7: { gain: 1.5 } }),
+  fps: eqWith({ 0: { type: "lowShelf", freq: 105, q: 0.7, gain: -4 }, 6: { q: 1.4, gain: 3 }, 7: { q: 1.4, gain: 4 }, 8: { gain: 2 } }),
+};
+const sameEQ = (a: EQ, b: EQ) => JSON.stringify(a) === JSON.stringify(b);
 const signed = (v: number) => (v > 0 ? `+${v}` : `${v}`);
 
 function openAudio(d: DeviceInfo) {
@@ -669,6 +698,7 @@ function openAudio(d: DeviceInfo) {
   showTab("eq");
   showView("device");
   audio = undefined;
+  chosenPreset = "";
   $("#eq-bands").replaceChildren();
   return loadAudio(d.id);
 }
@@ -676,6 +706,7 @@ function openAudio(d: DeviceInfo) {
 async function loadAudio(id: string) {
   let st: AudioState;
   try {
+    userPresets = (await Audio.presets()) ?? [];
     st = await Audio.state(id);
   } catch (e) {
     toast(isCallError(e) ? e.message : String(e), true);
@@ -692,6 +723,7 @@ async function loadAudio(id: string) {
 const saveEQ = debounce((id: string, eq: AudioState["eq"]) => attempt(() => Audio.setEQ(id, eq)), 500);
 const eqChanged = () => {
   renderCurve();
+  renderPresets();
   if (dev && audio) saveEQ(dev.id, audio.eq);
 };
 
@@ -704,7 +736,69 @@ function renderEQ() {
   pre.onchange = () => ((eq.preamp = +pre.value), eqChanged());
   $("#eq-bands").replaceChildren(...eq.bands.map(bandRow));
   renderCurve();
+  renderPresets();
 }
+
+const presetEQ = (v: string) =>
+  v.startsWith("b:") ? BUILTIN_PRESETS[v.slice(2) as keyof typeof BUILTIN_PRESETS] : userPresets.find((x) => `u:${x.name}` === v)?.eq;
+
+// The preset menu shows the preset the EQ matches, or "Custom". The one picked
+// last wins while it still matches; otherwise the first match.
+function renderPresets() {
+  const eq = audio!.eq;
+  const values = [...Object.keys(BUILTIN_PRESETS).map((k) => `b:${k}`), ...userPresets.map((p) => `u:${p.name}`)];
+  const matches = (v: string) => { const p = presetEQ(v); return !!p && sameEQ(p, eq); };
+  const current = matches(chosenPreset) ? chosenPreset : (values.find(matches) ?? "");
+  const sel = $<HTMLSelectElement>("#eq-preset");
+  sel.innerHTML =
+    (current ? "" : option("", t("eq.custom"), true)) +
+    `<optgroup label="${t("eq.builtin")}">${Object.keys(BUILTIN_PRESETS).map((k) => option(`b:${k}`, t(`eq.preset.${k}` as "eq.preset.flat"), current === `b:${k}`)).join("")}</optgroup>` +
+    (userPresets.length ? `<optgroup label="${t("eq.mine")}">${userPresets.map((p) => option(`u:${esc(p.name)}`, esc(p.name), current === `u:${p.name}`)).join("")}</optgroup>` : "");
+  $<HTMLButtonElement>("#eq-preset-delete").disabled = !current.startsWith("u:");
+}
+
+$<HTMLSelectElement>("#eq-preset").onchange = (e) => {
+  const v = (e.target as HTMLSelectElement).value;
+  const p = presetEQ(v);
+  if (!audio || !p) return;
+  chosenPreset = v;
+  audio.eq = structuredClone(p);
+  renderEQ();
+  eqChanged();
+};
+
+// Save asks for a name first, in place; a second Save or Enter stores it.
+const presetName = $<HTMLInputElement>("#eq-preset-name");
+async function savePreset() {
+  if (!audio) return;
+  if (presetName.hidden) {
+    const v = $<HTMLSelectElement>("#eq-preset").value;
+    presetName.value = v.startsWith("u:") ? v.slice(2) : "";
+    presetName.hidden = false;
+    presetName.focus();
+    return;
+  }
+  const name = presetName.value.trim();
+  const ok = await attempt(() => Audio.savePreset({ name, eq: audio!.eq }), t("eq.saved", { name }));
+  if (!ok) return;
+  presetName.hidden = true;
+  chosenPreset = `u:${name}`;
+  userPresets = (await Audio.presets().catch(() => userPresets)) ?? [];
+  renderPresets();
+}
+$("#eq-preset-save").onclick = savePreset;
+presetName.onkeydown = (e) => {
+  if (e.key === "Enter") savePreset();
+  if (e.key === "Escape") presetName.hidden = true;
+};
+$("#eq-preset-delete").onclick = async () => {
+  const v = $<HTMLSelectElement>("#eq-preset").value;
+  if (!v.startsWith("u:")) return;
+  const name = v.slice(2);
+  if (!(await attempt(() => Audio.deletePreset(name), t("eq.deleted", { name })))) return;
+  userPresets = userPresets.filter((p) => p.name !== name);
+  renderPresets();
+};
 
 function bandRow(b: Band) {
   const row = document.createElement("div");
@@ -731,14 +825,6 @@ function bandRow(b: Band) {
   gain.onchange = eqChanged;
   return row;
 }
-
-$("#eq-flat").onclick = () => {
-  if (!audio) return;
-  audio.eq.preamp = 0;
-  audio.eq.bands = FLAT_FREQS.map((freq) => ({ freq, q: 0.75, gain: 0, type: "peak" }));
-  renderEQ();
-  eqChanged();
-};
 
 // The response the dongle plays: its biquads (RBJ cookbook, at its 96 kHz) summed in dB.
 function bandDb(b: Band, f: number) {

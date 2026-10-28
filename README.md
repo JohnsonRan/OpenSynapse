@@ -107,7 +107,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 
 On a supported USB audio dongle (see [Supported devices](#supported-devices)), the device page has two tabs:
 
-- **Equalizer:** a 10-band parametric EQ (peak, low shelf and high shelf), with a preamp and a live response curve. The EQ is stored in the dongle, so it also applies on other computers and phones.
+- **Equalizer:** a 10-band parametric EQ (peak, low shelf and high shelf), with a preamp and a live response curve. Pick a built-in preset (flat, bass boost, treble boost, vocal, FPS games) or save your own; your presets are included when you back up settings. The EQ is stored in the dongle, so it also applies on other computers and phones.
 - **Audio:** the **default format** Windows plays to the dongle (bit depth and sample rate, as in Sound settings), the DAC's digital filter, high gain, the amplifier mode (class AB or H) and the microphone gain.
 
 ### Updates

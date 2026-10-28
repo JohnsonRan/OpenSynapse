@@ -1500,3 +1500,13 @@ input::placeholder {
 .eq-gain-val {
   text-align: right;
 }
+
+.eq-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eq-presets input {
+  width: 160px;
+}

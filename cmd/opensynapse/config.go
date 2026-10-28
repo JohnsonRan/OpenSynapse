@@ -63,7 +63,8 @@ type config struct {
 	Glass      bool                `json:"glass"`      // glass theme (glass.go)
 	DPIDisplay bool                `json:"dpiDisplay"` // on-screen DPI when the DPI button changes it
 	Macros     []Macro             `json:"macros"`
-	Bindings   []Binding           `json:"bindings"` // device buttons that play macros
+	Bindings   []Binding           `json:"bindings"`  // device buttons that play macros
+	EQPresets  []EQPreset          `json:"eqPresets"` // the user's, for audio dongles
 }
 
 var (
@@ -84,8 +85,9 @@ func defaultConfig() config {
 			Desktop: Scene{Name: "desktop", Apps: []string{}},
 			Scenes:  []Scene{},
 		},
-		Macros:   []Macro{},
-		Bindings: []Binding{},
+		Macros:    []Macro{},
+		Bindings:  []Binding{},
+		EQPresets: []EQPreset{},
 	}
 }
 
@@ -254,6 +256,12 @@ func parseConfig(b []byte, defaults config) (config, error) {
 		var b []Binding
 		if json.Unmarshal(v, &b) == nil && b != nil {
 			c.Bindings = b
+		}
+	}
+	if v, ok := raw["eqPresets"]; ok {
+		var p []EQPreset
+		if json.Unmarshal(v, &p) == nil && p != nil {
+			c.EQPresets = p
 		}
 	}
 	return c, nil

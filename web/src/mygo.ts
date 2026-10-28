@@ -137,6 +137,12 @@ export interface EQ {
   preamp: number;
 }
 
+/** EQPreset is an EQ the user saved under a name. */
+export interface EQPreset {
+  name: string;
+  eq: EQ;
+}
+
 /** Features lists the controls the device declares. */
 export interface Features {
   dpi: boolean;
@@ -383,6 +389,18 @@ export const Devices = {
 
 /** Audio controls USB audio dongles. */
 export const Audio = {
+  /** DeletePreset removes a preset. */
+  deletePreset(name: string): Promise<void> {
+    return call("Audio.DeletePreset", name);
+  },
+  /** Presets returns the user's EQ presets. */
+  presets(): Promise<EQPreset[]> {
+    return call("Audio.Presets");
+  },
+  /** SavePreset stores an EQ under a name, replacing a preset of that name. */
+  savePreset(p: EQPreset): Promise<void> {
+    return call("Audio.SavePreset", p);
+  },
   /** SetDACFilter picks the DAC's digital filter (1–5). */
   setDACFilter(id: string, f: number): Promise<void> {
     return call("Audio.SetDACFilter", id, f);

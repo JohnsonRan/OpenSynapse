@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
@@ -185,4 +187,48 @@ func (Settings) SoundDevices() ([]SoundDevice, error) {
 // SetSoundFormat sets the bit depth and sample rate Windows plays to a device.
 func (Settings) SetSoundFormat(id string, f winaudio.Format) error {
 	return winaudio.SetFormat(id, f)
+}
+
+// EQPreset is an EQ the user saved under a name.
+type EQPreset struct {
+	Name string      `json:"name"`
+	EQ   walkplay.EQ `json:"eq"`
+}
+
+func (p *EQPreset) normalize() error {
+	p.Name = strings.TrimSpace(p.Name)
+	if p.Name == "" {
+		return errors.New(tr("err.presetName"))
+	}
+	return p.EQ.Check()
+}
+
+// Presets returns the user's EQ presets.
+func (Audio) Presets() []EQPreset {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	return slices.Clone(cfg.EQPresets)
+}
+
+// SavePreset stores an EQ under a name, replacing a preset of that name.
+func (Audio) SavePreset(p EQPreset) error {
+	if err := p.normalize(); err != nil {
+		return err
+	}
+	cfgMu.Lock()
+	if i := slices.IndexFunc(cfg.EQPresets, func(x EQPreset) bool { return x.Name == p.Name }); i >= 0 {
+		cfg.EQPresets[i] = p
+	} else {
+		cfg.EQPresets = append(cfg.EQPresets, p)
+	}
+	cfgMu.Unlock()
+	return saveConfig()
+}
+
+// DeletePreset removes a preset.
+func (Audio) DeletePreset(name string) error {
+	cfgMu.Lock()
+	cfg.EQPresets = slices.DeleteFunc(cfg.EQPresets, func(x EQPreset) bool { return x.Name == name })
+	cfgMu.Unlock()
+	return saveConfig()
 }

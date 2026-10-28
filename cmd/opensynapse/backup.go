@@ -87,7 +87,8 @@ func importConfig(b []byte) (config, error) {
 		check("glass", new(bool)) != nil ||
 		check("language", new(string)) != nil ||
 		check("macros", &[]Macro{}) != nil ||
-		check("bindings", &[]Binding{}) != nil {
+		check("bindings", &[]Binding{}) != nil ||
+		check("eqPresets", &[]EQPreset{}) != nil {
 		return config{}, errors.New(tr("err.importFile"))
 	}
 	c, err := parseConfig(b, defaultConfig())
@@ -101,6 +102,7 @@ func importConfig(b []byte) (config, error) {
 		return config{}, errors.New(tr("err.importFile"))
 	}
 	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.normalize() != nil })
+	c.EQPresets = slices.DeleteFunc(c.EQPresets, func(p EQPreset) bool { return p.normalize() != nil })
 	c.Bindings = slices.DeleteFunc(c.Bindings, func(bd Binding) bool {
 		return !isTriggerVK(bd.Trigger) || !slices.ContainsFunc(c.Macros, func(m Macro) bool { return m.ID == bd.Macro })
 	})

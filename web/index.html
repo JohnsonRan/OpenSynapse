@@ -193,7 +193,12 @@
           <div class="card">
             <div class="card-head">
               <h2><span data-i18n="eq.title"></span><span class="info" tabindex="0" data-i18n-title="eq.more">i</span></h2>
-              <button id="eq-flat" class="ghost" data-i18n="eq.flat"></button>
+              <div class="eq-presets">
+                <select id="eq-preset" class="lang-select"></select>
+                <input id="eq-preset-name" maxlength="40" data-i18n-placeholder="eq.presetName" hidden />
+                <button id="eq-preset-save" class="ghost" data-i18n="eq.save"></button>
+                <button id="eq-preset-delete" class="ghost" data-i18n="eq.delete"></button>
+              </div>
             </div>
             <svg id="eq-curve" class="eq-curve" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
             <div class="eq-preamp">
