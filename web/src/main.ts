@@ -145,29 +145,68 @@ async function loadDevices(rescan = false) {
   renderOverview();
 }
 
+// Devices in groups by category, in CATEGORIES order; unknown categories last.
 function renderOverview() {
   $("#no-device").hidden = list.length > 0;
+  const rank = (c: string) => {
+    const i = (CATEGORIES as readonly string[]).indexOf(c);
+    return i < 0 ? CATEGORIES.length : i;
+  };
+  const cats = [...new Set(list.map((d) => d.category))].sort((a, b) => rank(a) - rank(b));
   $("#device-grid").replaceChildren(
-    ...list.map((d) => {
-      const card = document.createElement("button");
-      card.className = "device-card";
-      card.innerHTML = `
-        <svg viewBox="0 0 24 24">${ICONS[d.category] ?? ICONS.accessory}</svg>
-        <div class="dc-cat">${category(d.category)}</div>
-        <div class="dc-name"></div>
-        <div class="dc-meta muted small"></div>`;
-      card.querySelector(".dc-name")!.textContent = d.name;
-      card.onclick = () => openDevice(d);
-      if (d.features.battery) {
-        Devices.state(d.id)
-          .then((s) => {
-            if (s.battery >= 0) card.querySelector(".dc-meta")!.textContent = `${s.charging ? "⚡ " : ""}${t("overview.battery", { pct: s.battery })}`;
-          })
-          .catch(() => (card.querySelector(".dc-meta")!.textContent = t("overview.noAnswer")));
-      }
-      return card;
+    ...cats.map((c) => {
+      const group = document.createElement("section");
+      const n = list.filter((d) => d.category === c).length;
+      group.innerHTML = `<h2 class="group-title"><span></span><small>${n}</small></h2><div class="device-grid"></div>`;
+      group.querySelector("h2 span")!.textContent = category(c);
+      group.querySelector(".device-grid")!.replaceChildren(...list.filter((d) => d.category === c).map(deviceCard));
+      return group;
     }),
   );
+}
+
+// A card shows what the device does right now: DPI and polling rate, or the
+// format and EQ of a dongle, and the battery as a bar.
+function deviceCard(d: DeviceInfo) {
+  const card = document.createElement("button");
+  card.className = "device-card";
+  card.innerHTML = `
+    <div class="dc-head"><svg viewBox="0 0 24 24">${ICONS[d.category] ?? ICONS.accessory}</svg><div class="dc-name"></div></div>
+    <div class="dc-chips"></div>
+    <div class="dc-battery" hidden><span class="muted small"></span><i><b></b></i></div>`;
+  card.querySelector(".dc-name")!.textContent = d.name;
+  card.onclick = () => openDevice(d);
+  const chips = (...texts: string[]) =>
+    card.querySelector(".dc-chips")!.replaceChildren(...texts.map((x) => Object.assign(document.createElement("span"), { className: "chip", textContent: x })));
+  if (d.category === "audio") {
+    Promise.all([Audio.state(d.id), Audio.presets()])
+      .then(([st, mine]) => {
+        const presets = mine ?? [];
+        const eqOf = (r: string) => (r.startsWith("b:") ? BUILTIN_PRESETS[r.slice(2) as keyof typeof BUILTIN_PRESETS] : presets.find((p) => `u:${p.name}` === r)?.eq);
+        const ref = [...Object.keys(BUILTIN_PRESETS).map((k) => `b:${k}`), ...presets.map((p) => `u:${p.name}`)].find((r) => {
+          const p = eqOf(r);
+          return !!p && sameEQ(p, st.eq);
+        });
+        chips(...(st.format ? [`${st.format.bits} bit · ${st.format.rate / 1000} kHz`] : []), `${t("tab.eq")} ${ref ? presetLabel(ref) : t("eq.custom")}`);
+      })
+      .catch(() => chips(t("overview.noAnswer")));
+    return card;
+  }
+  const f = d.features;
+  if (!f.dpi && !f.pollRate && !f.battery) return card;
+  Devices.state(d.id)
+    .then((s) => {
+      chips(...(f.dpi ? [`${s.dpi.x} DPI`] : []), ...(f.pollRate && s.pollRate ? [hz(s.pollRate)] : []));
+      if (s.battery < 0) return;
+      const bat = card.querySelector<HTMLElement>(".dc-battery")!;
+      bat.hidden = false;
+      bat.querySelector("span")!.textContent = `${s.charging ? "⚡ " : ""}${t("overview.battery", { pct: s.battery })}`;
+      const fill = bat.querySelector<HTMLElement>("b")!;
+      fill.style.width = `${s.battery}%`;
+      fill.classList.toggle("low", s.battery <= 20 && !s.charging);
+    })
+    .catch(() => chips(t("overview.noAnswer")));
+  return card;
 }
 $("#rescan").onclick = () => loadDevices(true);
 

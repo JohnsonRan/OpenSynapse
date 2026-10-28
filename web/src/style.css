@@ -322,49 +322,124 @@ button:disabled {
 
 /* ---------- device overview ---------- */
 
+.device-groups section + section {
+  margin-top: 22px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.group-title small {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.group-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .device-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
 
 .device-card {
   text-align: left;
-  background: var(--panel);
+  background: linear-gradient(160deg, var(--panel-2), var(--panel) 55%);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 22px 20px 18px;
+  border-radius: 8px;
+  padding: 18px 20px;
   cursor: pointer;
   display: grid;
-  gap: 6px;
-  min-height: 170px;
+  gap: 14px;
   align-content: start;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .device-card:hover {
   border-color: var(--accent);
   box-shadow: 0 0 18px var(--accent-dim);
+  transform: translateY(-1px);
 }
 
-.device-card svg {
-  width: 40px;
-  height: 40px;
-  color: var(--accent);
-  stroke-width: 1.3;
-  margin-bottom: 10px;
+.dc-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
-.dc-cat {
+.dc-head svg {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  box-sizing: content-box;
+  border-radius: 10px;
+  background: var(--accent-dim);
   color: var(--accent);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  font-weight: 600;
+  stroke-width: 1.4;
 }
 
 .dc-name {
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.dc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dc-chips:empty {
+  display: none;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.dc-battery {
+  display: grid;
+  gap: 6px;
+}
+
+.dc-battery i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.dc-battery b {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.dc-battery b.low {
+  background: var(--danger);
 }
 
 .back {
