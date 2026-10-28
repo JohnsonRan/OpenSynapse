@@ -1432,3 +1432,71 @@ input::placeholder {
   color: var(--muted);
   opacity: 0.8;
 }
+
+/* ---------- audio: EQ ---------- */
+
+.eq-curve {
+  display: block;
+  width: 100%;
+  height: 140px;
+  margin: 4px 0 14px;
+  background: var(--panel-2);
+  border-radius: 8px;
+}
+
+.eq-curve .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.eq-curve polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.eq-preamp {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.eq-preamp input[type="range"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.eq-preamp b {
+  min-width: 52px;
+  text-align: right;
+}
+
+.eq-bands {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.eq-band {
+  display: grid;
+  grid-template-columns: 110px 110px 1fr 64px 92px;
+  align-items: center;
+  gap: 12px;
+}
+
+.eq-band label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.eq-band input[type="number"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.eq-gain-val {
+  text-align: right;
+}

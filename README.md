@@ -100,7 +100,15 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
 - **Glass effect** (under **Settings**, Windows 11 22H2 or later) makes the window translucent, blurring the desktop and windows behind it.
 - **DPI display** (under **Settings**) shows the new DPI near the bottom of the screen when you press the mouse's DPI button.
+- **Sound output** (under **Settings**) sets the default format, bit depth and sample rate, of every Windows playback device, as Sound settings > device properties > Advanced does.
 - **Back up settings** (under **Settings**) exports scenes, macros, button bindings and other settings to a file, and imports them, for example on another PC.
+
+### Audio dongles
+
+On a supported USB audio dongle (see [Supported devices](#supported-devices)), the device page has two tabs:
+
+- **Equalizer:** a 10-band parametric EQ (peak, low shelf and high shelf), with a preamp and a live response curve. The EQ is stored in the dongle, so it also applies on other computers and phones.
+- **Audio:** the **default format** Windows plays to the dongle (bit depth and sample rate, as in Sound settings), the DAC's digital filter, high gain, the amplifier mode (class AB or H) and the microphone gain.
 
 ### Updates
 
@@ -112,7 +120,9 @@ Updates are signed, and OpenSynapse installs only updates signed by this project
 
 OpenSynapse knows about 210 Razer mice, keyboards, mouse mats and accessories (laptops aren't supported). The device list comes from the [openrazer](https://github.com/openrazer/openrazer) project.
 
-So far, only the **DeathAdder V4 Pro** has been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
+It also supports USB audio dongles built on WalkPlay chips that share the EPZ TP35 Pro's firmware family (10-band EQ), from brands such as EPZ, Moondrop, Tanchjim and CrinEar; only the TP35 Pro has been tried. Other WalkPlay families aren't enabled yet.
+
+So far, only the **DeathAdder V4 Pro** and the **EPZ TP35 Pro** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
 
 ## FAQ
 
@@ -159,6 +169,7 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 ## Credits
 
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
+- The audio dongle protocol follows the WalkPlay app as documented by [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC). No devicePEQ code is copied.
 - The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
 - The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
 

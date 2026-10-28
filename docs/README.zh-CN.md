@@ -100,7 +100,15 @@ OpenSynapse 与 Razer Inc. 无关联。
 - 界面提供简体中文、英文和日文，默认跟随 Windows 显示语言。可在**设置** > **语言**中更改。
 - **玻璃效果** (在**设置**中，需要 Windows 11 22H2 或更高版本) 会让窗口半透明，透出并模糊后面的桌面和窗口。
 - **DPI 切换提示** (在**设置**中) 会在你按鼠标的 DPI 键时，在屏幕下方显示新的 DPI。
+- **声音输出** (在**设置**中) 可设置每个 Windows 播放设备的默认格式，即位深度和采样率，与 Windows 声音设置中设备属性的“高级”选项卡相同。
 - **备份设置** (在**设置**中) 可将情景、宏、按键绑定和其他设置导出到文件，或从文件导入，例如在另一台电脑上使用。
+
+### USB 声卡
+
+对于支持的 USB 小尾巴声卡 (见[支持的设备](#支持的设备))，设备页面有两个选项卡:
+
+- **均衡器:** 10 段参量均衡器 (峰值、低架和高架)，附预增益和实时响应曲线。均衡器保存在声卡中，接到其他电脑或手机上也有效。
+- **音频:** Windows 输出到声卡的**默认格式** (位深度和采样率，与 Windows 声音设置中的相同)、DAC 数字滤波器、高增益、功放模式 (AB 类或 H 类) 以及麦克风增益。
 
 ### 更新
 
@@ -112,7 +120,9 @@ OpenSynapse 与 Razer Inc. 无关联。
 
 OpenSynapse 可识别约 210 款 Razer 鼠标、键盘、鼠标垫和配件 (不支持笔记本电脑)。设备列表来自 [openrazer](https://github.com/openrazer/openrazer) 项目。
 
-目前只有 **DeathAdder V4 Pro** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
+此外还支持采用 WalkPlay 芯片、与 EPZ TP35 Pro 属于同一固件系列 (10 段均衡器) 的 USB 小尾巴声卡，涉及 EPZ、水月雨、天使吉米、CrinEar 等品牌；其中只有 TP35 Pro 实测过。其他 WalkPlay 固件系列暂未启用。
+
+目前只有 **DeathAdder V4 Pro** 和 **EPZ TP35 Pro** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
 
 ## 常见问题
 
@@ -159,6 +169,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 ## 致谢
 
 - 协议资料和设备列表来自 [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0)。协议在本项目中重新实现，未复制 openrazer 的任何代码。
+- USB 声卡协议参考了 [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) 整理的 WalkPlay 应用资料，未复制 devicePEQ 的任何代码。
 - 按键重映射命令是通过研究 Razer Synapse 4 自带的设备脚本确定的。
 - 界面仅借鉴了 Razer Synapse 的整体风格 (深色主题、绿色强调色)。所有图标和图片均为原创。
 

@@ -74,6 +74,8 @@
           <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
           <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
           <button class="tab" data-tab="info" data-i18n="tab.info"></button>
+          <button class="tab" data-tab="eq" data-i18n="tab.eq"></button>
+          <button class="tab" data-tab="audio" data-i18n="tab.audio"></button>
         </div>
 
         <div id="tab-perf" class="tab-body">
@@ -185,6 +187,62 @@
             </div>
           </div>
           <p class="muted small" data-i18n="info.firmwareHint"></p>
+        </div>
+
+        <div id="tab-eq" class="tab-body" hidden>
+          <div class="card">
+            <div class="card-head">
+              <h2><span data-i18n="eq.title"></span><span class="info" tabindex="0" data-i18n-title="eq.more">i</span></h2>
+              <button id="eq-flat" class="ghost" data-i18n="eq.flat"></button>
+            </div>
+            <svg id="eq-curve" class="eq-curve" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
+            <div class="eq-preamp">
+              <span class="muted small" data-i18n="eq.preamp"></span>
+              <input id="eq-preamp" type="range" min="-10" max="10" step="1" />
+              <b class="accent"><span id="eq-preamp-val"></span> dB</b>
+            </div>
+            <div id="eq-bands" class="eq-bands"></div>
+          </div>
+        </div>
+
+        <div id="tab-audio" class="tab-body" hidden>
+          <div class="card list">
+            <div class="list-row">
+              <div>
+                <div class="row-title"><span data-i18n="audio.format"></span><span class="info" tabindex="0" data-i18n-title="audio.formatMore">i</span></div>
+                <div class="muted small" id="audio-format-hint" data-i18n="audio.formatHint"></div>
+              </div>
+              <select id="audio-format" class="lang-select"></select>
+            </div>
+            <div class="list-row">
+              <div>
+                <div class="row-title" data-i18n="audio.filter"></div>
+                <div class="muted small" data-i18n="audio.filterHint"></div>
+              </div>
+              <select id="audio-filter" class="lang-select"></select>
+            </div>
+            <div class="list-row">
+              <div>
+                <div class="row-title" data-i18n="audio.highGain"></div>
+                <div class="muted small" data-i18n="audio.highGainHint"></div>
+              </div>
+              <label class="switch"><input id="audio-gain" type="checkbox" /><i></i></label>
+            </div>
+            <div class="list-row">
+              <div>
+                <div class="row-title" data-i18n="audio.workMode"></div>
+                <div class="muted small" data-i18n="audio.workModeHint"></div>
+              </div>
+              <div id="audio-mode" class="seg seg-small"></div>
+            </div>
+            <div class="list-row">
+              <div>
+                <div class="row-title" data-i18n="audio.mic"></div>
+                <div class="muted small" data-i18n="audio.micHint"></div>
+              </div>
+              <span class="eq-preamp"><input id="audio-mic" type="range" min="-15" max="15" step="1" /><b class="accent"><span id="audio-mic-val"></span> dB</b></span>
+            </div>
+          </div>
         </div>
 
         <div id="tab-buttons" class="tab-body" hidden>
@@ -328,6 +386,7 @@
             <label class="switch"><input id="dpi-display" type="checkbox" /><i></i></label>
           </div>
         </div>
+        <div class="card list" id="sound-card" hidden></div>
         <div class="card list">
           <div class="list-row">
             <div>

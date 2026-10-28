@@ -165,6 +165,9 @@ func main() {
 	if err := devices.rescan(); err != nil {
 		log.Println("scan:", err)
 	}
+	if err := dongles.rescan(); err != nil {
+		log.Println("scan audio:", err)
+	}
 	go runAuto()
 	go watchDevices()
 	go runHooks()
@@ -174,6 +177,7 @@ func main() {
 	// The update window in the app's language; it keeps it until a restart.
 	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))
 	mygo.Bind(Devices{})
+	mygo.Bind(Audio{})
 	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})
 	mygo.Bind(Settings{})

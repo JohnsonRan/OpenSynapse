@@ -1,11 +1,14 @@
 import { isCallError } from "mygo-runtime";
 import {
+  Audio,
   Devices,
   events,
   Macros,
   Settings,
   Scenes,
   type AppInfo,
+  type AudioState,
+  type Band,
   type ButtonAction,
   type ButtonInfo,
   type Macro,
@@ -35,7 +38,7 @@ document.documentElement.classList.toggle("glass", glass.on);
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const RATES = [125, 500, 1000, 2000, 4000, 8000];
 const MAX_STAGES = 5;
-const CATEGORIES = ["mouse", "keyboard", "mouse-mat", "accessory", "monitor"] as const;
+const CATEGORIES = ["mouse", "keyboard", "mouse-mat", "accessory", "monitor", "audio"] as const;
 const category = (c: string) => ((CATEGORIES as readonly string[]).includes(c) ? t(`cat.${c}` as "cat.mouse") : c);
 const EFFECT_IDS = ["off", "static", "breathing", "spectrum", "wave"] as const;
 const effectName = (e: string) => ((EFFECT_IDS as readonly string[]).includes(e) ? t(`effect.${e}` as "effect.off") : e);
@@ -106,6 +109,7 @@ function showView(name: string) {
   if (name === "scenes") loadScenes();
   if (name === "macros") loadMacros();
   if (name === "about") loadAbout();
+  if (name === "settings") loadSound();
 }
 
 document.querySelectorAll<HTMLButtonElement>(".nav").forEach((b) => (b.onclick = () => showView(b.dataset.view!)));
@@ -125,6 +129,7 @@ const ICONS: Record<string, string> = {
   "mouse-mat": '<rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 15h10" />',
   accessory: '<circle cx="12" cy="12" r="8" /><path d="M12 8v8M8 12h8" />',
   monitor: '<rect x="3" y="4" width="18" height="12" rx="1" /><path d="M8 20h8M12 16v4" />',
+  audio: '<path d="M4 14v-2a8 8 0 0 1 16 0v2" /><rect x="3" y="14" width="4" height="6" rx="1.5" /><rect x="17" y="14" width="4" height="6" rx="1.5" />',
 };
 
 async function loadDevices(rescan = false) {
@@ -190,6 +195,7 @@ events.devicesChanged.on((next) => {
 async function openDevice(d: DeviceInfo) {
   dev = d;
   state = undefined;
+  if (d.category === "audio") return openAudio(d);
   const f = d.features;
   $("#dev-cat").textContent = category(d.category);
   $("#dev-name").textContent = d.name;
@@ -223,6 +229,7 @@ async function openDevice(d: DeviceInfo) {
 // full=false only refreshes battery, so a periodic read never clobbers an edit in progress.
 async function refreshState(full = true) {
   if (!dev || $("#view-device").hidden) return;
+  if (dev.category === "audio") return full ? loadAudio(dev.id) : undefined;
   const id = dev.id;
   let fresh: DeviceState;
   try {
@@ -643,6 +650,167 @@ async function loadButtons(d: DeviceInfo) {
     renderList();
   });
   renderList();
+}
+
+// ---------- audio dongles ----------
+
+let audio: AudioState | undefined;
+const BAND_TYPES = ["lowShelf", "peak", "highShelf"] as const;
+const FLAT_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const signed = (v: number) => (v > 0 ? `+${v}` : `${v}`);
+
+function openAudio(d: DeviceInfo) {
+  $("#dev-cat").textContent = category(d.category);
+  $("#dev-name").textContent = d.name;
+  $("#dev-conn").textContent = "";
+  $("#dev-battery").hidden = true;
+  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = !["eq", "audio"].includes(x.dataset.tab!)));
+  document.querySelector<HTMLElement>(".tabs")!.hidden = false;
+  showTab("eq");
+  showView("device");
+  audio = undefined;
+  $("#eq-bands").replaceChildren();
+  return loadAudio(d.id);
+}
+
+async function loadAudio(id: string) {
+  let st: AudioState;
+  try {
+    st = await Audio.state(id);
+  } catch (e) {
+    toast(isCallError(e) ? e.message : String(e), true);
+    return;
+  }
+  if (dev?.id !== id) return; // switched device meanwhile
+  audio = st;
+  $("#dev-conn").textContent = st.firmware ? t("audio.firmware", { v: st.firmware }) : "";
+  renderEQ();
+  renderAudio();
+}
+
+// Every change saves the whole EQ; the dongle stores it, so wait for a pause.
+const saveEQ = debounce((id: string, eq: AudioState["eq"]) => attempt(() => Audio.setEQ(id, eq)), 500);
+const eqChanged = () => {
+  renderCurve();
+  if (dev && audio) saveEQ(dev.id, audio.eq);
+};
+
+function renderEQ() {
+  const eq = audio!.eq;
+  const pre = $<HTMLInputElement>("#eq-preamp");
+  pre.value = String(eq.preamp);
+  $("#eq-preamp-val").textContent = signed(eq.preamp);
+  pre.oninput = () => ($("#eq-preamp-val").textContent = signed(+pre.value));
+  pre.onchange = () => ((eq.preamp = +pre.value), eqChanged());
+  $("#eq-bands").replaceChildren(...eq.bands.map(bandRow));
+  renderCurve();
+}
+
+function bandRow(b: Band) {
+  const row = document.createElement("div");
+  row.className = "eq-band";
+  row.innerHTML = `
+    <select class="eq-type">${BAND_TYPES.map((x) => option(x, t(`eq.${x}`), x === b.type)).join("")}</select>
+    <label><input class="eq-freq" type="number" min="20" max="20000" step="1" /> Hz</label>
+    <input class="eq-gain" type="range" min="-10" max="10" step="0.5" />
+    <b class="eq-gain-val accent"></b>
+    <label>Q <input class="eq-q" type="number" min="0.1" max="10" step="0.05" /></label>`;
+  const q = <T extends HTMLElement>(sel: string) => row.querySelector<T>(sel)!;
+  const freq = q<HTMLInputElement>(".eq-freq");
+  const gain = q<HTMLInputElement>(".eq-gain");
+  const qv = q<HTMLInputElement>(".eq-q");
+  const showGain = () => (q(".eq-gain-val").textContent = `${signed(b.gain)} dB`);
+  freq.value = String(b.freq);
+  gain.value = String(b.gain);
+  qv.value = String(b.q);
+  showGain();
+  q<HTMLSelectElement>(".eq-type").onchange = (e) => ((b.type = (e.target as HTMLSelectElement).value), eqChanged());
+  freq.onchange = () => ((b.freq = Math.min(20000, Math.max(20, Math.round(+freq.value) || 1000))), (freq.value = String(b.freq)), eqChanged());
+  qv.onchange = () => ((b.q = Math.min(10, Math.max(0.1, Math.round(+qv.value * 100) / 100 || 0.75))), (qv.value = String(b.q)), eqChanged());
+  gain.oninput = () => ((b.gain = +gain.value), showGain(), renderCurve());
+  gain.onchange = eqChanged;
+  return row;
+}
+
+$("#eq-flat").onclick = () => {
+  if (!audio) return;
+  audio.eq.preamp = 0;
+  audio.eq.bands = FLAT_FREQS.map((freq) => ({ freq, q: 0.75, gain: 0, type: "peak" }));
+  renderEQ();
+  eqChanged();
+};
+
+// The response the dongle plays: its biquads (RBJ cookbook, at its 96 kHz) summed in dB.
+function bandDb(b: Band, f: number) {
+  const A = 10 ** (b.gain / 40);
+  const w0 = (2 * Math.PI * b.freq) / 96000;
+  const [sin, cos] = [Math.sin(w0), Math.cos(w0)];
+  let c: number[];
+  if (b.type === "peak") {
+    const alpha = sin / (2 * b.q);
+    c = [1 + alpha * A, -2 * cos, 1 - alpha * A, 1 + alpha / A, -2 * cos, 1 - alpha / A];
+  } else {
+    const k = b.type === "lowShelf" ? 1 : -1;
+    const s = Math.sqrt(A) * sin * Math.sqrt((A + 1 / A) * (1 / b.q - 1) + 2);
+    c = [
+      A * (A + 1 - k * (A - 1) * cos + s),
+      k * 2 * A * (A - 1 - k * (A + 1) * cos),
+      A * (A + 1 - k * (A - 1) * cos - s),
+      A + 1 + k * (A - 1) * cos + s,
+      -k * 2 * (A - 1 + k * (A + 1) * cos),
+      A + 1 + k * (A - 1) * cos - s,
+    ];
+  }
+  const w = (2 * Math.PI * f) / 96000;
+  const mag = (x0: number, x1: number, x2: number) =>
+    Math.hypot(x0 + x1 * Math.cos(w) + x2 * Math.cos(2 * w), x1 * Math.sin(w) + x2 * Math.sin(2 * w));
+  return 20 * Math.log10(mag(c[0]!, c[1]!, c[2]!) / mag(c[3]!, c[4]!, c[5]!));
+}
+
+function renderCurve() {
+  if (!audio) return;
+  const { bands, preamp } = audio.eq;
+  const W = 600, H = 140, range = 15; // ±15 dB
+  const y = (db: number) => H / 2 - (Math.max(-range, Math.min(range, db)) / range) * (H / 2 - 4);
+  const pts = Array.from({ length: 150 }, (_, i) => {
+    const f = 20 * 1000 ** (i / 149); // 20 Hz to 20 kHz, evenly on a log scale
+    const db = preamp + bands.reduce((sum, b) => sum + bandDb(b, f), 0);
+    return `${((i / 149) * W).toFixed(1)},${y(db).toFixed(1)}`;
+  });
+  const grid = [100, 1000, 10000].map((f) => (Math.log10(f / 20) / 3) * W);
+  $("#eq-curve").innerHTML =
+    grid.map((x) => `<line class="grid" x1="${x}" x2="${x}" y1="0" y2="${H}" />`).join("") +
+    `<line class="grid" x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" /><polyline points="${pts.join(" ")}" />`;
+}
+
+function renderAudio() {
+  const s = audio!;
+  const id = dev!.id;
+  const fmt = $<HTMLSelectElement>("#audio-format");
+  fmt.hidden = !s.format;
+  $("#audio-format-hint").textContent = t(s.format ? "audio.formatHint" : "audio.noFormat");
+  if (s.format) {
+    const key = (f: { bits: number; rate: number }) => `${f.bits}:${f.rate}`;
+    fmt.innerHTML = s.formats.map((f) => option(key(f), t("audio.formatName", { bits: f.bits, rate: f.rate }), key(f) === key(s.format!))).join("");
+    fmt.onchange = () => {
+      const [bits, rate] = fmt.value.split(":").map(Number) as [number, number];
+      attempt(() => Audio.setFormat(id, { bits, rate }), t("audio.formatSet")).then((ok) => (ok ? (s.format = { bits, rate }) : renderAudio()));
+    };
+  }
+  const filter = $<HTMLSelectElement>("#audio-filter");
+  filter.innerHTML = [1, 2, 3, 4, 5].map((v) => option(v, t(`audio.filter${v}` as "audio.filter1"), v === s.dacFilter)).join("");
+  filter.onchange = () => attempt(() => Audio.setDACFilter(id, +filter.value)).then((ok) => (ok ? (s.dacFilter = +filter.value) : renderAudio()));
+  const gain = $<HTMLInputElement>("#audio-gain");
+  gain.checked = s.highGain;
+  gain.onchange = () => attempt(() => Audio.setHighGain(id, gain.checked)).then((ok) => (ok ? (s.highGain = gain.checked) : renderAudio()));
+  segmented($("#audio-mode"), [1, 0], s.workMode, (v) => t(`audio.mode${v}` as "audio.mode0"), (v) =>
+    attempt(() => Audio.setWorkMode(id, v)).then((ok) => (ok ? (s.workMode = v) : renderAudio())),
+  );
+  const mic = $<HTMLInputElement>("#audio-mic");
+  mic.value = String(s.micGain);
+  $("#audio-mic-val").textContent = signed(s.micGain);
+  mic.oninput = () => ($("#audio-mic-val").textContent = signed(+mic.value));
+  mic.onchange = () => attempt(() => Audio.setMicGain(id, +mic.value)).then((ok) => (ok ? (s.micGain = +mic.value) : renderAudio()));
 }
 
 // ---------- macros ----------
@@ -1179,6 +1347,33 @@ $<HTMLInputElement>("#notify").onchange = (e) => {
   const on = (e.target as HTMLInputElement).checked;
   attempt(() => Settings.setNotify(on), t(on ? "settings.notifyOn" : "settings.notifyOff"));
 };
+
+// Every Windows playback device and its default format.
+async function loadSound() {
+  const devs = (await Settings.soundDevices().catch(() => [])) ?? [];
+  const card = $("#sound-card");
+  card.hidden = !devs.length;
+  const head = document.createElement("div");
+  head.className = "list-row";
+  head.innerHTML = `<div><div class="row-title"><span>${t("sound.title")}</span><span class="info" tabindex="0" title="${t("audio.formatMore")}">i</span></div><div class="muted small">${t("sound.hint")}</div></div>`;
+  card.replaceChildren(
+    head,
+    ...devs.map((d) => {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      row.innerHTML = `<div class="row-title"></div><select class="lang-select"></select>`;
+      row.querySelector(".row-title")!.textContent = d.name;
+      const sel = row.querySelector("select")!;
+      const key = (f: { bits: number; rate: number }) => `${f.bits}:${f.rate}`;
+      sel.innerHTML = d.formats.map((f) => option(key(f), t("audio.formatName", { bits: f.bits, rate: f.rate }), key(f) === key(d.format))).join("");
+      sel.onchange = () => {
+        const [bits, rate] = sel.value.split(":").map(Number) as [number, number];
+        attempt(() => Settings.setSoundFormat(d.id, { bits, rate }), t("audio.formatSet")).then((ok) => void (ok || loadSound()));
+      };
+      return row;
+    }),
+  );
+}
 
 // ---------- about ----------
 

@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
 )
 
 // hub owns the connected devices; the UI and the smart switcher share it.
@@ -80,6 +81,8 @@ func watchDevices() {
 		if err != nil {
 			continue
 		}
+		audio, _ := walkplay.PresentPaths()
+		paths = append(paths, audio...)
 		slices.Sort(paths)
 		key := strings.Join(paths, "\n")
 		if key == last {
@@ -95,6 +98,9 @@ func watchDevices() {
 		if err := devices.rescan(); err != nil {
 			log.Println("rescan:", err)
 			continue
+		}
+		if err := dongles.rescan(); err != nil {
+			log.Println("rescan audio:", err)
 		}
 		resetAuto() // a new or switched device gets the current scene and polling rate
 		kickBindings()
@@ -161,12 +167,15 @@ func (Devices) List() []DeviceInfo {
 	for _, d := range devices.list() {
 		out = append(out, DeviceInfo{d.ID, d.Name, d.Category, d.Family(), d.Wired(), d.MaxDPI, d.SupportedPollRates(), d.Features()})
 	}
-	return out
+	return append(out, dongles.infos()...)
 }
 
 // Rescan looks for devices again.
 func (s Devices) Rescan() ([]DeviceInfo, error) {
 	if err := devices.rescan(); err != nil {
+		return nil, err
+	}
+	if err := dongles.rescan(); err != nil {
 		return nil, err
 	}
 	return s.List(), nil

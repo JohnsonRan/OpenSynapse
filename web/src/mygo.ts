@@ -16,6 +16,21 @@ export interface AppInfo {
   lastCheck: number;
 }
 
+/**
+ * AudioState is what the dongle and Windows report. Format is nil when
+ * Windows has no playback device for the dongle.
+ */
+export interface AudioState {
+  firmware: string;
+  eq: EQ;
+  dacFilter: number;
+  highGain: boolean;
+  workMode: number;
+  micGain: number;
+  format: Format | null;
+  formats: Format[];
+}
+
 /** AutoStatus is what the switchers see right now. */
 export interface AutoStatus {
   foreground: string;
@@ -30,6 +45,16 @@ export interface AutoStatus {
   /** target polling rate, 0 = highest, -1 = off */
   rate: number;
   rateWhy: string;
+}
+
+/** Band is one EQ filter. Type is "peak", "lowShelf" or "highShelf". */
+export interface Band {
+  /** Hz */
+  freq: number;
+  q: number;
+  /** dB */
+  gain: number;
+  type: string;
 }
 
 /** ButtonAction is what a button does, as the page shows and sets it. */
@@ -105,6 +130,13 @@ export interface DeviceState {
   lighting: Lighting;
 }
 
+/** EQ is the dongle's equalizer: its bands and the gain applied before them. */
+export interface EQ {
+  bands: Band[];
+  /** dB */
+  preamp: number;
+}
+
 /** Features lists the controls the device declares. */
 export interface Features {
   dpi: boolean;
@@ -116,6 +148,12 @@ export interface Features {
   lowBattery: boolean;
   receiverLeds: boolean;
   lighting: LightingCaps | null;
+}
+
+/** Format is a bit depth and a sample rate. */
+export interface Format {
+  bits: number;
+  rate: number;
 }
 
 /** GlassInfo is the theme switch: whether the system can show it, and whether it is on. */
@@ -225,6 +263,14 @@ export interface SmartPoll {
   exceptions: Rule[];
 }
 
+/** SoundDevice is a Windows playback device and the formats it can play. */
+export interface SoundDevice {
+  id: string;
+  name: string;
+  format: Format;
+  formats: Format[];
+}
+
 /**
  * Tracking is the lift-off setting: one distance for lifting and landing, or
  * separate ones (asymmetric).
@@ -332,6 +378,38 @@ export const Devices = {
   /** Tracking reads the lift-off distance; it fails on devices without it. */
   tracking(id: string): Promise<Tracking> {
     return call("Devices.Tracking", id);
+  },
+} as const;
+
+/** Audio controls USB audio dongles. */
+export const Audio = {
+  /** SetDACFilter picks the DAC's digital filter (1–5). */
+  setDACFilter(id: string, f: number): Promise<void> {
+    return call("Audio.SetDACFilter", id, f);
+  },
+  /** SetEQ writes the EQ and saves it in the dongle. */
+  setEQ(id: string, e: EQ): Promise<void> {
+    return call("Audio.SetEQ", id, e);
+  },
+  /** SetFormat sets the bit depth and sample rate Windows plays to the dongle. */
+  setFormat(id: string, f: Format): Promise<void> {
+    return call("Audio.SetFormat", id, f);
+  },
+  /** SetHighGain switches the amplifier between low and high gain. */
+  setHighGain(id: string, on: boolean): Promise<void> {
+    return call("Audio.SetHighGain", id, on);
+  },
+  /** SetMicGain sets the microphone gain in dB (-15 to 15). */
+  setMicGain(id: string, db: number): Promise<void> {
+    return call("Audio.SetMicGain", id, db);
+  },
+  /** SetWorkMode sets the amplifier class: 0 H, 1 AB. */
+  setWorkMode(id: string, m: number): Promise<void> {
+    return call("Audio.SetWorkMode", id, m);
+  },
+  /** State reads the dongle's settings and its Windows format. */
+  state(id: string): Promise<AudioState> {
+    return call("Audio.State", id);
   },
 } as const;
 
@@ -458,6 +536,17 @@ export const Settings = {
   /** SetNotify turns low-battery notifications on or off. */
   setNotify(on: boolean): Promise<void> {
     return call("Settings.SetNotify", on);
+  },
+  /** SetSoundFormat sets the bit depth and sample rate Windows plays to a device. */
+  setSoundFormat(id: string, f: Format): Promise<void> {
+    return call("Settings.SetSoundFormat", id, f);
+  },
+  /**
+   * SoundDevices lists the playback devices with their default format. A device
+   * whose format cannot be read is left out.
+   */
+  soundDevices(): Promise<SoundDevice[]> {
+    return call("Settings.SoundDevices");
   },
 } as const;
 
