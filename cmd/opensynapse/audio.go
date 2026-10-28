@@ -171,7 +171,7 @@ type SoundDevice struct {
 // SoundDevices lists the playback devices with their default format. A device
 // whose format cannot be read is left out.
 func (Settings) SoundDevices() ([]SoundDevice, error) {
-	devs, err := winaudio.Devices()
+	devs, err := winaudio.Devices(winaudio.Playback)
 	if err != nil {
 		return nil, err
 	}

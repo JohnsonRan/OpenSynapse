@@ -13,17 +13,28 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// Device is an active playback device, as Sound settings lists it.
+// Flow tells playback devices from recording ones.
+type Flow int
+
+const (
+	Playback  Flow = 0 // eRender
+	Recording Flow = 1 // eCapture
+)
+
+// Device is an active playback or recording device, as Sound settings lists it.
 type Device struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"` // e.g. "Speakers (TP35 Pro)"
 	instance string // hardware instance ID: "{1}.USB\VID_…&PID_…&MI_01\…"
 }
 
-// Devices lists the active playback devices from the registry, where
+// Devices lists the active devices of a flow from the registry, where
 // Windows keeps them, without opening any.
-func Devices() ([]Device, error) {
-	const root = `SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render`
+func Devices(flow Flow) ([]Device, error) {
+	root, prefix := `SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render`, "{0.0.0.00000000}."
+	if flow == Recording {
+		root, prefix = `SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture`, "{0.0.1.00000000}."
+	}
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, root, registry.ENUMERATE_SUB_KEYS)
 	if err != nil {
 		return nil, err
@@ -55,7 +66,7 @@ func Devices() ([]Device, error) {
 		if hw != "" {
 			name += " (" + hw + ")"
 		}
-		out = append(out, Device{ID: "{0.0.0.00000000}." + n, Name: name, instance: inst})
+		out = append(out, Device{ID: prefix + n, Name: name, instance: inst})
 	}
 	slices.SortFunc(out, func(a, b Device) int { return strings.Compare(a.Name, b.Name) })
 	return out, nil
@@ -64,7 +75,7 @@ func Devices() ([]Device, error) {
 // Endpoint returns the ID of the active playback device on the USB device
 // whose hardware ID contains usb (e.g. "VID_3302&PID_43E6"), or "".
 func Endpoint(usb string) (string, error) {
-	devs, err := Devices()
+	devs, err := Devices(Playback)
 	for _, d := range devs {
 		if strings.Contains(strings.ToUpper(d.instance), `USB\`+strings.ToUpper(usb)) {
 			return d.ID, nil
@@ -90,11 +101,14 @@ const (
 	clsctxAll = 0x17
 
 	slotRelease           = 2
-	slotGetDevice         = 5 // IMMDeviceEnumerator
+	slotGetDefault        = 4 // IMMDeviceEnumerator
+	slotGetDevice         = 5
+	slotGetID             = 5 // IMMDevice
 	slotActivate          = 3 // IMMDevice
 	slotIsFormatSupported = 7 // IAudioClient
 	slotGetDeviceFormat   = 4 // IPolicyConfig
 	slotSetDeviceFormat   = 6
+	slotSetDefault        = 13
 )
 
 // call invokes a COM method by vtable slot and returns its HRESULT.
@@ -230,5 +244,54 @@ func SetFormat(endpoint string, f Format) error {
 			return hrErr("SetDeviceFormat", call(policy, slotSetDeviceFormat, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(&dev[0])), uintptr(unsafe.Pointer(&mix[0]))))
 		}
 		return errors.New("the device does not support this format")
+	})
+}
+
+// Default returns the ID of the default device of a flow, or "" when there is none.
+func Default(flow Flow) (id string, err error) {
+	err = withCOM(func() error {
+		enum, err := create(&clsidMMDeviceEnumerator, &iidIMMDeviceEnumerator)
+		if err != nil {
+			return err
+		}
+		defer release(enum)
+		var dev unsafe.Pointer
+		if hr := call(enum, slotGetDefault, uintptr(flow), 0 /* eConsole */, uintptr(unsafe.Pointer(&dev))); hr != 0 {
+			if hr == 0x80070490 { // E_NOTFOUND: no device of this flow
+				return nil
+			}
+			return hrErr("GetDefaultAudioEndpoint", hr)
+		}
+		defer release(dev)
+		var p *uint16
+		if err := hrErr("GetId", call(dev, slotGetID, uintptr(unsafe.Pointer(&p)))); err != nil {
+			return err
+		}
+		defer windows.CoTaskMemFree(unsafe.Pointer(p))
+		id = windows.UTF16PtrToString(p)
+		return nil
+	})
+	return id, err
+}
+
+// SetDefault makes a device the default for every role (console, multimedia,
+// communications), as Sound settings does.
+func SetDefault(id string) error {
+	p, err := windows.UTF16PtrFromString(id)
+	if err != nil {
+		return err
+	}
+	return withCOM(func() error {
+		policy, err := create(&clsidPolicyConfig, &iidIPolicyConfig)
+		if err != nil {
+			return err
+		}
+		defer release(policy)
+		for role := range 3 {
+			if err := hrErr("SetDefaultEndpoint", call(policy, slotSetDefault, uintptr(unsafe.Pointer(p)), uintptr(role))); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }

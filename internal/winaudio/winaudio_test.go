@@ -29,3 +29,9 @@ func TestSupportedTriesBothContainersFor24Bit(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 }
+
+func TestDefaultInvalidFlowReturnsError(t *testing.T) {
+	if _, err := Default(Flow(99)); err == nil {
+		t.Fatal("expected error for invalid flow")
+	}
+}
