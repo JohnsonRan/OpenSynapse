@@ -4,6 +4,26 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.4.0
+
+### 简体中文
+
+- Hypershift: 按住设为 Hypershift 的按键，其他按键即可切换到第二套功能，一键多用
+- 宏: 支持录制和编辑鼠标移动与滚轮操作，包括水平滚轮
+- 界面: 各页面布局更加整齐统一，情景模式用语更清晰
+
+### English
+
+- Hypershift: hold a Hypershift button to give your other buttons a second set of functions
+- Macros: record and edit mouse movement and scrolling, including the horizontal wheel
+- Interface: a cleaner, more consistent layout on every page
+
+### 日本語
+
+- Hypershift: Hypershift に設定したボタンを押している間、ほかのボタンで 2 つ目の機能を使えるようになりました
+- マクロ: マウスの移動とスクロール (水平スクロールを含む) を記録、編集できるようになりました
+- 画面: すべてのページのレイアウトを整え、より見やすくなりました
+
 ## 0.3.1
 
 ### 简体中文

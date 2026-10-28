@@ -44,7 +44,7 @@ Closing the window keeps OpenSynapse running in the notification area (system tr
 - **Power:** battery level, charging state, sleep timeout and low-battery threshold.
 - **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
 - **Lift-off distance:** low, medium or high, or separate distances for lifting and landing (asymmetric).
-- **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. These are stored in the mouse and work without OpenSynapse. Buttons can also play [macros](#macros).
+- **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. A button set to **Hypershift** gives the other buttons a second set of functions while it's held, chosen on the **Hypershift layer**. These are stored in the mouse and work without OpenSynapse. Buttons can also play [macros](#macros).
 - **Info:** the firmware version and serial number, with links to Razer's firmware updater and, for mice with a receiver, a search for its pairing utility. Pairing itself needs a Razer pairing utility or Razer Synapse.
 
 Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.
@@ -53,8 +53,8 @@ Each device shows only the settings it supports. Plugging in, unplugging and swi
 
 Create macros on the **Macros** page, and then bind them to mouse buttons.
 
-- **Record:** select **● Record** and press keys and mouse buttons. The delays between presses are recorded too. Select **■ Stop** when you're done.
-- **Edit:** add presses by hand with **+ Key** or **+ Mouse button**, change the delay of each step (in milliseconds), and delete steps you don't need.
+- **Record:** select **● Record** and press keys and mouse buttons. The delays between presses are recorded too, and so is mouse movement if you check **Record mouse movement**. Select **■ Stop** when you're done.
+- **Edit:** add presses by hand with **+ Key** or **+ Mouse button**, which also adds wheel notches and mouse movement, change the delay of each step (in milliseconds), and delete steps you don't need.
 - **Playback:** **Play once**, **Repeat a number of times**, **Loop until pressed again** or **Loop while held**.
 - **Bind to a button:** on the device page, open the **Buttons** tab and choose a macro for any button except the left one. Choose **Default** to give a button its original function back.
 
