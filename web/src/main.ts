@@ -264,6 +264,7 @@ $("#rescan").onclick = () => loadDevices(true);
 events.devicesChanged.on((next) => {
   list = next;
   renderOverview();
+  if (!$("#view-scenes").hidden) loadScenes(); // its keyboard and EQ sections follow the devices
   if (!dev || $("#view-device").hidden) return;
   if (list.some((d) => d.id === dev!.id)) {
     refreshState();
