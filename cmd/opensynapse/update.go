@@ -58,7 +58,6 @@ const repoURL = "https://github.com/JohnsonRan/OpenSynapse"
 // links the page may open; it names one instead of passing a URL.
 var links = map[string]string{
 	"repo":      repoURL,
-	"releases":  repoURL + "/releases",
 	"changelog": repoURL + "/blob/master/CHANGELOG.md",
 	"issues":    repoURL + "/issues",
 	"license":   repoURL + "/blob/master/LICENSE",
