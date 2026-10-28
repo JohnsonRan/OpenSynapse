@@ -121,6 +121,8 @@ export interface DeviceInfo {
   maxDpi: number;
   pollRates: number[];
   features: Features;
+  /** "leobog" for LEOBOG keyboards, "" for Razer and audio */
+  driver?: string;
 }
 
 /**
@@ -159,6 +161,16 @@ export interface EQPreset {
   eq: EQ;
 }
 
+/** Effect is one hardware effect, in the order the driver lists them. */
+export interface Effect {
+  id: number;
+  /** stable key for translations */
+  name: string;
+  speed: boolean;
+  /** takes a single color besides colorful */
+  color: boolean;
+}
+
 /** Features lists the controls the device declares. */
 export interface Features {
   dpi: boolean;
@@ -184,10 +196,30 @@ export interface GlassInfo {
   on: boolean;
 }
 
+/** KeyboardState is the lighting shown and the effects the keyboard has. */
+export interface KeyboardState {
+  lighting: LeobogLighting;
+  effects: Effect[];
+  /** of brightness and speed */
+  maxLevel: number;
+}
+
 /** LanguageInfo: Choice is what the user picked ("" = system), Effective what is shown. */
 export interface LanguageInfo {
   choice: string;
   effective: string;
+}
+
+/**
+ * Lighting is what the keyboard shows. Brightness and Speed are 0–MaxLevel;
+ * Colorful cycles colors, otherwise Color is used.
+ */
+export interface LeobogLighting {
+  effect: number;
+  brightness: number;
+  speed: number;
+  colorful: boolean;
+  color: RGB;
 }
 
 /** Lighting is a whole-device lighting choice. */
@@ -461,6 +493,22 @@ export const Audio = {
   /** State reads the dongle's settings and its Windows format. */
   state(id: string): Promise<AudioState> {
     return call("Audio.State", id);
+  },
+} as const;
+
+/** Keyboards controls LEOBOG keyboards. */
+export const Keyboards = {
+  /** SetLighting shows l on the keyboard. */
+  setLighting(id: string, l: LeobogLighting): Promise<void> {
+    return call("Keyboards.SetLighting", id, l);
+  },
+  /** State reads the keyboard's lighting. */
+  state(id: string): Promise<KeyboardState> {
+    return call("Keyboards.State", id);
+  },
+  /** Stored reads what the keyboard keeps for an effect, to show it before switching. */
+  stored(id: string, effect: number): Promise<LeobogLighting> {
+    return call("Keyboards.Stored", id, effect);
   },
 } as const;
 

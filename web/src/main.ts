@@ -3,6 +3,7 @@ import {
   Audio,
   Devices,
   events,
+  Keyboards,
   Macros,
   Settings,
   Scenes,
@@ -19,6 +20,7 @@ import {
   type DeviceInfo,
   type DeviceState,
   type DPIStage,
+  type KeyboardState,
   type RGB,
   type Scene,
   type ScenesConfig,
@@ -223,6 +225,15 @@ function deviceCard(d: DeviceInfo) {
       .catch(() => chips(t("overview.noAnswer")));
     return card;
   }
+  if (d.driver === "leobog") {
+    Keyboards.state(d.id)
+      .then((s) => {
+        const e = s.effects.find((x) => x.id === s.lighting.effect);
+        chips(e ? kbEffectName(e.name) : t("kb.effect.other"));
+      })
+      .catch(() => chips(t("overview.noAnswer")));
+    return card;
+  }
   const f = d.features;
   if (!f.dpi && !f.pollRate && !f.battery) return card;
   Devices.state(d.id)
@@ -269,6 +280,7 @@ async function openDevice(d: DeviceInfo) {
   dev = d;
   state = undefined;
   if (d.category === "audio") return openAudio(d);
+  if (d.driver === "leobog") return openKeyboard(d);
   const f = d.features;
   $("#dev-cat").textContent = category(d.category);
   $("#dev-name").textContent = d.name;
@@ -303,6 +315,7 @@ async function openDevice(d: DeviceInfo) {
 async function refreshState(full = true) {
   if (!dev || $("#view-device").hidden) return;
   if (dev.category === "audio") return full ? loadAudio(dev.id) : undefined;
+  if (dev.driver === "leobog") return full ? loadKeyboard(dev.id) : undefined;
   const id = dev.id;
   let fresh: DeviceState;
   try {
@@ -723,6 +736,102 @@ async function loadButtons(d: DeviceInfo) {
     renderList();
   });
   renderList();
+}
+
+// ---------- LEOBOG keyboards ----------
+
+let kb: KeyboardState | undefined;
+function kbEffectName(name: string) {
+  return t(`kb.effect.${name}` as "kb.effect.off") || name;
+}
+
+function openKeyboard(d: DeviceInfo) {
+  $("#dev-cat").textContent = category(d.category);
+  $("#dev-name").textContent = d.name;
+  $("#dev-conn").textContent = "";
+  $("#dev-battery").hidden = true;
+  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = x.dataset.tab !== "kblight"));
+  document.querySelector<HTMLElement>(".tabs")!.hidden = false;
+  showTab("kblight");
+  showView("device");
+  kb = undefined;
+  return loadKeyboard(d.id);
+}
+
+async function loadKeyboard(id: string) {
+  let st: KeyboardState;
+  try {
+    st = await Keyboards.state(id);
+  } catch (e) {
+    toast(isCallError(e) ? e.message : String(e), true);
+    return;
+  }
+  if (dev?.id !== id) return; // switched device meanwhile
+  kb = st;
+  renderKeyboard();
+}
+
+// Every control writes the whole lighting; sliders wait for a pause.
+const saveKeyboard = debounce(() => kb && dev && attempt(() => Keyboards.setLighting(dev!.id, kb!.lighting)), 150);
+
+function renderKeyboard() {
+  const s = kb!;
+  const l = s.lighting;
+  const fx = s.effects.find((e) => e.id === l.effect);
+  const sel = $<HTMLSelectElement>("#kb-effect");
+  // An effect set elsewhere that this app does not offer (per-key colors) shows as is.
+  sel.innerHTML = (fx ? "" : option(l.effect, t("kb.effect.other"), true)) + s.effects.map((e) => option(e.id, kbEffectName(e.name), e.id === l.effect)).join("");
+  sel.onchange = async () => {
+    const id = dev!.id;
+    // Each effect keeps its own brightness, speed and color on the keyboard.
+    const stored = await Keyboards.stored(id, +sel.value).catch(() => ({ ...l, effect: +sel.value }));
+    if (dev?.id !== id) return;
+    s.lighting = stored;
+    const e = s.effects.find((x) => x.id === stored.effect);
+    if (e && !e.color) s.lighting.colorful = true;
+    renderKeyboard();
+    saveKeyboard();
+  };
+  const on = !!fx && l.effect !== 0;
+  $("#kb-color-row").hidden = !on;
+  $("#kb-bright-row").hidden = !on;
+  $("#kb-speed-row").hidden = !on || !fx!.speed;
+  const colorful = $<HTMLInputElement>("#kb-colorful");
+  colorful.checked = l.colorful;
+  colorful.disabled = !fx?.color; // these effects only cycle colors
+  colorful.onchange = () => ((l.colorful = colorful.checked), renderKeyboard(), saveKeyboard());
+  const pick = (hex: string) => {
+    l.color = fromHex(hex);
+    l.colorful = false;
+    renderKeyboard();
+    saveKeyboard();
+  };
+  $("#kb-swatches").replaceChildren(
+    ...SWATCHES.map((hex) => {
+      const b = document.createElement("button");
+      b.className = "swatch" + (!l.colorful && toHex(l.color) === hex ? " on" : "");
+      b.style.background = hex;
+      b.title = hex;
+      b.disabled = !fx?.color;
+      b.onclick = () => pick(hex);
+      return b;
+    }),
+  );
+  const color = $<HTMLInputElement>("#kb-color");
+  color.value = toHex(l.color);
+  color.disabled = !fx?.color;
+  color.oninput = () => pick(color.value);
+  for (const [key, el, val] of [["brightness", "#kb-bright", "#kb-bright-val"], ["speed", "#kb-speed", "#kb-speed-val"]] as const) {
+    const r = $<HTMLInputElement>(el);
+    r.max = String(s.maxLevel);
+    r.value = String(l[key]);
+    $(val).textContent = `${l[key]} / ${s.maxLevel}`;
+    r.oninput = () => {
+      l[key] = +r.value;
+      $(val).textContent = `${l[key]} / ${s.maxLevel}`;
+      saveKeyboard();
+    };
+  }
 }
 
 // ---------- audio dongles ----------

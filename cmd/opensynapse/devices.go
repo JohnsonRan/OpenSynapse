@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
 )
@@ -82,7 +83,8 @@ func watchDevices() {
 			continue
 		}
 		audio, _ := walkplay.PresentPaths()
-		paths = append(paths, audio...)
+		kbs, _ := leobog.PresentPaths()
+		paths = append(append(paths, audio...), kbs...)
 		slices.Sort(paths)
 		key := strings.Join(paths, "\n")
 		if key == last {
@@ -101,6 +103,9 @@ func watchDevices() {
 		}
 		if err := dongles.rescan(); err != nil {
 			log.Println("rescan audio:", err)
+		}
+		if err := keyboards.rescan(); err != nil {
+			log.Println("rescan keyboards:", err)
 		}
 		resetAuto() // a new or switched device gets the current scene and polling rate
 		kickBindings()
@@ -137,6 +142,7 @@ type DeviceInfo struct {
 	MaxDPI    int            `json:"maxDpi"`
 	PollRates []int          `json:"pollRates"`
 	Features  razer.Features `json:"features"`
+	Driver    string         `json:"driver,omitempty"` // "leobog" for LEOBOG keyboards, "" for Razer and audio
 }
 
 // DeviceState is what the device reports. Fields the device does not declare
@@ -165,9 +171,9 @@ type Devices struct{}
 func (Devices) List() []DeviceInfo {
 	out := []DeviceInfo{}
 	for _, d := range devices.list() {
-		out = append(out, DeviceInfo{d.ID, d.Name, d.Category, d.Family(), d.Wired(), d.MaxDPI, d.SupportedPollRates(), d.Features()})
+		out = append(out, DeviceInfo{ID: d.ID, Name: d.Name, Category: d.Category, Family: d.Family(), Wired: d.Wired(), MaxDPI: d.MaxDPI, PollRates: d.SupportedPollRates(), Features: d.Features()})
 	}
-	return append(out, dongles.infos()...)
+	return append(append(out, dongles.infos()...), keyboards.infos()...)
 }
 
 // Rescan looks for devices again.
@@ -176,6 +182,9 @@ func (s Devices) Rescan() ([]DeviceInfo, error) {
 		return nil, err
 	}
 	if err := dongles.rescan(); err != nil {
+		return nil, err
+	}
+	if err := keyboards.rescan(); err != nil {
 		return nil, err
 	}
 	return s.List(), nil

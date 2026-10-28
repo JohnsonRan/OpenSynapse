@@ -122,7 +122,9 @@ OpenSynapse は Razer Inc. とは関係ありません。
 
 WalkPlay チップを搭載し、EPZ TP35 Pro と同じファームウェア系列 (10 バンド EQ) の USB オーディオ ドングルにも対応しています。EPZ、Moondrop、TANCHJIM、CrinEar などのブランドが該当しますが、実際に試したのは TP35 Pro のみです。ほかの WalkPlay ファームウェア系列はまだ有効にしていません。
 
-現在、実機でテストしたのは **DeathAdder V4 Pro** と **EPZ TP35 Pro** のみです。ほかのデバイスも動作するはずですが、確認はできていません。試した方はぜひ結果をお知らせください。
+**LEOBOG Hi75** キーボードは有線接続で使えます。ライティングのエフェクト、色、明るさ、速度を設定でき、シーンで切り替えることもできます。2.4 GHz レシーバーにはまだ対応していません。
+
+現在、実機でテストしたのは **DeathAdder V4 Pro**、**EPZ TP35 Pro**、**LEOBOG Hi75** のみです。ほかのデバイスも動作するはずですが、確認はできていません。試した方はぜひ結果をお知らせください。
 
 ## よくある質問
 
@@ -170,6 +172,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 
 - プロトコルの情報とデバイス一覧は [openrazer](https://github.com/openrazer/openrazer)（GPL-2.0）に基づいています。プロトコルは本プロジェクトで新たに実装したもので、openrazer のコードは含まれていません。
 - USB オーディオ ドングルのプロトコルは、[devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) がまとめた WalkPlay アプリの資料に基づいています。devicePEQ のコードは含まれていません。
+- LEOBOG キーボードのプロトコルは、公式ドライバー LEOBOG ONE がキーボードに送る要求を記録して特定しました。
 - ボタンの割り当て変更に使うコマンドは、Razer Synapse 4 に付属するデバイス スクリプトを調べて特定しました。
 - 画面デザインは Razer Synapse の全体的な雰囲気（ダーク テーマ、緑のアクセント カラー）のみを参考にしています。アイコンと画像はすべてオリジナルです。
 

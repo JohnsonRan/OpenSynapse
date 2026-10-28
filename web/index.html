@@ -70,6 +70,7 @@
         <div class="tabs">
           <button class="tab" data-tab="perf" data-i18n="tab.perf"></button>
           <button class="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
+          <button class="tab" data-tab="kblight" data-i18n="tab.lighting"></button>
           <button class="tab" data-tab="power" data-i18n="tab.power"></button>
           <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
           <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
@@ -129,6 +130,34 @@
           <div class="card" id="card-brightness">
             <div class="card-head"><h2 data-i18n="light.brightness"></h2><span class="accent"><b id="bright-val">—</b>%</span></div>
             <input id="brightness" type="range" min="0" max="100" step="5" />
+          </div>
+        </div>
+
+        <div id="tab-kblight" class="tab-body" hidden>
+          <div class="card list">
+            <div class="list-row">
+              <div class="row-title" data-i18n="light.effect"></div>
+              <select id="kb-effect" class="lang-select"></select>
+            </div>
+            <div class="list-row" id="kb-color-row">
+              <div>
+                <div class="row-title" data-i18n="light.color"></div>
+                <div class="muted small" data-i18n="kb.colorHint"></div>
+              </div>
+              <div class="color-row">
+                <label class="check"><input id="kb-colorful" type="checkbox" /> <span data-i18n="kb.colorful"></span></label>
+                <div id="kb-swatches" class="swatches"></div>
+                <input id="kb-color" type="color" data-i18n-title="light.customColor" />
+              </div>
+            </div>
+            <div class="list-row" id="kb-bright-row">
+              <div class="row-title" data-i18n="light.brightness"></div>
+              <span class="eq-preamp"><input id="kb-bright" type="range" min="0" step="1" /><b class="accent" id="kb-bright-val"></b></span>
+            </div>
+            <div class="list-row" id="kb-speed-row">
+              <div class="row-title" data-i18n="kb.speed"></div>
+              <span class="eq-preamp"><input id="kb-speed" type="range" min="0" step="1" /><b class="accent" id="kb-speed-val"></b></span>
+            </div>
           </div>
         </div>
 

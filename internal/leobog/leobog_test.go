@@ -33,9 +33,12 @@ var blue = razer.RGB{B: 0xff}
 func TestDecode(t *testing.T) {
 	c := DefaultColors()
 	c[2] = blue
-	got := decode(report(t, recRead), &c)
+	got := decode(report(t, recRead), &c, 2)
 	if got != (Lighting{Effect: 2, Brightness: 4, Speed: 4, Color: blue}) {
 		t.Fatalf("got %+v", got)
+	}
+	if got := decode(report(t, recRead), &c, 1); got != (Lighting{Effect: 1, Brightness: 4, Speed: 4, Colorful: true}) {
+		t.Fatalf("static: got %+v", got)
 	}
 }
 

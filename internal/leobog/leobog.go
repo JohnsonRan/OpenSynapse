@@ -93,7 +93,8 @@ var Effects = []Effect{
 	{EffectOff, "off", false, false},
 }
 
-func effect(id int) (Effect, bool) {
+// Lookup finds an effect by ID.
+func Lookup(id int) (Effect, bool) {
 	for _, e := range Effects {
 		if e.ID == id {
 			return e, true
@@ -194,9 +195,9 @@ func (d *Device) readConfig() ([]byte, error) {
 	return r, nil
 }
 
-// decode reads the lighting out of a config block.
-func decode(cfg []byte, colors *Colors) Lighting {
-	l := Lighting{Effect: int(cfg[offEffect])}
+// decode reads the settings of an effect out of a config block.
+func decode(cfg []byte, colors *Colors, effect int) Lighting {
+	l := Lighting{Effect: effect}
 	if l.Effect == EffectOff || offParams+2*l.Effect+1 >= offMagic {
 		return l
 	}
@@ -251,7 +252,7 @@ func palette(c *Colors) []byte {
 
 // Check reports whether the keyboard accepts l.
 func (l Lighting) Check() error {
-	e, ok := effect(l.Effect)
+	e, ok := Lookup(l.Effect)
 	switch {
 	case !ok:
 		return fmt.Errorf("unknown effect %d", l.Effect)
@@ -285,7 +286,21 @@ func (d *Device) Lighting() (Lighting, error) {
 	if err != nil {
 		return Lighting{}, err
 	}
-	return decode(cfg, &d.colors), nil
+	return decode(cfg, &d.colors, int(cfg[offEffect])), nil
+}
+
+// Stored reads the settings the keyboard keeps for an effect, shown or not.
+func (d *Device) Stored(effect int) (Lighting, error) {
+	if _, ok := Lookup(effect); !ok {
+		return Lighting{}, fmt.Errorf("unknown effect %d", effect)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	cfg, err := d.readConfig()
+	if err != nil {
+		return Lighting{}, err
+	}
+	return decode(cfg, &d.colors, effect), nil
 }
 
 // SetLighting shows l, keeping what the other effects are set to.

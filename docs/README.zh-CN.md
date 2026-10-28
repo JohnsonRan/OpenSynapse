@@ -122,7 +122,9 @@ OpenSynapse 可识别约 210 款 Razer 鼠标、键盘、鼠标垫和配件 (不
 
 此外还支持采用 WalkPlay 芯片、与 EPZ TP35 Pro 属于同一固件系列 (10 段均衡器) 的 USB 小尾巴声卡，涉及 EPZ、水月雨、天使吉米、CrinEar 等品牌；其中只有 TP35 Pro 实测过。其他 WalkPlay 固件系列暂未启用。
 
-目前只有 **DeathAdder V4 Pro** 和 **EPZ TP35 Pro** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
+**LEOBOG Hi75** 键盘在有线连接时可用：可设置灯效、颜色、亮度和速度，也可由情景模式切换。暂不支持它的 2.4 GHz 接收器。
+
+目前只有 **DeathAdder V4 Pro**、**EPZ TP35 Pro** 和 **LEOBOG Hi75** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
 
 ## 常见问题
 
@@ -170,6 +172,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 
 - 协议资料和设备列表来自 [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0)。协议在本项目中重新实现，未复制 openrazer 的任何代码。
 - USB 声卡协议参考了 [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) 整理的 WalkPlay 应用资料，未复制 devicePEQ 的任何代码。
+- LEOBOG 键盘协议记录自官方驱动 LEOBOG ONE 发给键盘的请求。
 - 按键重映射命令是通过研究 Razer Synapse 4 自带的设备脚本确定的。
 - 界面仅借鉴了 Razer Synapse 的整体风格 (深色主题、绿色强调色)。所有图标和图片均为原创。
 

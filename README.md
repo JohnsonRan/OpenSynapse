@@ -122,7 +122,9 @@ OpenSynapse knows about 210 Razer mice, keyboards, mouse mats and accessories (l
 
 It also supports USB audio dongles built on WalkPlay chips that share the EPZ TP35 Pro's firmware family (10-band EQ), from brands such as EPZ, Moondrop, Tanchjim and CrinEar; only the TP35 Pro has been tried. Other WalkPlay families aren't enabled yet.
 
-So far, only the **DeathAdder V4 Pro** and the **EPZ TP35 Pro** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
+The **LEOBOG Hi75** keyboard is supported on its cable: its lighting effect, color, brightness and speed, and scenes can switch them. Its 2.4 GHz receiver isn't supported yet.
+
+So far, only the **DeathAdder V4 Pro**, the **EPZ TP35 Pro** and the **LEOBOG Hi75** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
 
 ## FAQ
 
@@ -170,6 +172,7 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
 - The audio dongle protocol follows the WalkPlay app as documented by [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC). No devicePEQ code is copied.
+- The LEOBOG keyboard protocol was recorded from the official LEOBOG ONE driver's own requests to the keyboard.
 - The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
 - The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
 

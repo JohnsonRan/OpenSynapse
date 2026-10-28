@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
@@ -70,6 +71,8 @@ type config struct {
 	Macros     []Macro             `json:"macros"`
 	Bindings   []Binding           `json:"bindings"`  // device buttons that play macros
 	EQPresets  []EQPreset          `json:"eqPresets"` // the user's, for audio dongles
+	// KeyboardColors: by device ID, what this PC's LEOBOG keyboards were set to; not taken from imports.
+	KeyboardColors map[string]leobog.Colors `json:"keyboardColors,omitempty"`
 }
 
 var (
@@ -262,6 +265,9 @@ func parseConfig(b []byte, defaults config) (config, error) {
 		if json.Unmarshal(v, &b) == nil && b != nil {
 			c.Bindings = b
 		}
+	}
+	if v, ok := raw["keyboardColors"]; ok {
+		_ = json.Unmarshal(v, &c.KeyboardColors)
 	}
 	if v, ok := raw["eqPresets"]; ok {
 		var p []EQPreset

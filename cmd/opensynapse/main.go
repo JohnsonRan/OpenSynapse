@@ -183,6 +183,9 @@ func main() {
 	if err := dongles.rescan(); err != nil {
 		log.Println("scan audio:", err)
 	}
+	if err := keyboards.rescan(); err != nil {
+		log.Println("scan keyboards:", err)
+	}
 	loadPendingAudio() // after the scan, which forgets dongles that are gone
 	go runAuto()
 	go watchDevices()
@@ -197,6 +200,7 @@ func main() {
 	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))
 	mygo.Bind(Devices{})
 	mygo.Bind(Audio{})
+	mygo.Bind(Keyboards{})
 	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})
 	mygo.Bind(Settings{})

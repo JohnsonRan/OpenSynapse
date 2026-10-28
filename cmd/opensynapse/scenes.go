@@ -112,17 +112,18 @@ type applier struct {
 
 func (a *applier) reset() { a.done, a.retryAt = map[string]int{}, map[string]time.Time{} }
 
-func (a *applier) run(target int, devs []*razer.Device, apply func(*razer.Device) error) {
-	for _, d := range devs {
-		if v, ok := a.done[d.ID]; (ok && v == target) || time.Now().Before(a.retryAt[d.ID]) {
+// ids are the devices' IDs; apply(i) brings device i to the target.
+func (a *applier) run(target int, ids []string, apply func(i int) error) {
+	for i, id := range ids {
+		if v, ok := a.done[id]; (ok && v == target) || time.Now().Before(a.retryAt[id]) {
 			continue
 		}
-		if err := apply(d); err != nil && !errors.Is(err, razer.ErrUnsupported) {
-			log.Printf("%s: %s: %v", a.name, d.ID, err)
-			a.retryAt[d.ID] = time.Now().Add(10 * time.Second)
+		if err := apply(i); err != nil && !errors.Is(err, razer.ErrUnsupported) {
+			log.Printf("%s: %s: %v", a.name, id, err)
+			a.retryAt[id] = time.Now().Add(10 * time.Second)
 			continue
 		}
-		a.done[d.ID] = target
+		a.done[id] = target
 	}
 }
 
@@ -138,12 +139,12 @@ func newSwitcher(name string) switcher {
 	return s
 }
 
-func (s *switcher) step(target int, devs []*razer.Device, apply func(*razer.Device) error) {
+func (s *switcher) step(target int, ids []string, apply func(i int) error) {
 	if s.deb.observe(target) {
 		s.app.reset() // a new target: every device needs it
 	}
 	if s.deb.settled {
-		s.app.run(s.deb.current, devs, apply)
+		s.app.run(s.deb.current, ids, apply)
 	}
 }
 
@@ -262,6 +263,10 @@ func runAuto() {
 			games[f.pid] = f.exe
 		}
 		devs := devices.list()
+		ids := make([]string, len(devs))
+		for i, d := range devs {
+			ids[i] = d.ID
+		}
 		st := AutoStatus{Foreground: f.exe, Fullscreen: f.fullscreen, GPU: load, Game: game, Rate: -1}
 		if sc.Enabled {
 			idx, why := decideScene(sc, f.exe, game)
@@ -273,7 +278,17 @@ func runAuto() {
 			case desktop:
 				name = tr("scene.desktop")
 			}
-			scenes.step(idx, devs, func(d *razer.Device) error { return applyScene(d, s) })
+			kbs := keyboards.list()
+			all := slices.Clone(ids)
+			for _, k := range kbs {
+				all = append(all, k.ID)
+			}
+			scenes.step(idx, all, func(i int) error {
+				if i < len(devs) {
+					return applyScene(devs[i], s)
+				}
+				return applyKeyboardScene(kbs[i-len(devs)], s)
+			})
 			if scenes.deb.settled && scenes.deb.current == idx {
 				applySceneAudio(&s)
 			}
@@ -281,7 +296,7 @@ func runAuto() {
 		}
 		if sp.Enabled {
 			hz, why := decideRate(sp, f.exe, game)
-			rates.step(hz, devs, func(d *razer.Device) error { return applyRate(d, hz) })
+			rates.step(hz, ids, func(i int) error { return applyRate(devs[i], hz) })
 			st.Rate, st.RateWhy = hz, why
 		}
 		autoMu.Lock()
