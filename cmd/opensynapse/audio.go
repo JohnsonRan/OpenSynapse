@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"log"
+	"math"
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
@@ -15,13 +19,16 @@ import (
 // format Windows plays to them. They show on the Devices page as "audio".
 
 type audioHub struct {
-	mu   sync.Mutex
-	devs []*walkplay.Device
+	mu     sync.Mutex
+	devs   []*walkplay.Device
+	scanMu sync.Mutex // one rescan at a time, so an older one cannot forget what a newer one found
 }
 
 var dongles audioHub
 
 func (h *audioHub) rescan() error {
+	h.scanMu.Lock()
+	defer h.scanMu.Unlock()
 	found, err := walkplay.Scan()
 	if err != nil {
 		return err
@@ -33,7 +40,34 @@ func (h *audioHub) rescan() error {
 	for _, d := range old {
 		d.Close()
 	}
+	ids := make([]string, len(found))
+	for i, d := range found {
+		ids[i] = d.ID
+	}
+	reconcileSceneAudio(ids)
 	return nil
+}
+
+// reconcileSceneAudio drops baseline and applied state for dongles that are no longer connected.
+func reconcileSceneAudio(present []string) {
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	for id := range sceneAudio.eqBase {
+		if !slices.Contains(present, id) {
+			delete(sceneAudio.eqBase, id)
+		}
+	}
+	for id := range sceneAudio.eqOn {
+		if !slices.Contains(present, id) {
+			delete(sceneAudio.eqOn, id)
+		}
+	}
+}
+
+func (h *audioHub) list() []*walkplay.Device {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return slices.Clone(h.devs)
 }
 
 func (h *audioHub) get(id string) (*walkplay.Device, error) {
@@ -105,7 +139,15 @@ func (Audio) SetEQ(id string, e walkplay.EQ) error {
 	if err != nil {
 		return err
 	}
-	return d.SetEQ(e)
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	if err := d.SetEQ(e); err != nil {
+		return err
+	}
+	// The saved EQ is the user's now: leaving a scene keeps it.
+	delete(sceneAudio.eqBase, id)
+	delete(sceneAudio.eqOn, id)
+	return nil
 }
 
 // SetDACFilter picks the DAC's digital filter (1–5).
@@ -221,7 +263,16 @@ func (Audio) SavePreset(p EQPreset) error {
 	} else {
 		cfg.EQPresets = append(cfg.EQPresets, p)
 	}
+	// Scenes keep a copy of their preset; a changed preset changes them too.
+	sc := cfg.Scenes.clone()
+	for _, s := range append([]*Scene{&sc.Game, &sc.Desktop}, pointers(sc.Scenes)...) {
+		if s.EQ != nil && s.EQ.Preset == "u:"+p.Name {
+			s.EQ.EQ = p.EQ
+		}
+	}
+	cfg.Scenes = sc
 	cfgMu.Unlock()
+	resetAuto()
 	return saveConfig()
 }
 
@@ -231,4 +282,194 @@ func (Audio) DeletePreset(name string) error {
 	cfg.EQPresets = slices.DeleteFunc(cfg.EQPresets, func(x EQPreset) bool { return x.Name == name })
 	cfgMu.Unlock()
 	return saveConfig()
+}
+
+func pointers[T any](s []T) []*T {
+	out := make([]*T, len(s))
+	for i := range s {
+		out[i] = &s[i]
+	}
+	return out
+}
+
+// ---------- scenes ----------
+
+// SceneEQ is the EQ a scene plays on audio dongles: a copy of a preset, named
+// "b:<built-in key>" or "u:<the user's name>".
+type SceneEQ struct {
+	Preset string      `json:"preset"`
+	EQ     walkplay.EQ `json:"eq"`
+}
+
+// sceneAudio remembers what played before scenes changed it, so leaving them
+// puts it back.
+var sceneAudio = struct {
+	sync.Mutex
+	quitting bool
+	eqBase   map[string]walkplay.EQ // dongle ID → its EQ before scenes
+	eqOn     map[string]string      // dongle ID → the scene EQ it plays, as JSON
+	out, in  sceneDevice
+}{eqBase: map[string]walkplay.EQ{}, eqOn: map[string]string{}}
+
+type sceneDevice struct {
+	base, on string
+	lastErr  string // avoids logging the same error every second
+}
+
+// The default-device calls, replaced in tests.
+var (
+	soundDefault    = winaudio.Default
+	setSoundDefault = winaudio.SetDefault
+)
+
+// apply makes want the default device, or with want "" puts back the one
+// from before.
+func (sd *sceneDevice) apply(flow winaudio.Flow, want string) {
+	switch {
+	case want != "" && want != sd.on:
+		if sd.base == "" {
+			cur, err := soundDefault(flow)
+			if err != nil || cur == "" {
+				return
+			}
+			sd.base = cur
+		}
+		if err := setSoundDefault(want); err != nil {
+			sd.on = "" // it may have switched some roles: try again on the next tick
+			msg := err.Error() + ":" + want
+			if msg != sd.lastErr {
+				log.Println("scene sound device:", err)
+				sd.lastErr = msg
+			}
+			return
+		}
+		sd.on = want
+		sd.lastErr = ""
+	case want == "" && sd.base != "":
+		if err := setSoundDefault(sd.base); err != nil {
+			sd.on = ""
+			msg := err.Error() + ":" + sd.base
+			if msg != sd.lastErr {
+				log.Println("scene sound device:", err)
+				sd.lastErr = msg
+			}
+			return
+		}
+		sd.base, sd.on = "", ""
+		sd.lastErr = ""
+	}
+}
+
+// applySceneAudio brings the dongles' EQ and the default sound devices to
+// the scene s; nil (no scene) puts back what played before. Cheap when
+// nothing changes, so it runs every tick.
+func applySceneAudio(s *Scene) {
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	if sceneAudio.quitting && s != nil {
+		return
+	}
+	var eq *SceneEQ
+	var out, in string
+	if s != nil {
+		eq, out, in = s.EQ, s.Output, s.Input
+	}
+	for _, d := range dongles.list() {
+		if eq == nil {
+			if b, ok := sceneAudio.eqBase[d.ID]; ok && playEQ(d, b) {
+				delete(sceneAudio.eqBase, d.ID)
+				delete(sceneAudio.eqOn, d.ID)
+			}
+			continue
+		}
+		key, _ := json.Marshal(eq.EQ)
+		if sceneAudio.eqOn[d.ID] == string(key) {
+			continue
+		}
+		if _, ok := sceneAudio.eqBase[d.ID]; !ok {
+			b, err := d.EQ()
+			if err != nil {
+				continue // busy or gone: try on the next tick
+			}
+			sceneAudio.eqBase[d.ID] = b
+		}
+		if playEQ(d, eq.EQ) {
+			sceneAudio.eqOn[d.ID] = string(key)
+		}
+	}
+	sceneAudio.out.apply(winaudio.Playback, out)
+	sceneAudio.in.apply(winaudio.Recording, in)
+}
+
+// restoreAudioOnQuit restores the baseline EQ and sound devices on shutdown,
+// retrying until nothing is pending or the retry limit is reached.
+func restoreAudioOnQuit() {
+	sceneAudio.Lock()
+	sceneAudio.quitting = true
+	sceneAudio.Unlock()
+	for range 5 {
+		applySceneAudio(nil)
+		sceneAudio.Lock()
+		pending := len(sceneAudio.eqBase) > 0 || sceneAudio.out.base != "" || sceneAudio.in.base != ""
+		sceneAudio.Unlock()
+		if !pending {
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+}
+
+// playEQ plays e and reports whether the dongle took it. Right after the
+// default sound device changes, a dongle drops what it is sent, so a write
+// is read back; one not taken is tried again on the next tick.
+// shortcut: retries every second for as long as the dongle keeps dropping writes; give up after a few if that ever happens.
+func playEQ(d *walkplay.Device, e walkplay.EQ) bool {
+	if err := d.ApplyEQ(e); err != nil {
+		log.Println("scene EQ:", err)
+		return false
+	}
+	got, err := d.EQ()
+	return err == nil && sameEQ(got, e)
+}
+
+// sameEQ compares EQs as the dongle stores them: Q and gain to 1/256.
+func sameEQ(a, b walkplay.EQ) bool {
+	near := func(x, y float64) bool { return math.Abs(x-y) < 0.01 }
+	return a.Preamp == b.Preamp && slices.EqualFunc(a.Bands, b.Bands, func(x, y walkplay.Band) bool {
+		return x.Freq == y.Freq && x.Type == y.Type && near(x.Q, y.Q) && near(x.Gain, y.Gain)
+	})
+}
+
+// AudioDevices are the playback and recording devices and the defaults.
+type AudioDevices struct {
+	Playback  []winaudio.Device `json:"playback"`
+	Recording []winaudio.Device `json:"recording"`
+	Output    string            `json:"output"` // default playback device ID
+	Input     string            `json:"input"`
+}
+
+// AudioDevices lists the sound devices and which ones are the defaults.
+func (Settings) AudioDevices() (AudioDevices, error) {
+	var a AudioDevices
+	var err error
+	if a.Playback, err = winaudio.Devices(winaudio.Playback); err != nil {
+		return a, err
+	}
+	if a.Recording, err = winaudio.Devices(winaudio.Recording); err != nil {
+		return a, err
+	}
+	a.Output, _ = winaudio.Default(winaudio.Playback)
+	a.Input, _ = winaudio.Default(winaudio.Recording)
+	if a.Playback == nil {
+		a.Playback = []winaudio.Device{}
+	}
+	if a.Recording == nil {
+		a.Recording = []winaudio.Device{}
+	}
+	return a, nil
+}
+
+// SetDefaultDevice makes a playback or recording device the default.
+func (Settings) SetDefaultDevice(id string) error {
+	return winaudio.SetDefault(id)
 }

@@ -234,6 +234,9 @@ func runAuto() {
 		if !sp.Enabled {
 			rates = newSwitcher("polling rate")
 		}
+		if !sc.Enabled {
+			applySceneAudio(nil)
+		}
 		if !sc.Enabled && !sp.Enabled {
 			gpu.close()
 			setTrayStatus(AutoStatus{Rate: -1})
@@ -271,6 +274,9 @@ func runAuto() {
 				name = tr("scene.desktop")
 			}
 			scenes.step(idx, devs, func(d *razer.Device) error { return applyScene(d, s) })
+			if scenes.deb.settled && scenes.deb.current == idx {
+				applySceneAudio(&s)
+			}
 			st.Scene, st.SceneWhy = name, why
 		}
 		if sp.Enabled {

@@ -1510,3 +1510,12 @@ input::placeholder {
 .eq-presets input {
   width: 160px;
 }
+
+.scene-grid.scene-audio {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.lang-select.wide {
+  width: 320px !important;
+}

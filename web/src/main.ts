@@ -7,6 +7,7 @@ import {
   Settings,
   Scenes,
   type AppInfo,
+  type AudioDevices,
   type AudioState,
   type Band,
   type EQ,
@@ -739,6 +740,8 @@ function renderEQ() {
   renderPresets();
 }
 
+const presetLabel = (ref: string) => (ref.startsWith("b:") ? t(`eq.preset.${ref.slice(2)}` as "eq.preset.flat") || ref.slice(2) : ref.slice(2));
+const deviceName = (devs: { id: string; name: string }[], id: string) => devs.find((d) => d.id === id)?.name ?? t("scenes.deviceGone");
 const presetEQ = (v: string) =>
   v.startsWith("b:") ? BUILTIN_PRESETS[v.slice(2) as keyof typeof BUILTIN_PRESETS] : userPresets.find((x) => `u:${x.name}` === v)?.eq;
 
@@ -1177,6 +1180,7 @@ let scenes: ScenesConfig | undefined;
 const saveScenes = debounce(() => scenes && attempt(() => Scenes.setConfig(scenes!)), 400);
 
 let smart: SmartPoll | undefined;
+let soundDevs: AudioDevices = { playback: [], recording: [], output: "", input: "" };
 const saveSmart = debounce(() => smart && attempt(() => Scenes.setSmart(smart!)), 300);
 const rateText = (hz: number) => (hz === 0 ? t("smart.highest") : `${hz} Hz`);
 const RATE_CHOICES = [0, ...[...RATES].reverse()];
@@ -1188,7 +1192,14 @@ function rateSelect(sel: HTMLSelectElement, value: number, onChange: (v: number)
 }
 
 async function loadScenes() {
-  [scenes, smart] = await Promise.all([Scenes.config(), Scenes.smart()]);
+  let presets: EQPreset[] | null;
+  [scenes, smart, soundDevs, presets] = await Promise.all([
+    Scenes.config(),
+    Scenes.smart(),
+    Settings.audioDevices().catch(() => soundDevs),
+    Audio.presets().catch(() => userPresets),
+  ]);
+  userPresets = presets ?? [];
   scenes.scenes ??= [];
   smart.exceptions ??= [];
   $<HTMLInputElement>("#scenes-on").checked = scenes.enabled;
@@ -1250,6 +1261,9 @@ function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   if (s.dpi) set.push(`${s.dpi} DPI`);
   if (s.lighting) set.push(effectName(s.lighting.effect));
   if (s.brightness != null) set.push(`${t("light.brightness")} ${s.brightness}%`);
+  if (s.eq) set.push(`${t("tab.eq")} ${presetLabel(s.eq.preset)}`);
+  if (s.output) set.push(deviceName(soundDevs.playback, s.output));
+  if (s.input) set.push(deviceName(soundDevs.recording, s.input));
   parts.push(set.length ? set.join(" · ") : t("scenes.nothingSet"));
   return parts;
 }
@@ -1293,6 +1307,11 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
       <label class="scene-color"><span class="muted small">${t("light.color")}</span><input class="color" type="color" /></label>
       <label><span class="muted small"><input class="bright-on" type="checkbox" title="${t("scenes.brightnessToggle")}" /> ${t("light.brightness")} <b class="bright-val"></b></span>
         <input class="bright" type="range" min="0" max="100" step="5" /></label>
+    </div>
+    <div class="scene-grid scene-audio">
+      <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
+      <label><span class="muted small">${t("scenes.output")}</span><select class="output"></select></label>
+      <label><span class="muted small">${t("scenes.input")}</span><select class="input"></select></label>
     </div>
     </div>`;
   const q = <T extends HTMLElement>(sel: string) => card.querySelector<T>(sel)!;
@@ -1355,6 +1374,27 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   syncBright();
   brightOn.onchange = () => ((s.brightness = brightOn.checked ? +bright.value : null), syncBright(), changed());
   bright.oninput = () => ((s.brightness = +bright.value), syncBright(), changed());
+  // Audio: a copy of a preset, and devices by ID (one unplugged now stays listed).
+  const keep = option("", t("scenes.audioKeep"), false);
+  const eqSel = q<HTMLSelectElement>(".eq");
+  const presetRefs = [...Object.keys(BUILTIN_PRESETS).map((k) => `b:${k}`), ...userPresets.map((p) => `u:${p.name}`)];
+  if (s.eq && !presetRefs.includes(s.eq.preset)) presetRefs.push(s.eq.preset); // a deleted preset the scene still plays
+  eqSel.innerHTML = keep + presetRefs.map((r) => option(esc(r), esc(presetLabel(r)), s.eq?.preset === r)).join("");
+  // Only with a dongle around, or a scene already set: others have no EQ to switch.
+  q(".scene-eq").hidden = !s.eq && !list.some((d) => d.category === "audio");
+  eqSel.onchange = () => {
+    const eq = presetEQ(eqSel.value) ?? (s.eq?.preset === eqSel.value ? s.eq.eq : undefined);
+    s.eq = eq ? { preset: eqSel.value, eq: structuredClone(eq) } : null;
+    changed();
+  };
+  const devSelect = (sel: HTMLSelectElement, devs: { id: string; name: string }[], get: () => string, set: (id: string) => void) => {
+    const ids = devs.map((d) => d.id);
+    if (get() && !ids.includes(get())) ids.push(get());
+    sel.innerHTML = keep + ids.map((id) => option(esc(id), esc(deviceName(devs, id)), id === get())).join("");
+    sel.onchange = () => (set(sel.value), changed());
+  };
+  devSelect(q(".output"), soundDevs.playback, () => s.output, (id) => (s.output = id));
+  devSelect(q(".input"), soundDevs.recording, () => s.input, (id) => (s.input = id));
   summarize();
   return card;
 }
@@ -1387,7 +1427,7 @@ function syncSwitches() {
 
 $("#add-scene").onclick = () => {
   if (!scenes) return;
-  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null });
+  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "" });
   openScenes.add(`custom:${scenes.scenes.length - 1}`); // a new scene opens for editing
   renderScenes();
   saveScenes();
@@ -1436,19 +1476,33 @@ $<HTMLInputElement>("#notify").onchange = (e) => {
 
 // Every Windows playback device and its default format.
 async function loadSound() {
-  const devs = (await Settings.soundDevices().catch(() => [])) ?? [];
+  const [devs, defaults] = await Promise.all([Settings.soundDevices().catch(() => []), Settings.audioDevices().catch(() => soundDevs)]);
+  soundDevs = defaults;
   const card = $("#sound-card");
-  card.hidden = !devs.length;
+  card.hidden = !devs?.length && !defaults.playback.length && !defaults.recording.length;
   const head = document.createElement("div");
   head.className = "list-row";
   head.innerHTML = `<div><div class="row-title"><span>${t("sound.title")}</span><span class="info" tabindex="0" title="${t("audio.formatMore")}">i</span></div><div class="muted small">${t("sound.hint")}</div></div>`;
+  // The default playback and recording devices, as the Windows volume flyout switches them.
+  const defaultRow = (label: string, choices: { id: string; name: string }[], current: string) => {
+    const row = document.createElement("div");
+    row.className = "list-row";
+    row.innerHTML = `<div class="row-title"></div><select class="lang-select wide"></select>`;
+    row.querySelector(".row-title")!.textContent = label;
+    const sel = row.querySelector("select")!;
+    sel.innerHTML = choices.map((d) => option(esc(d.id), esc(d.name), d.id === current)).join("");
+    sel.onchange = () => attempt(() => Settings.setDefaultDevice(sel.value), t("sound.defaultSet")).then((ok) => void (ok || loadSound()));
+    return row;
+  };
   card.replaceChildren(
     head,
-    ...devs.map((d) => {
+    ...(defaults.playback.length ? [defaultRow(t("sound.output"), defaults.playback, defaults.output)] : []),
+    ...(defaults.recording.length ? [defaultRow(t("sound.input"), defaults.recording, defaults.input)] : []),
+    ...(devs ?? []).map((d) => {
       const row = document.createElement("div");
       row.className = "list-row";
       row.innerHTML = `<div class="row-title"></div><select class="lang-select"></select>`;
-      row.querySelector(".row-title")!.textContent = d.name;
+      row.querySelector(".row-title")!.textContent = t("sound.formatOf", { name: d.name });
       const sel = row.querySelector("select")!;
       const key = (f: { bits: number; rate: number }) => `${f.bits}:${f.rate}`;
       sel.innerHTML = d.formats.map((f) => option(key(f), t("audio.formatName", { bits: f.bits, rate: f.rate }), key(f) === key(d.format))).join("");

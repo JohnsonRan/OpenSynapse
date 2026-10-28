@@ -27,6 +27,10 @@ type Scene struct {
 	DPI        int       `json:"dpi"`
 	Lighting   *Lighting `json:"lighting"`   // every device with lighting
 	Brightness *int      `json:"brightness"` // 0–100
+	// Audio: unset (nil, "") puts back what played before a scene changed it.
+	EQ     *SceneEQ `json:"eq"`     // audio dongles
+	Output string   `json:"output"` // default playback device ID
+	Input  string   `json:"input"`  // default recording device ID
 }
 
 // ScenesConfig: the first custom scene listing the foreground program wins,
@@ -306,6 +310,9 @@ func (s *Scene) normalize() error {
 	}
 	if s.Brightness != nil && (*s.Brightness < 0 || *s.Brightness > 100) {
 		return errors.New(tr("err.brightness", s.Name))
+	}
+	if s.EQ != nil && s.EQ.EQ.Check() != nil {
+		return errors.New(tr("err.sceneEQ", s.Name))
 	}
 	apps := []string{}
 	for _, a := range s.Apps {

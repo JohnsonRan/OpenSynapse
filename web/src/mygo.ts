@@ -16,6 +16,15 @@ export interface AppInfo {
   lastCheck: number;
 }
 
+/** AudioDevices are the playback and recording devices and the defaults. */
+export interface AudioDevices {
+  playback: Device[];
+  recording: Device[];
+  /** default playback device ID */
+  output: string;
+  input: string;
+}
+
 /**
  * AudioState is what the dongle and Windows report. Format is nil when
  * Windows has no playback device for the dongle.
@@ -82,6 +91,13 @@ export interface ButtonInfo {
 export interface DPIStage {
   x: number;
   y: number;
+}
+
+/** Device is an active playback or recording device, as Sound settings lists it. */
+export interface Device {
+  id: string;
+  /** e.g. "Speakers (TP35 Pro)" */
+  name: string;
 }
 
 /** DeviceDetails is what the device page's About section shows. */
@@ -242,6 +258,21 @@ export interface Scene {
   lighting: Lighting | null;
   /** 0–100 */
   brightness: number | null;
+  /** Audio: unset (nil, "") puts back what played before a scene changed it. */
+  eq: SceneEQ | null;
+  /** default playback device ID */
+  output: string;
+  /** default recording device ID */
+  input: string;
+}
+
+/**
+ * SceneEQ is the EQ a scene plays on audio dongles: a copy of a preset, named
+ * "b:<built-in key>" or "u:<the user's name>".
+ */
+export interface SceneEQ {
+  preset: string;
+  eq: EQ;
 }
 
 /**
@@ -488,6 +519,10 @@ export const Settings = {
   app(): Promise<AppInfo> {
     return call("Settings.App");
   },
+  /** AudioDevices lists the sound devices and which ones are the defaults. */
+  audioDevices(): Promise<AudioDevices> {
+    return call("Settings.AudioDevices");
+  },
   /** Autostart reports whether OpenSynapse starts (to the tray) at login. */
   autostart(): Promise<boolean> {
     return call("Settings.Autostart");
@@ -542,6 +577,10 @@ export const Settings = {
   /** SetDPIDisplay turns the on-screen DPI display on or off. */
   setDPIDisplay(on: boolean): Promise<void> {
     return call("Settings.SetDPIDisplay", on);
+  },
+  /** SetDefaultDevice makes a playback or recording device the default. */
+  setDefaultDevice(id: string): Promise<void> {
+    return call("Settings.SetDefaultDevice", id);
   },
   /** SetGlass turns the glass theme on or off; the page restyles itself. */
   setGlass(on: boolean): Promise<void> {
