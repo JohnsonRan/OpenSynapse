@@ -1159,6 +1159,7 @@ button.link svg {
   text-align: center;
   line-height: 1.7;
   text-wrap: balance;
+  word-break: auto-phrase; /* Japanese wraps between phrases, not inside words */
 }
 
 .about-foot p {

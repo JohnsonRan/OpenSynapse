@@ -269,7 +269,8 @@ const zh = {
   "about.issues": "反馈问题",
   "about.license": "许可证",
   "about.notice": "与 Razer Inc. 无关联。请勿与 Razer Synapse 同时运行，否则两者会互相覆盖设置",
-  "about.credits": "协议资料和设备列表来自 openrazer；按键重映射命令来自对 Razer Synapse 4 设备脚本的分析",
+  "about.credits": "协议资料和设备列表来自 openrazer",
+  "about.remap": "按键重映射命令来自对 Razer Synapse 4 设备脚本的分析",
 
 };
 
@@ -531,7 +532,8 @@ const en: Record<Key, string> = {
   "about.issues": "Report an issue",
   "about.license": "License",
   "about.notice": "Not affiliated with Razer Inc. Don't run it together with Razer Synapse, or the two overwrite each other's settings.",
-  "about.credits": "Protocol details and the device list come from openrazer; the button remapping commands come from examining Razer Synapse 4's device scripts.",
+  "about.credits": "Protocol details and the device list come from openrazer.",
+  "about.remap": "The button remapping commands come from examining Razer Synapse 4's device scripts.",
 };
 
 const ja: Record<Key, string> = {
@@ -796,7 +798,8 @@ const ja: Record<Key, string> = {
   "about.issues": "問題を報告",
   "about.license": "ライセンス",
   "about.notice": "Razer Inc. とは関係ありません。Razer Synapse と同時に実行すると互いの設定が上書きされるため、同時に実行しないでください。",
-  "about.credits": "プロトコルの情報とデバイス一覧は openrazer に基づいています。ボタンの割り当て変更に使うコマンドは、Razer Synapse 4 のデバイス スクリプトを調べて特定しました。",
+  "about.credits": "プロトコルの情報とデバイス一覧は openrazer に基づいています。",
+  "about.remap": "ボタンの割り当て変更に使うコマンドは、Razer Synapse 4 のデバイス スクリプトを調べて特定しました。",
 };
 
 const dicts: Record<string, Record<Key, string>> = { "zh-CN": zh, en, ja };
