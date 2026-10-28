@@ -4,6 +4,35 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.7.0
+
+### 简体中文
+
+- 键盘: 支持 LEOBOG Hi75 (有线连接)，可调灯效、颜色、亮度和速度，逐键设置颜色，并把主层和 Fn 层的任意按键改为其他按键、媒体键或宏；信息页显示型号和固件版本
+- 音乐灯效: 键盘随电脑播放的音乐律动，可选节拍脉冲、频谱和低音闪光
+- 情景模式: 为键盘单独设置灯效，也可高亮指定按键 (默认为 WASD 等游戏键)，离开后自动恢复原样
+- 键盘提示: 鼠标电量低、切换情景或开关宏时，键盘闪烁提醒
+- 恢复出厂设置: 一键将按键、灯光和逐键颜色恢复为出厂状态，即使键盘配置损坏、按键全部失灵也能修复
+- 其他: 插拔设备时情景页同步刷新；录入按键时等所有按键松开后再记录，鼠标按键页也是如此
+
+### English
+
+- Keyboards: set up the LEOBOG Hi75 on its cable, with its effects, color, brightness and speed, a color for every key, and any key on the normal and Fn layers turned into another key, a media key or a macro; the Info tab shows its model and firmware version
+- Music lighting: the keyboard moves with the music your PC plays, as a pulse on the beat, a spectrum or a flash on every bass hit
+- Scenes: give the keyboard its own lighting per scene, or light up chosen keys such as WASD and the other game keys; everything goes back when you leave
+- Keyboard notices: the keyboard flashes when your mouse runs low, the scene changes or a macro turns on or off
+- Factory reset: put the keys, lighting and per-key colors back to how the keyboard shipped in one click, even when a damaged setting has left every key dead
+- Also: the Scenes page keeps up when you plug a device in or out, and capturing a key waits until every key is released, on the mouse's Buttons tab too
+
+### 日本語
+
+- キーボード: 有線接続の LEOBOG Hi75 に対応しました。ライティング エフェクト、色、明るさ、速度を設定でき、キーごとに色を付けたり、通常レイヤーと Fn レイヤーの任意のキーをほかのキー、メディア キー、マクロに割り当てたりできます。[情報] タブにはモデルとファームウェア バージョンが表示されます
+- 音楽ライティング: PC で再生中の音楽に合わせてキーボードが光ります。ビートに合わせたパルス、スペクトラム、低音のフラッシュから選べます
+- シーン: シーンごとにキーボードのライティングを設定したり、WASD などのゲーム キーを強調表示したりできます。シーンを離れると元に戻ります
+- キーボード通知: マウスのバッテリー残量が少なくなったとき、シーンが切り替わったとき、マクロをオンまたはオフにしたときに、キーボードが点滅して知らせます
+- 出荷時の設定に戻す: キー、ライティング、キーごとの色を 1 回のクリックで出荷時の状態に戻せます。設定が壊れてすべてのキーが反応しなくなった場合も復旧できます
+- そのほか: デバイスを接続または取り外すと [シーン] ページも更新されます。キーの入力は、すべてのキーを離してから記録されるようになりました (マウスの [ボタン] タブも同様)
+
 ## 0.6.0
 
 ### 简体中文
