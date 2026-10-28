@@ -8,7 +8,7 @@ import (
 func TestTrackingSymmetric(t *testing.T) {
 	sensorID := byte(0x01)
 	reply := map[byte][]byte{
-		0x80: {0x01, sensorID},                   // sensorID query: 1 sensor, id 1
+		0x80: {0x01, sensorID},                    // sensorID query: 1 sensor, id 1
 		0x83: {sensorClass, sensorID, 0x00},       // state: symmetric (0)
 		0x8B: {sensorClass, sensorID, 0x01, 0x01}, // lift: cutOff=1, distance-1=1 (medium = 2)
 	}
@@ -53,8 +53,8 @@ func TestTrackingAsymmetric(t *testing.T) {
 	sensorID := byte(0x01)
 	reply := map[byte][]byte{
 		0x80: {0x01, sensorID},
-		0x83: {sensorClass, sensorID, 0x01},                   // asymmetric (1)
-		0x8B: {sensorClass, sensorID, 0x01, 0x00},             // preset (ignored for asym)
+		0x83: {sensorClass, sensorID, 0x01},                 // asymmetric (1)
+		0x8B: {sensorClass, sensorID, 0x01, 0x00},           // preset (ignored for asym)
 		0x85: {sensorClass, sensorID, 0x00, 13 - 1, 12 - 1}, // cfg: extra byte, liftOff-1, landing-1
 	}
 	var sent []Report
