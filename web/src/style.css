@@ -1185,11 +1185,6 @@ button.inline-link:hover {
   background: rgb(0 0 0 / 0.3);
 }
 
-/* the drop-down list is a separate surface: keep it opaque */
-:root.glass option {
-  background: #1c1c1c;
-}
-
 :root.glass #toast {
   background: #1c1c1c;
 }
@@ -1222,8 +1217,10 @@ optgroup {
   color: var(--muted);
 }
 
+/* Opaque even under a transparent select.ghost, or the list turns white. */
 option {
   color: var(--fg);
+  background: #1c1c1c;
 }
 
 /* ---------- button layers, move and wheel steps ---------- */
@@ -1254,4 +1251,183 @@ option {
 .step-what.amount::before {
   content: "↔ ";
   color: var(--accent);
+}
+
+/* ---------- controls: one height, one look ----------
+   Buttons, fields and drop-downs share a height and are vertically
+   centered, so they line up wherever they sit side by side. */
+
+:root {
+  --control-h: 32px;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%238c8c8c' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+button.ghost,
+input[type="number"],
+input:not([type]),
+select {
+  box-sizing: border-box;
+  height: var(--control-h);
+  line-height: 1;
+}
+
+button.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+input[type="number"],
+input:not([type]) {
+  padding: 0 8px;
+}
+
+/* Drop-downs draw their own chevron, the same everywhere. */
+select {
+  appearance: none;
+  padding: 0 28px 0 10px;
+  background: var(--bg) var(--chevron) no-repeat right 8px center / 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root.glass select {
+  background: rgb(0 0 0 / 0.3) var(--chevron) no-repeat right 8px center / 12px;
+}
+
+/* A drop-down used as an action ("+ Mouse button") looks like a ghost button. */
+select.ghost {
+  width: auto;
+  background-color: var(--panel); /* opaque: the drop-down list takes this color */
+  color: var(--fg);
+}
+
+select.ghost:hover {
+  border-color: var(--accent);
+}
+
+/* Square delete buttons. */
+.x,
+button.ghost.x {
+  width: var(--control-h);
+  padding: 0;
+}
+
+.check {
+  min-height: var(--control-h);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.row-actions {
+  align-items: center;
+}
+
+/* Segmented controls keep their labels on one line. */
+.seg button {
+  white-space: nowrap;
+}
+
+.seg.seg-small {
+  display: inline-flex;
+  flex: none;
+}
+
+.seg.seg-small button {
+  flex: none;
+  height: var(--control-h);
+  padding: 0 14px;
+}
+
+/* Macro steps: delay, what happens, delete, on one line each. */
+.step {
+  grid-template-columns: 112px 1fr var(--control-h);
+  min-height: calc(var(--control-h) + 8px);
+}
+
+.step-delay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-delay input {
+  width: 76px;
+}
+
+.step input[type="number"] {
+  font-size: 14px;
+}
+
+.step-what {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.step-what.amount > span {
+  display: contents;
+}
+
+.step-what.amount input {
+  width: 76px;
+}
+
+.step-what::before {
+  flex: none;
+}
+
+.macro-add {
+  margin-top: 12px;
+}
+
+/* Rows of label and control. */
+.button-row select,
+.rule select {
+  width: 100%;
+}
+
+.step-what.wheel::before {
+  content: "↕";
+}
+
+/* Scene settings: four equal columns, labels on one line, controls on another. */
+.scene-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+}
+
+.scene-grid label > .muted {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 18px;
+  white-space: nowrap;
+}
+
+.scene-grid .muted input {
+  margin: 0;
+  vertical-align: 0;
+}
+
+.scene-grid .color,
+#color {
+  box-sizing: border-box;
+  height: var(--control-h);
+}
+
+.scene-grid input[type="range"] {
+  height: var(--control-h);
+  margin: 0;
+}
+
+input::placeholder {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  opacity: 0.8;
 }

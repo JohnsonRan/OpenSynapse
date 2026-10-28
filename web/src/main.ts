@@ -761,7 +761,7 @@ function renderSteps() {
       if (e.kind === "key" || e.kind === "mouse") {
         what.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
       } else {
-        what.className = "step-what amount";
+        what.className = `step-what amount ${e.kind}`;
         what.append(stepAmount(e));
       }
       const delay = row.querySelector<HTMLInputElement>("input")!;
