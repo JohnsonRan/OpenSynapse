@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"slices"
@@ -309,7 +310,8 @@ var sceneAudio = struct {
 	eqBase   map[string]walkplay.EQ // dongle ID → its EQ before scenes
 	eqOn     map[string]string      // dongle ID → the scene EQ it plays, as JSON
 	out, in  sceneDevice
-}{eqBase: map[string]walkplay.EQ{}, eqOn: map[string]string{}}
+	volume   sceneVolume
+}{eqBase: map[string]walkplay.EQ{}, eqOn: map[string]string{}, volume: sceneVolume{base: map[string]int{}}}
 
 type sceneDevice struct {
 	base, on string
@@ -320,6 +322,8 @@ type sceneDevice struct {
 var (
 	soundDefault    = winaudio.Default
 	setSoundDefault = winaudio.SetDefault
+	soundVolume     = winaudio.Volume
+	setSoundVolume  = winaudio.SetVolume
 )
 
 // apply makes want the default device, or with want "" puts back the one
@@ -399,6 +403,44 @@ func applySceneAudio(s *Scene) {
 	}
 	sceneAudio.out.apply(winaudio.Playback, out)
 	sceneAudio.in.apply(winaudio.Recording, in)
+	var vol *int
+	if s != nil {
+		vol = s.Volume
+	}
+	sceneAudio.volume.apply(vol)
+}
+
+// sceneVolume sets the volume of the playback device in use (after the
+// scene switched it) and remembers each device's volume from before.
+type sceneVolume struct {
+	base map[string]int // device ID → its volume before scenes
+	on   string         // "<device>:<volume>" set last; a new device or volume sets again
+}
+
+func (v *sceneVolume) apply(want *int) {
+	if want == nil {
+		for dev, b := range v.base {
+			if err := setSoundVolume(dev, b); err == nil {
+				delete(v.base, dev)
+			}
+		}
+		v.on = ""
+		return
+	}
+	dev, err := soundDefault(winaudio.Playback)
+	if err != nil || dev == "" || v.on == fmt.Sprintf("%s:%d", dev, *want) {
+		return
+	}
+	if _, ok := v.base[dev]; !ok {
+		b, err := soundVolume(dev)
+		if err != nil {
+			return
+		}
+		v.base[dev] = b
+	}
+	if setSoundVolume(dev, *want) == nil {
+		v.on = fmt.Sprintf("%s:%d", dev, *want)
+	}
 }
 
 // restoreAudioOnQuit restores the baseline EQ and sound devices on shutdown,
@@ -410,7 +452,7 @@ func restoreAudioOnQuit() {
 	for range 5 {
 		applySceneAudio(nil)
 		sceneAudio.Lock()
-		pending := len(sceneAudio.eqBase) > 0 || sceneAudio.out.base != "" || sceneAudio.in.base != ""
+		pending := len(sceneAudio.eqBase) > 0 || sceneAudio.out.base != "" || sceneAudio.in.base != "" || len(sceneAudio.volume.base) > 0
 		sceneAudio.Unlock()
 		if !pending {
 			return

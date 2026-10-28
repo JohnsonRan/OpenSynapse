@@ -264,6 +264,8 @@ export interface Scene {
   output: string;
   /** default recording device ID */
   input: string;
+  /** 0–100, of the playback device in use */
+  volume: number | null;
 }
 
 /**

@@ -213,3 +213,34 @@ func TestSameEQ(t *testing.T) {
 		t.Fatal("preamp ignored")
 	}
 }
+
+func TestSceneVolumeRestoresEachDevice(t *testing.T) {
+	def := "speakers"
+	vols := map[string]int{"speakers": 30, "headset": 50}
+	sets := 0
+	soundDefault = func(winaudio.Flow) (string, error) { return def, nil }
+	soundVolume = func(id string) (int, error) { return vols[id], nil }
+	setSoundVolume = func(id string, v int) error { vols[id] = v; sets++; return nil }
+	defer func() {
+		soundDefault, soundVolume, setSoundVolume = winaudio.Default, winaudio.Volume, winaudio.SetVolume
+	}()
+
+	v := sceneVolume{base: map[string]int{}}
+	loud := 80
+	v.apply(&loud)
+	v.apply(&loud) // every tick: set once
+	if vols["speakers"] != 80 || sets != 1 {
+		t.Fatalf("speakers %d after %d sets", vols["speakers"], sets)
+	}
+	vols["speakers"] = 70 // the user turns it down in the scene: left alone
+	v.apply(&loud)
+	if vols["speakers"] != 70 {
+		t.Fatal("overrode the user's change")
+	}
+	def = "headset" // the next scene plays on another device
+	v.apply(&loud)
+	v.apply(nil)
+	if vols["speakers"] != 30 || vols["headset"] != 50 || len(v.base) != 0 {
+		t.Fatalf("restored %v, pending %v", vols, v.base)
+	}
+}

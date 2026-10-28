@@ -31,6 +31,7 @@ type Scene struct {
 	EQ     *SceneEQ `json:"eq"`     // audio dongles
 	Output string   `json:"output"` // default playback device ID
 	Input  string   `json:"input"`  // default recording device ID
+	Volume *int     `json:"volume"` // 0–100, of the playback device in use
 }
 
 // ScenesConfig: the first custom scene listing the foreground program wins,
@@ -310,6 +311,9 @@ func (s *Scene) normalize() error {
 	}
 	if s.Brightness != nil && (*s.Brightness < 0 || *s.Brightness > 100) {
 		return errors.New(tr("err.brightness", s.Name))
+	}
+	if s.Volume != nil && (*s.Volume < 0 || *s.Volume > 100) {
+		return errors.New(tr("err.volume", s.Name))
 	}
 	if s.EQ != nil && s.EQ.EQ.Check() != nil {
 		return errors.New(tr("err.sceneEQ", s.Name))

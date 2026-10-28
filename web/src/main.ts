@@ -1264,6 +1264,7 @@ function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   if (s.eq) set.push(`${t("tab.eq")} ${presetLabel(s.eq.preset)}`);
   if (s.output) set.push(deviceName(soundDevs.playback, s.output));
   if (s.input) set.push(deviceName(soundDevs.recording, s.input));
+  if (s.volume != null) set.push(`${t("scenes.volume")} ${s.volume}%`);
   parts.push(set.length ? set.join(" · ") : t("scenes.nothingSet"));
   return parts;
 }
@@ -1312,6 +1313,8 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
       <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
       <label><span class="muted small">${t("scenes.output")}</span><select class="output"></select></label>
       <label><span class="muted small">${t("scenes.input")}</span><select class="input"></select></label>
+      <label><span class="muted small"><input class="vol-on" type="checkbox" title="${t("scenes.volumeToggle")}" /> ${t("scenes.volume")} <b class="vol-val"></b></span>
+        <input class="vol" type="range" min="0" max="100" step="1" /></label>
     </div>
     </div>`;
   const q = <T extends HTMLElement>(sel: string) => card.querySelector<T>(sel)!;
@@ -1395,6 +1398,18 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   };
   devSelect(q(".output"), soundDevs.playback, () => s.output, (id) => (s.output = id));
   devSelect(q(".input"), soundDevs.recording, () => s.input, (id) => (s.input = id));
+  const volOn = q<HTMLInputElement>(".vol-on");
+  const vol = q<HTMLInputElement>(".vol");
+  const syncVol = () => {
+    vol.disabled = s.volume == null;
+    q(".vol-val").textContent = s.volume == null ? t("scenes.audioKeep") : `${s.volume}%`;
+  };
+  vol.value = String(s.volume ?? 50); // unticking keeps the slider where it was
+  volOn.checked = s.volume != null;
+  syncVol();
+  volOn.onchange = () => ((s.volume = volOn.checked ? +vol.value : null), syncVol(), changed());
+  vol.oninput = () => ((s.volume = +vol.value), syncVol());
+  vol.onchange = changed;
   summarize();
   return card;
 }
@@ -1427,7 +1442,7 @@ function syncSwitches() {
 
 $("#add-scene").onclick = () => {
   if (!scenes) return;
-  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "" });
+  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null });
   openScenes.add(`custom:${scenes.scenes.length - 1}`); // a new scene opens for editing
   renderScenes();
   saveScenes();

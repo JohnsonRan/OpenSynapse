@@ -83,7 +83,7 @@ The **Buttons** tab appears only on mice that support button remapping. So far, 
 Go to the **Scenes** page, or right-click the tray icon, to turn these on.
 
 - **Smart polling rate:** your mice use a higher rate while you're in a game and a lower one otherwise, which saves battery and CPU. You can also fix the rate for specific programs. **Highest** means each mouse's own maximum.
-- **Scenes:** change mouse DPI, device lighting, the audio dongle's EQ preset and the default playback and recording devices based on the program in front. Anything set to **Keep current** is left alone; the EQ and sound devices go back to how they were once you leave the scene, and a scene's EQ is never saved in the dongle. OpenSynapse picks a scene in this order:
+- **Scenes:** change mouse DPI, device lighting, the audio dongle's EQ preset, the default playback and recording devices and the playback volume based on the program in front. Anything set to **Keep current** is left alone; the EQ, sound devices and volume go back to how they were once you leave the scene, and a scene's EQ is never saved in the dongle. OpenSynapse picks a scene in this order:
   1. **Your own scenes**, matched by program file name (for example, `obs64.exe`).
   2. **Game**, used when a game is detected. Add games it misses, such as windowed games, under **Programs**.
   3. **Desktop**, used for everything else. It also restores your settings when you leave another scene, so lighting set here keeps all your devices in sync.
