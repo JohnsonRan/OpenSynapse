@@ -428,7 +428,10 @@ func (Macros) StopRecording() []MacroEvent {
 	return cleanRecording(ev)
 }
 
-var bindMu sync.Mutex // one bind at a time, so two never take the same trigger
+var (
+	bindMu   sync.Mutex // one bind at a time, so two never take the same trigger
+	quitting bool
+)
 
 var bindingsKick = make(chan struct{}, 1)
 
@@ -461,6 +464,13 @@ func keepBindings() {
 func applyBindings(restore bool) {
 	bindMu.Lock()
 	defer bindMu.Unlock()
+	if quitting && !restore {
+		return
+	}
+	applyBindingsLocked(restore)
+}
+
+func applyBindingsLocked(restore bool) {
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
@@ -490,7 +500,15 @@ func applyBindings(restore bool) {
 	}
 }
 
-// BindButton makes a button play a macro; an empty macro restores the button.
+// restoreBindingsOnQuit disables future periodic checks and restores button functions.
+func restoreBindingsOnQuit() {
+	bindMu.Lock()
+	quitting = true
+	applyBindingsLocked(true)
+	bindMu.Unlock()
+}
+
+// bindButton makes a button play a macro; an empty macro restores the button.
 // The left button cannot be bound: if OpenSynapse is not running it would
 // only send F13, leaving no way to click.
 func (Devices) BindButton(id string, button, layer int, macro string) error {

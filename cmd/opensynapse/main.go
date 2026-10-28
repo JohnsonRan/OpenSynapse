@@ -169,7 +169,7 @@ func main() {
 	go watchDevices()
 	go runHooks()
 	go keepBindings()
-	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { applyBindings(true) }) // buttons work without the app
+	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { restoreBindingsOnQuit() }) // buttons work without the app
 
 	// The update window in the app's language; it keeps it until a restart.
 	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))

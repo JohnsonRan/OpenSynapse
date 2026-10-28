@@ -48,10 +48,12 @@ func (Settings) Import() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	applyBindings(true)
+	bindMu.Lock()
+	applyBindingsLocked(true)
 	cfgMu.Lock()
 	cfg = next
 	cfgMu.Unlock()
+	bindMu.Unlock()
 	if err := saveConfig(); err != nil {
 		return false, err
 	}
