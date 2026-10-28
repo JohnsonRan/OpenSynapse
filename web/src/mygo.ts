@@ -196,6 +196,32 @@ export interface GlassInfo {
   on: boolean;
 }
 
+/** Key is one key of the keyboard. */
+export interface Key {
+  index: number;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** KeyColors are colors by matrix index. */
+export type KeyColors = RGB[];
+
+/** KeyboardKeys is the keyboard's drawing and what each key does. */
+export interface KeyboardKeys {
+  keys: Key[];
+  width: number;
+  height: number;
+  /** by Keys position */
+  normal: ButtonAction[];
+  /** while Fn is held */
+  fn: ButtonAction[];
+  /** consumer usages a key can send */
+  media: number[];
+}
+
 /** KeyboardState is the lighting shown and the effects the keyboard has. */
 export interface KeyboardState {
   lighting: LeobogLighting;
@@ -503,6 +529,26 @@ export const Keyboards = {
   /** Effects lists the effects a scene can set, with the levels. */
   effects(): Promise<KeyboardState> {
     return call("Keyboards.Effects");
+  },
+  /** KeyColors returns the custom effect's colors, by matrix index. */
+  keyColors(id: string): Promise<KeyColors> {
+    return call("Keyboards.KeyColors", id);
+  },
+  /** Keys returns the keyboard's keys and what they do. */
+  keys(id: string): Promise<KeyboardKeys> {
+    return call("Keyboards.Keys", id);
+  },
+  /** ResetKeys gives every key its factory action and unbinds its macros. */
+  resetKeys(id: string): Promise<void> {
+    return call("Keyboards.ResetKeys", id);
+  },
+  /** SetKey sets what a key does on a layer (0 normal, 1 with Fn). */
+  setKey(id: string, layer: number, index: number, act: ButtonAction): Promise<void> {
+    return call("Keyboards.SetKey", id, layer, index, act);
+  },
+  /** SetKeyColors shows the custom effect with these colors. */
+  setKeyColors(id: string, c: KeyColors): Promise<void> {
+    return call("Keyboards.SetKeyColors", id, c);
   },
   /** SetLighting shows l on the keyboard. */
   setLighting(id: string, l: LeobogLighting): Promise<void> {

@@ -1655,3 +1655,44 @@ input::placeholder {
 .lang-select.wide {
   width: 320px !important;
 }
+
+/* A LEOBOG keyboard drawn from its key rectangles, scaled to the card. */
+.kb-draw {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 8px auto 0;
+}
+
+.kb-draw button {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--fg);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.kb-draw button:hover {
+  border-color: var(--accent);
+}
+
+.kb-draw button.on {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.kb-draw button.changed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kb-key-edit {
+  margin-top: 14px;
+  gap: 12px;
+}

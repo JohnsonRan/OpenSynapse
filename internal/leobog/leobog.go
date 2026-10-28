@@ -388,9 +388,22 @@ func (d *Device) SetKeyColors(c KeyColors) {
 	d.keyColors = c
 }
 
-// ShowKeyColors switches to the custom effect with these colors.
+// ShowKeyColors switches to the custom effect with these colors. Already
+// showing it, only the colors are written: every write goes to the
+// keyboard's flash, and a burst of them makes it drop off USB.
 func (d *Device) ShowKeyColors(c KeyColors) error {
 	d.SetKeyColors(c)
+	d.mu.Lock()
+	cfg, err := d.readConfig()
+	if err == nil && cfg[offEffect] == EffectCustom && cfg[offCustom] == 1 {
+		err = d.port.set(keyReport(cmdKeys, &d.keyColors))
+		d.mu.Unlock()
+		return err
+	}
+	d.mu.Unlock()
+	if err != nil {
+		return err
+	}
 	return d.SetLighting(Lighting{Effect: EffectCustom})
 }
 

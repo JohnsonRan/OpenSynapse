@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
 	"sync"
@@ -13,9 +14,10 @@ import (
 // Devices page as keyboards.
 
 type keyboardHub struct {
-	mu     sync.Mutex
-	devs   []*leobog.Device
-	scanMu sync.Mutex
+	mu      sync.Mutex
+	devs    []*leobog.Device
+	written map[string]*[leobog.Layers]leobog.Layer // keymap sent since the scan; nil: the remembered one
+	scanMu  sync.Mutex
 }
 
 var keyboards keyboardHub
@@ -28,11 +30,14 @@ func (h *keyboardHub) rescan() error {
 		return err
 	}
 	for _, d := range found {
-		d.SetColors(keyboardColors(d.ID))
+		m := keyboardMemory(d.ID)
+		d.SetColors(m.Colors)
+		d.SetKeyColors(m.KeyColors)
 	}
 	h.mu.Lock()
 	old := h.devs
 	h.devs = found
+	h.written = map[string]*[leobog.Layers]leobog.Layer{} // unknown again: taken as the remembered keymap, a needless write at worst
 	h.mu.Unlock()
 	for _, d := range old {
 		d.Close()
@@ -63,14 +68,42 @@ func (h *keyboardHub) infos() []DeviceInfo {
 	return out
 }
 
-// keyboardColors are the colors picked for a keyboard's effects, which it cannot report.
-func keyboardColors(id string) leobog.Colors {
+// KeyboardMemory is what a keyboard was set to that it cannot report.
+type KeyboardMemory struct {
+	Colors    leobog.Colors    `json:"colors"`    // picked color per effect
+	KeyColors leobog.KeyColors `json:"keyColors"` // of the custom effect
+	// Keymap: the remaps without macro bindings; nil while the keyboard has its factory keys.
+	Keymap *[leobog.Layers]leobog.Layer `json:"keymap,omitempty"`
+}
+
+func keyboardMemory(id string) KeyboardMemory {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
-	if c, ok := cfg.KeyboardColors[id]; ok {
-		return c
+	if m, ok := cfg.Keyboards[id]; ok {
+		return m
 	}
-	return leobog.DefaultColors()
+	return KeyboardMemory{Colors: leobog.DefaultColors()}
+}
+
+// rememberKeyboard changes a keyboard's memory and saves it if it changed.
+func rememberKeyboard(id string, change func(*KeyboardMemory)) error {
+	cfgMu.Lock()
+	if cfg.Keyboards == nil {
+		cfg.Keyboards = map[string]KeyboardMemory{}
+	}
+	m, ok := cfg.Keyboards[id]
+	if !ok {
+		m = KeyboardMemory{Colors: leobog.DefaultColors()}
+	}
+	before, _ := json.Marshal(m)
+	change(&m)
+	after, _ := json.Marshal(m)
+	cfg.Keyboards[id] = m
+	cfgMu.Unlock()
+	if string(before) == string(after) {
+		return nil
+	}
+	return saveConfig()
 }
 
 // setKeyboardLighting shows l and keeps the keyboard's colors in the config.
@@ -78,17 +111,7 @@ func setKeyboardLighting(d *leobog.Device, l leobog.Lighting) error {
 	if err := d.SetLighting(l); err != nil {
 		return err
 	}
-	cfgMu.Lock()
-	if cfg.KeyboardColors == nil {
-		cfg.KeyboardColors = map[string]leobog.Colors{}
-	}
-	changed := cfg.KeyboardColors[d.ID] != d.Colors()
-	cfg.KeyboardColors[d.ID] = d.Colors()
-	cfgMu.Unlock()
-	if !changed {
-		return nil
-	}
-	return saveConfig()
+	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Colors = d.Colors() })
 }
 
 // Keyboards controls LEOBOG keyboards.
@@ -180,4 +203,25 @@ func applySceneKeyboards(s *Scene) {
 // Effects lists the effects a scene can set, with the levels.
 func (Keyboards) Effects() KeyboardState {
 	return KeyboardState{Effects: leobog.Effects, MaxLevel: leobog.MaxLevel}
+}
+
+// KeyColors returns the custom effect's colors, by matrix index.
+func (Keyboards) KeyColors(id string) (leobog.KeyColors, error) {
+	d, err := keyboards.get(id)
+	if err != nil {
+		return leobog.KeyColors{}, err
+	}
+	return d.KeyColors(), nil
+}
+
+// SetKeyColors shows the custom effect with these colors.
+func (Keyboards) SetKeyColors(id string, c leobog.KeyColors) error {
+	d, err := keyboards.get(id)
+	if err != nil {
+		return err
+	}
+	if err := d.ShowKeyColors(c); err != nil {
+		return err
+	}
+	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.KeyColors = c })
 }

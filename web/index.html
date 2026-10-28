@@ -71,6 +71,7 @@
           <button class="tab" data-tab="perf" data-i18n="tab.perf"></button>
           <button class="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
           <button class="tab" data-tab="kblight" data-i18n="tab.lighting"></button>
+          <button class="tab" data-tab="kbkeys" data-i18n="tab.buttons"></button>
           <button class="tab" data-tab="power" data-i18n="tab.power"></button>
           <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
           <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
@@ -157,6 +158,34 @@
             <div class="list-row" id="kb-speed-row">
               <div class="row-title" data-i18n="kb.speed"></div>
               <span class="eq-preamp"><input id="kb-speed" type="range" min="0" step="1" /><b class="accent" id="kb-speed-val"></b></span>
+            </div>
+          </div>
+          <div class="card" id="kb-paint-card">
+            <div class="card-head">
+              <h2 data-i18n="kb.paint"></h2>
+              <div class="color-row">
+                <div id="kb-paint-swatches" class="swatches"></div>
+                <input id="kb-paint-color" type="color" data-i18n-title="light.customColor" />
+                <button id="kb-paint-all" class="ghost" data-i18n="kb.paintAll"></button>
+              </div>
+            </div>
+            <p class="muted small" data-i18n="kb.paintHint"></p>
+            <div id="kb-paint" class="kb-draw"></div>
+          </div>
+        </div>
+
+        <div id="tab-kbkeys" class="tab-body" hidden>
+          <div class="card">
+            <div class="card-head">
+              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="kb.keysMore">i</span></h2>
+              <div id="kb-layer" class="seg seg-small"></div>
+            </div>
+            <p class="muted small" data-i18n="kb.keysHint"></p>
+            <div id="kb-keys" class="kb-draw"></div>
+            <div class="row kb-key-edit">
+              <span id="kb-key-name" class="row-title"></span>
+              <select id="kb-key-action" class="lang-select"></select>
+              <button id="kb-keys-reset" class="ghost" data-i18n="kb.resetKeys"></button>
             </div>
           </div>
         </div>

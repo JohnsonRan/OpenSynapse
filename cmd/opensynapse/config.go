@@ -73,8 +73,8 @@ type config struct {
 	Macros     []Macro             `json:"macros"`
 	Bindings   []Binding           `json:"bindings"`  // device buttons that play macros
 	EQPresets  []EQPreset          `json:"eqPresets"` // the user's, for audio dongles
-	// KeyboardColors: by device ID, what this PC's LEOBOG keyboards were set to; not taken from imports.
-	KeyboardColors map[string]leobog.Colors `json:"keyboardColors,omitempty"`
+	// Keyboards: by device ID, what this PC's LEOBOG keyboards were set to; not taken from imports.
+	Keyboards map[string]KeyboardMemory `json:"keyboards,omitempty"`
 }
 
 var (
@@ -268,8 +268,8 @@ func parseConfig(b []byte, defaults config) (config, error) {
 			c.Bindings = b
 		}
 	}
-	if v, ok := raw["keyboardColors"]; ok {
-		_ = json.Unmarshal(v, &c.KeyboardColors)
+	if v, ok := raw["keyboards"]; ok {
+		_ = json.Unmarshal(v, &c.Keyboards)
 	}
 	if v, ok := raw["eqPresets"]; ok {
 		var p []EQPreset

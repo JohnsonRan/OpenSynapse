@@ -171,6 +171,9 @@ func onTriggerKey(vk int, down bool) bool {
 	}
 	playMu.Lock()
 	defer playMu.Unlock()
+	if !down && !held[vk] {
+		return false // went down before it was bound: Windows must see it go up
+	}
 	if held[vk] == down {
 		return true // key repeat
 	}
@@ -471,6 +474,7 @@ func applyBindings(restore bool) {
 }
 
 func applyBindingsLocked(restore bool) {
+	syncKeymaps(restore)
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()

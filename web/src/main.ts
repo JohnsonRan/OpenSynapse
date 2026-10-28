@@ -22,6 +22,8 @@ import {
   type DPIStage,
   type KeyboardState,
   type Effect as KbEffect,
+  type Key as KbKey,
+  type KeyboardKeys,
   type RGB,
   type Scene,
   type ScenesConfig,
@@ -42,6 +44,7 @@ const glass = await Settings.glass().catch(() => ({ supported: false, on: false 
 document.documentElement.classList.toggle("glass", glass.on);
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+let stopCapture = () => {}; // ends a key capture in progress (captureKey)
 const RATES = [125, 500, 1000, 2000, 4000, 8000];
 const MAX_STAGES = 5;
 const CATEGORIES = ["mouse", "keyboard", "mouse-mat", "accessory", "monitor", "audio"] as const;
@@ -121,6 +124,7 @@ document.addEventListener(
 );
 
 function showView(name: string) {
+  stopCapture();
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
   const rail = name === "device" ? "devices" : name;
@@ -153,6 +157,7 @@ $("#back").onclick = () => {
 };
 
 function showTab(name: string) {
+  stopCapture();
   document.querySelectorAll<HTMLElement>(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
   document.querySelectorAll<HTMLElement>(".tab-body").forEach((v) => (v.hidden = v.id !== `tab-${name}`));
 }
@@ -646,6 +651,7 @@ function actionValue(a: ButtonAction) {
       return `macro:${a.macro}`;
     case "mouse":
     case "dpi":
+    case "media":
       return `${a.kind}:${a.code}`;
     case "key":
       return `key:${a.code}:${a.mods}`;
@@ -657,6 +663,39 @@ function parseAction(v: string): ButtonAction {
   const [kind = "default", x = "", y = "0"] = v.split(":");
   if (kind === "macro") return { kind, macro: x, code: 0, mods: 0 };
   return { kind, macro: "", code: +x || 0, mods: +y || 0 };
+}
+
+// captureKey takes a key with the modifiers held, or modifiers alone (code
+// 0), once every key pressed is released: a remap written while its key is
+// down would leave that key stuck. Only one capture runs: picking anything
+// else or starting another cancels it.
+function captureKey(done: (code: number, mods: number) => void) {
+  stopCapture();
+  const MOD_BITS: Record<number, number> = { 17: 1, 16: 2, 18: 4, 91: 8, 92: 8 };
+  let mods = 0;
+  let code = 0;
+  const down = new Set<number>();
+  const onDown = (e: KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.repeat) return;
+    down.add(e.keyCode);
+    if (MOD_BITS[e.keyCode]) mods |= MOD_BITS[e.keyCode]!;
+    else code ||= e.keyCode;
+  };
+  const onUp = (e: KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    down.delete(e.keyCode);
+    if (down.size === 0 && (code || mods)) (stopCapture(), done(code, mods));
+  };
+  window.addEventListener("keydown", onDown, true);
+  window.addEventListener("keyup", onUp, true);
+  stopCapture = () => {
+    window.removeEventListener("keydown", onDown, true);
+    window.removeEventListener("keyup", onUp, true);
+    stopCapture = () => {};
+  };
 }
 
 function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
@@ -714,16 +753,10 @@ async function loadButtons(d: DeviceInfo) {
             else render();
           });
         sel.onchange = () => {
+          stopCapture();
           if (sel.value !== "capture") return void apply(parseAction(sel.value));
-          // The next key (with Ctrl, Shift, Alt, Win) pressed in the window.
           sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
-          const onKey = (e: KeyboardEvent) => {
-            e.preventDefault();
-            window.removeEventListener("keydown", onKey, true);
-            const mods = (e.ctrlKey ? 1 : 0) | (e.shiftKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
-            apply({ kind: "key", macro: "", code: e.keyCode, mods });
-          };
-          window.addEventListener("keydown", onKey, true);
+          captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }));
         };
         const name = document.createElement("span");
         name.textContent = buttonName(b.id);
@@ -751,18 +784,23 @@ function openKeyboard(d: DeviceInfo) {
   $("#dev-name").textContent = d.name;
   $("#dev-conn").textContent = "";
   $("#dev-battery").hidden = true;
-  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = x.dataset.tab !== "kblight"));
+  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = !["kblight", "kbkeys"].includes(x.dataset.tab!)));
   document.querySelector<HTMLElement>(".tabs")!.hidden = false;
   showTab("kblight");
   showView("device");
   kb = undefined;
+  kbSel = -1;
   return loadKeyboard(d.id);
 }
+
+let kbKeys: KeyboardKeys | undefined;
+let kbColors: RGB[] = []; // the custom effect's, by matrix index
+let kbMacros: Macro[] = [];
 
 async function loadKeyboard(id: string) {
   let st: KeyboardState;
   try {
-    st = await Keyboards.state(id);
+    [st, kbKeys, kbColors, kbMacros] = await Promise.all([Keyboards.state(id), Keyboards.keys(id), Keyboards.keyColors(id), Macros.list()]);
   } catch (e) {
     toast(isCallError(e) ? e.message : String(e), true);
     return;
@@ -770,7 +808,133 @@ async function loadKeyboard(id: string) {
   if (dev?.id !== id) return; // switched device meanwhile
   kb = st;
   renderKeyboard();
+  renderKbKeys();
 }
+
+// kbDraw lays the keys out at their place on the keyboard, scaled to the box.
+function kbDraw(box: HTMLElement, look: (b: HTMLButtonElement, k: KbKey) => void, onPick: (k: KbKey, b: HTMLButtonElement) => void) {
+  const { keys, width: w, height: h } = kbKeys!;
+  box.style.aspectRatio = `${w} / ${h}`;
+  box.replaceChildren(
+    ...keys.map((k) => {
+      const b = document.createElement("button");
+      Object.assign(b.style, { left: `${(k.x / w) * 100}%`, top: `${(k.y / h) * 100}%`, width: `${(k.w / w) * 100}%`, height: `${(k.h / h) * 100}%` });
+      b.title = k.name;
+      look(b, k);
+      b.onclick = () => onPick(k, b);
+      return b;
+    }),
+  );
+}
+
+// --- custom effect: paint keys ---
+
+let paintHex = "#ff2d2d";
+let painting = false;
+window.addEventListener("pointerup", () => (painting = false));
+// Each save is a flash write on the keyboard: wait until painting pauses.
+const saveKeyColors = debounce(() => dev && attempt(() => Keyboards.setKeyColors(dev!.id, kbColors)), 600);
+
+function renderPaint() {
+  const paint = (k: KbKey, b: HTMLButtonElement) => {
+    kbColors[k.index] = fromHex(paintHex);
+    b.style.background = paintHex;
+    saveKeyColors();
+  };
+  kbDraw(
+    $("#kb-paint"),
+    (b, k) => {
+      b.style.background = toHex(kbColors[k.index] ?? { r: 0, g: 0, b: 0 });
+      b.onpointerdown = () => (painting = true);
+      b.onpointerenter = () => painting && paint(k, b); // drag across keys to paint them
+    },
+    paint,
+  );
+  $("#kb-paint-swatches").replaceChildren(
+    ...["#000000", ...SWATCHES].map((hex) => {
+      const s = document.createElement("button");
+      s.className = "swatch" + (hex === paintHex ? " on" : "");
+      s.style.background = hex;
+      s.title = hex === "#000000" ? t("kb.paintOff") : hex;
+      s.onclick = () => ((paintHex = hex), renderPaint());
+      return s;
+    }),
+  );
+  const pick = $<HTMLInputElement>("#kb-paint-color");
+  pick.value = paintHex;
+  pick.oninput = () => ((paintHex = pick.value), renderPaint());
+  $("#kb-paint-all").onclick = () => {
+    for (const k of kbKeys!.keys) kbColors[k.index] = fromHex(paintHex);
+    renderPaint();
+    saveKeyColors();
+  };
+}
+
+// --- keys ---
+
+let kbLayer = 0;
+let kbSel = -1; // matrix index of the key being edited; the key list is reloaded after changes
+const MEDIA_CODES = [0xe9, 0xea, 0xe2, 0xcd, 0xb5, 0xb6, 0xb7, 0x6f, 0x70];
+
+function kbKeyOptions(act: ButtonAction) {
+  const cur = actionValue(act);
+  const group = (label: string, items: [string, string][]) =>
+    items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
+  const keyItems: [string, string][] = act.kind === "key" ? [[cur, keyLabel(act.code, act.mods)]] : [];
+  return (
+    option("default", t("buttons.default"), cur === "default") +
+    (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
+    group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
+    group(t("kb.media"), MEDIA_CODES.map((c) => [`media:${c}`, t(`kb.media.${c}` as "kb.media.233")])) +
+    group(t("buttons.groupMacro"), kbMacros.map((m) => [`macro:${m.id}`, esc(m.name)]))
+  );
+}
+
+function renderKbKeys() {
+  stopCapture();
+  if (!kbKeys || !dev) return;
+  const keys = kbKeys;
+  const id = dev.id;
+  segmented($("#kb-layer"), [0, 1], kbLayer, (v) => t(v ? "kb.layerFn" : "buttons.layerNormal"), (v) => ((kbLayer = v), renderKbKeys()));
+  const acts = kbLayer ? keys.fn : keys.normal;
+  kbDraw(
+    $("#kb-keys"),
+    (b, k) => {
+      const a = acts[keys.keys.indexOf(k)]!;
+      b.textContent = k.name;
+      b.disabled = k.index === 59; // Fn switches the layer
+      b.classList.toggle("changed", a.kind !== "default");
+      b.classList.toggle("on", kbSel === k.index);
+    },
+    (k) => ((kbSel = k.index), renderKbKeys()),
+  );
+  const i = keys.keys.findIndex((k) => k.index === kbSel);
+  $(".kb-key-edit").hidden = i < 0;
+  if (i < 0) return;
+  const k = keys.keys[i]!;
+  const layer = kbLayer;
+  $("#kb-key-name").textContent = k.name;
+  const sel = $<HTMLSelectElement>("#kb-key-action");
+  sel.innerHTML = kbKeyOptions(acts[i]!);
+  const apply = (act: ButtonAction) =>
+    attempt(() => Keyboards.setKey(id, layer, k.index, act), t("buttons.saved")).then((ok) => {
+      if (ok) (layer ? keys.fn : keys.normal)[i] = act;
+      renderKbKeys();
+    });
+  sel.onchange = () => {
+    stopCapture();
+    if (sel.value !== "capture") return void apply(parseAction(sel.value));
+    sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
+    captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }));
+  };
+}
+
+$("#kb-keys-reset").onclick = async () => {
+  if (!dev || !kbKeys) return;
+  if (!(await attempt(() => Keyboards.resetKeys(dev!.id), t("buttons.saved")))) return;
+  kbSel = -1;
+  loadKeyboard(dev.id);
+};
 
 // Every control writes the whole lighting; sliders wait for a pause.
 const saveKeyboard = debounce(() => kb && dev && attempt(() => Keyboards.setLighting(dev!.id, kb!.lighting)), 150);
@@ -793,7 +957,9 @@ function renderKeyboard() {
     renderKeyboard();
     saveKeyboard();
   };
-  const on = !!fx && l.effect !== 0;
+  const on = !!fx && l.effect !== 0 && l.effect !== 21; // custom is painted below
+  $("#kb-paint-card").hidden = l.effect !== 21 || !kbKeys;
+  if (l.effect === 21 && kbKeys) renderPaint();
   $("#kb-color-row").hidden = !on;
   $("#kb-bright-row").hidden = !on;
   $("#kb-speed-row").hidden = !on || !fx!.speed;

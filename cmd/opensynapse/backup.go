@@ -51,7 +51,7 @@ func (Settings) Import() (bool, error) {
 	bindMu.Lock()
 	applyBindingsLocked(true)
 	cfgMu.Lock()
-	next.KeyboardColors = cfg.KeyboardColors // what the keyboards here show, not the other PC's
+	next.Keyboards = cfg.Keyboards // what the keyboards here hold, not the other PC's
 	cfg = next
 	cfgMu.Unlock()
 	bindMu.Unlock()
