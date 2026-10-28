@@ -945,8 +945,29 @@ $("#kb-keys-reset").onclick = async () => {
 // Every control writes the whole lighting; sliders wait for a pause.
 const saveKeyboard = debounce(() => kb && dev && attempt(() => Keyboards.setLighting(dev!.id, kb!.lighting)), 150);
 
+const MUSIC_EFFECTS = ["pulse", "spectrum", "bass"];
+
+function renderMusic() {
+  const s = kb!;
+  const sel = $<HTMLSelectElement>("#kb-music");
+  sel.innerHTML = option("", t("kb.musicOff"), !s.music) + MUSIC_EFFECTS.map((e) => option(e, t(`kb.music.${e}` as "kb.music.pulse"), e === s.music)).join("");
+  const color = $<HTMLInputElement>("#kb-music-color");
+  color.value = toHex(s.musicColor.r || s.musicColor.g || s.musicColor.b ? s.musicColor : { r: 0x44, g: 0xd6, b: 0x2c });
+  color.hidden = s.music !== "pulse"; // the other effects pick their own colors
+  const save = () => {
+    const id = dev!.id;
+    s.music = sel.value;
+    s.musicColor = fromHex(color.value);
+    color.hidden = s.music !== "pulse";
+    attempt(() => Keyboards.setMusic(id, s.music, s.musicColor));
+  };
+  sel.onchange = save;
+  color.onchange = save;
+}
+
 function renderKeyboard() {
   const s = kb!;
+  renderMusic();
   const l = s.lighting;
   const fx = s.effects.find((e) => e.id === l.effect);
   const sel = $<HTMLSelectElement>("#kb-effect");

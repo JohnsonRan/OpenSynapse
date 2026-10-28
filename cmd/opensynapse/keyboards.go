@@ -76,6 +76,9 @@ type KeyboardMemory struct {
 	KeyColors leobog.KeyColors `json:"keyColors"` // of the custom effect
 	// Keymap: the remaps without macro bindings; nil while the keyboard has its factory keys.
 	Keymap *[leobog.Layers]leobog.Layer `json:"keymap,omitempty"`
+	// Music: a lightshow effect drawing what the PC plays over the keyboard's own effect; "" for none.
+	Music      string    `json:"music,omitempty"`
+	MusicColor razer.RGB `json:"musicColor"`
 }
 
 func keyboardMemory(id string) KeyboardMemory {
@@ -121,9 +124,11 @@ type Keyboards struct{}
 
 // KeyboardState is the lighting shown and the effects the keyboard has.
 type KeyboardState struct {
-	Lighting leobog.Lighting `json:"lighting"`
-	Effects  []leobog.Effect `json:"effects"`
-	MaxLevel int             `json:"maxLevel"` // of brightness and speed
+	Lighting   leobog.Lighting `json:"lighting"`
+	Effects    []leobog.Effect `json:"effects"`
+	MaxLevel   int             `json:"maxLevel"` // of brightness and speed
+	Music      string          `json:"music"`    // music effect drawn over the lighting, "" for none
+	MusicColor razer.RGB       `json:"musicColor"`
 }
 
 // State reads the keyboard's lighting.
@@ -133,7 +138,8 @@ func (Keyboards) State(id string) (KeyboardState, error) {
 		return KeyboardState{}, err
 	}
 	l, err := d.Lighting()
-	return KeyboardState{Lighting: l, Effects: leobog.Effects, MaxLevel: leobog.MaxLevel}, err
+	m := keyboardMemory(d.ID)
+	return KeyboardState{Lighting: l, Effects: leobog.Effects, MaxLevel: leobog.MaxLevel, Music: m.Music, MusicColor: m.MusicColor}, err
 }
 
 // Stored reads what the keyboard keeps for an effect, to show it before switching.

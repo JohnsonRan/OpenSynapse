@@ -228,6 +228,9 @@ export interface KeyboardState {
   effects: Effect[];
   /** of brightness and speed */
   maxLevel: number;
+  /** music effect drawn over the lighting, "" for none */
+  music: string;
+  musicColor: RGB;
 }
 
 /** LanguageInfo: Choice is what the user picked ("" = system), Effective what is shown. */
@@ -561,6 +564,13 @@ export const Keyboards = {
   /** SetLighting shows l on the keyboard. */
   setLighting(id: string, l: LeobogLighting): Promise<void> {
     return call("Keyboards.SetLighting", id, l);
+  },
+  /**
+   * SetMusic draws what the PC plays on the keyboard with an effect
+   * (pulse, spectrum, bass), or with "" stops it. Color is pulse's.
+   */
+  setMusic(id: string, effect: string, color: RGB): Promise<void> {
+    return call("Keyboards.SetMusic", id, effect, color);
   },
   /** State reads the keyboard's lighting. */
   state(id: string): Promise<KeyboardState> {

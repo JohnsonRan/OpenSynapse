@@ -191,6 +191,7 @@ func main() {
 	go watchDevices()
 	go runHooks()
 	go keepBindings()
+	go runMusic()
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
 		restoreBindingsOnQuit()  // buttons work without the app
 		restoreAudioOnQuit()     // and sound plays as it did before scenes
