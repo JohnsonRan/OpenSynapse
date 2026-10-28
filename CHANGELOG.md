@@ -4,6 +4,29 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.4.1
+
+### 简体中文
+
+- 稳定性: 设置文件异常时不再卡在启动，文件也不会被覆盖，你的设置得以保留
+- 宏: 快速切换或新建宏时，每一处修改都会可靠保存；退出或导入设置后，按键都能恢复原有功能
+- 备份: 导入不兼容的设置文件时会直接提示，现有设置保持不变
+- 细节: 切换语言后托盘菜单立即更新，关于页排版更整齐，调节 DPI 和亮度只作用于当前设备
+
+### English
+
+- Reliability: a damaged settings file no longer stops OpenSynapse from starting, and it's kept instead of overwritten
+- Macros: every edit is saved, even when you switch or create macros quickly, and buttons always get their own function back when you quit or import settings
+- Backup: importing an incompatible settings file now tells you so and leaves your current settings untouched
+- Polish: the tray menu follows a language change right away, the About page reads more neatly, and DPI and brightness changes stay on the device you're adjusting
+
+### 日本語
+
+- 安定性: 設定ファイルに問題があっても起動できなくなることはなくなり、そのファイルも上書きされずに残ります
+- マクロ: マクロをすばやく切り替えたり作成したりしても、すべての変更が保存されます。終了時や設定のインポート後は、ボタンが本来の機能に確実に戻ります
+- バックアップ: 互換性のない設定ファイルをインポートすると、現在の設定を変えずにその旨を表示します
+- 細部: 言語を切り替えるとトレイ メニューにすぐ反映され、[情報] ページが見やすくなり、DPI と明るさの変更は調整中のデバイスにだけ適用されます
+
 ## 0.4.0
 
 ### 简体中文
