@@ -123,18 +123,18 @@ func TestLowBattery(t *testing.T) {
 func TestParseConfigDoesNotMergeDefaults(t *testing.T) {
 	defaults := cfg
 	defaults.Scenes.Scenes = []Scene{{Name: "default", Apps: []string{"x.exe"}, DPI: 800}}
-	c := parseConfig([]byte(`{"scenes":{"enabled":true,"desktop":{"name":"d"},"scenes":[{"name":"t","apps":["notepad.exe"]}]}}`), defaults)
+	c, _ := parseConfig([]byte(`{"scenes":{"enabled":true,"desktop":{"name":"d"},"scenes":[{"name":"t","apps":["notepad.exe"]}]}}`), defaults)
 	if len(c.Scenes.Scenes) != 1 || c.Scenes.Scenes[0].DPI != 0 || !c.Notify {
 		t.Fatalf("%+v", c)
 	}
-	if c := parseConfig([]byte(`{"notify":false}`), defaults); c.Notify || len(c.Scenes.Scenes) != 1 || c.Scenes.Scenes[0].DPI != 800 {
+	if c, _ := parseConfig([]byte(`{"notify":false}`), defaults); c.Notify || len(c.Scenes.Scenes) != 1 || c.Scenes.Scenes[0].DPI != 800 {
 		t.Fatalf("defaults lost: %+v", c)
 	}
 }
 
 // The first smart polling config (no auto-detection fields) becomes SmartPoll.
 func TestLegacySmartMigration(t *testing.T) {
-	c := parseConfig([]byte(`{"smart":{"enabled":true,"defaultRate":1000,"rules":[{"exe":"cs2.exe","rate":8000}]}}`), cfg)
+	c, _ := parseConfig([]byte(`{"smart":{"enabled":true,"defaultRate":1000,"rules":[{"exe":"cs2.exe","rate":8000}]}}`), cfg)
 	s := c.Smart
 	if !s.Enabled || s.NormalRate != 1000 || s.GameRate != 8000 || !slices.Equal(s.Exceptions, []Rule{{"cs2.exe", 8000}}) {
 		t.Fatalf("%+v", s)

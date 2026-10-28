@@ -43,6 +43,7 @@ var messages = map[string]map[string]string{
 		"err.noTrigger":    "最多只能绑定 %d 个按键",
 		"err.buttonAction": "无效的按键功能",
 		"err.importFile":   "这不是 OpenSynapse 的设置文件",
+		"err.saveBlocked":  "设置未保存：无法读取 %s。为避免覆盖其中的设置，已暂停保存。请修复或移走该文件，然后重启 OpenSynapse。",
 	},
 	"en": {
 		"tray.open":        "Open OpenSynapse",
@@ -76,6 +77,7 @@ var messages = map[string]map[string]string{
 		"err.noTrigger":    "At most %d buttons can play macros",
 		"err.buttonAction": "Invalid button function",
 		"err.importFile":   "This isn't an OpenSynapse settings file",
+		"err.saveBlocked":  "Settings weren't saved: OpenSynapse can't read %s. To avoid overwriting the settings in it, saving is paused. Fix or move the file, and then restart OpenSynapse.",
 	},
 	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
 	"ja": {
@@ -110,6 +112,7 @@ var messages = map[string]map[string]string{
 		"err.noTrigger":    "マクロを割り当てられるボタンは %d 個までです",
 		"err.buttonAction": "ボタンの機能が無効です",
 		"err.importFile":   "OpenSynapse の設定ファイルではありません",
+		"err.saveBlocked":  "設定は保存されませんでした。%s を読み取れません。その中の設定を上書きしないよう、保存を一時停止しています。ファイルを修正するか移動してから、OpenSynapse を再起動してください。",
 	},
 }
 

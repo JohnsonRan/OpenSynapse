@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -66,8 +67,10 @@ type config struct {
 }
 
 var (
-	cfgMu sync.Mutex
-	cfg   = defaultConfig()
+	cfgMu       sync.Mutex
+	cfg         = defaultConfig()
+	saveMu      sync.Mutex
+	saveBlocked bool
 )
 
 // defaultConfig is the configuration of a first run.
@@ -156,22 +159,54 @@ func (l legacySmart) smartPoll() SmartPoll {
 }
 
 func loadConfig() {
-	b, err := os.ReadFile(configPath())
+	p := configPath()
+	b, err := os.ReadFile(p)
 	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("cannot read config %s: %v; saving disabled", p, err)
+			saveMu.Lock()
+			saveBlocked = true
+			saveMu.Unlock()
+			return
+		}
+		saveMu.Lock()
+		saveBlocked = false
+		saveMu.Unlock()
 		return // first run: defaults
 	}
 	cfgMu.Lock()
-	defer cfgMu.Unlock()
-	cfg = parseConfig(b, cfg)
+	def := cfg
+	cfgMu.Unlock()
+	next, err := parseConfig(b, def)
+	if err != nil {
+		if renameErr := os.Rename(p, p+".bad"); renameErr != nil {
+			log.Printf("corrupted config %s: %v; backup failed: %v; saving disabled", p, err, renameErr)
+			saveMu.Lock()
+			saveBlocked = true
+			saveMu.Unlock()
+			return
+		}
+		log.Printf("corrupted config %s: %v; backed up to %s.bad", p, err, p)
+		saveMu.Lock()
+		saveBlocked = false
+		saveMu.Unlock()
+		return
+	}
+	cfgMu.Lock()
+	cfg = next
+	cfgMu.Unlock()
+	saveMu.Lock()
+	saveBlocked = false
+	saveMu.Unlock()
 }
 
 // parseConfig overlays the saved keys on the defaults. Each key is decoded on
 // its own: decoding into the defaults would reuse their slice elements, so a
 // saved scene would inherit fields it omits.
-func parseConfig(b []byte, defaults config) config {
+func parseConfig(b []byte, defaults config) (config, error) {
 	var raw map[string]json.RawMessage
-	if json.Unmarshal(b, &raw) != nil {
-		return defaults
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return defaults, err
 	}
 	c := defaults
 	if v, ok := raw["scenes"]; ok {
@@ -184,6 +219,7 @@ func parseConfig(b []byte, defaults config) config {
 	if v, ok := raw["smartPoll"]; ok {
 		var s SmartPoll
 		if json.Unmarshal(v, &s) == nil {
+			_ = s.normalize()
 			c.Smart = s
 		}
 	} else if v, ok := raw["smart"]; ok {
@@ -220,10 +256,15 @@ func parseConfig(b []byte, defaults config) config {
 			c.Bindings = b
 		}
 	}
-	return c
+	return c, nil
 }
 
 func saveConfig() error {
+	saveMu.Lock()
+	defer saveMu.Unlock()
+	if saveBlocked {
+		return errors.New(tr("err.saveBlocked", configPath()))
+	}
 	cfgMu.Lock()
 	b, _ := json.MarshalIndent(cfg, "", "  ")
 	cfgMu.Unlock()
