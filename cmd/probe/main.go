@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
 )
 
 func main() {
@@ -13,8 +14,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if len(devs) == 0 {
+	dongles, _ := walkplay.Scan()
+	if len(devs)+len(dongles) == 0 {
 		fmt.Println("no supported device found")
+	}
+	for _, d := range dongles {
+		fmt.Printf("%s %s\n", d.ID, d.Name)
+		show := func(name string, v any, err error) { fmt.Printf("  %-12s %v %v\n", name, v, errStr(err)) }
+		v, e := d.Version()
+		show("firmware", v, e)
+		eq, e := d.EQ()
+		show("eq", fmt.Sprintf("%+v", eq), e)
+		f, e := d.DACFilter()
+		show("dacfilter", f, e)
+		g, e := d.HighGain()
+		show("highgain", g, e)
+		w, e := d.WorkMode()
+		show("workmode", w, e)
+		m, e := d.MicGain()
+		show("micgain", m, e)
+		d.Close()
 	}
 	for _, d := range devs {
 		fmt.Printf("%s %s (%d collections)\n", d.ID, d.Name, razer.Candidates(d))
