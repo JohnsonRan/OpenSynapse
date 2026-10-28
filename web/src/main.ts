@@ -908,7 +908,7 @@ function renderKbKeys() {
     (b, k) => {
       const a = acts[keys.keys.indexOf(k)]!;
       b.textContent = k.name;
-      b.disabled = k.index === 59; // Fn switches the layer
+      b.disabled = k.index === keys.fnIndex; // Fn switches the layer
       b.classList.toggle("changed", a.kind !== "default");
       b.classList.toggle("on", kbSel === k.index);
     },

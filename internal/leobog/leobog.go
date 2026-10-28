@@ -1,6 +1,8 @@
-// Package leobog controls the lighting of LEOBOG keyboards built on Sinowealth
-// chips. The protocol is what the official LEOBOG ONE driver sends, recorded
-// from its HID calls; nothing is guessed. Only the Hi75 on its cable has been tried.
+// Package leobog controls LEOBOG keyboards built on Sinowealth chips:
+// lighting, per-key colors and key remaps. The protocol is what the official
+// LEOBOG ONE driver sends, recorded from its HID calls; nothing is guessed.
+// What differs between keyboards is in their Model; only the Hi75 on its
+// cable has been tried.
 //
 // Every report is a 520-byte feature report, ID 0x06, on collection COL06:
 // [0x06, cmd, 0, 0, 1, 0, length, 0, data...]. A read is a SetFeature with
@@ -52,10 +54,39 @@ const (
 
 var magic = []byte{0x5a, 0xa5}
 
-// hello is the answer of the firmware this was recorded on. Other keyboards
-// share the 258A:010C ID with a different layout, so they are left alone.
-// shortcut: exact match on the Hi75's answer; relax it once another model is tried.
-var hello = []byte{0x06, 0x82, 0x01, 0x00, 0x01, 0x00, 0x06, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x9b}
+// helloRequest is the driver's first request; a model's Hello is the answer.
+var helloRequest = []byte{reportID, cmdHello, 0x01, 0x00, 0x01, 0x00, 0x06}
+
+// Model is one keyboard: how to recognize it and what it has.
+type Model struct {
+	Name     string
+	VID, PID uint16
+	// Hello is the answer of the firmware the model was recorded with. Other
+	// keyboards share Sinowealth IDs with another layout, so they are left alone.
+	Hello   []byte
+	Effects []Effect // in the order the driver lists them
+	Layout  []Key
+	Width   int // of the drawing Layout is placed on
+	Height  int
+	FnIndex int // the Fn key's matrix index: it switches layers and cannot be remapped
+	// defaultLayers are the factory remaps as the driver writes them after
+	// restoring defaults: 4 bytes per matrix index, one hex string per layer.
+	defaultLayers [Layers]string
+}
+
+// Models are the keyboards this package drives.
+var Models = []*Model{hi75}
+
+// Key is one key: the matrix index the firmware uses for colors and remaps,
+// and its rectangle on the model's drawing.
+type Key struct {
+	Index int    `json:"index"`
+	Name  string `json:"name"`
+	X     int    `json:"x"`
+	Y     int    `json:"y"`
+	W     int    `json:"w"`
+	H     int    `json:"h"`
+}
 
 // Lighting levels go from 0 to MaxLevel; brightness 0 turns the effect dark.
 const MaxLevel = 4
@@ -81,31 +112,9 @@ const (
 	EffectCustom = 21
 )
 
-// Effects are the Hi75's, as the driver lists them. IDs 9, 14 and 18–20 exist
-// on related boards but not here; 21 (per-key colors) needs its own report.
-var Effects = []Effect{
-	{1, "static", false, true},
-	{2, "breathing", true, true},
-	{3, "rainbow", true, true},
-	{4, "trigger", true, true},
-	{5, "raindrops", true, true},
-	{6, "rainbowWheel", true, true},
-	{7, "ripples", true, true},
-	{8, "stars", true, true},
-	{10, "stream", true, true},
-	{11, "drift", true, true},
-	{12, "reactive", true, true},
-	{13, "sineWave", true, true},
-	{15, "windmill", true, false},
-	{16, "waterfall", true, false},
-	{17, "blossom", true, false},
-	{EffectCustom, "custom", false, false},
-	{EffectOff, "off", false, false},
-}
-
-// Lookup finds an effect by ID.
-func Lookup(id int) (Effect, bool) {
-	for _, e := range Effects {
+// Effect finds one of the model's effects by ID.
+func (m *Model) Effect(id int) (Effect, bool) {
+	for _, e := range m.Effects {
 		if e.ID == id {
 			return e, true
 		}
@@ -150,6 +159,7 @@ type port interface {
 
 // Device is a connected keyboard.
 type Device struct {
+	*Model
 	ID, Name  string
 	Firmware  string // e.g. 5.0.0, "" if unknown
 	mu        sync.Mutex
@@ -185,13 +195,13 @@ func (d *Device) identify() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	req := make([]byte, reportLen)
-	copy(req, hello[:7]) // the driver's request: the answer's first 7 bytes
+	copy(req, helloRequest)
 	r, err := d.request(req)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(r[:len(hello)], hello) {
-		return fmt.Errorf("unknown firmware % x", r[:len(hello)])
+	if !bytes.Equal(r[:len(d.Hello)], d.Hello) {
+		return fmt.Errorf("unknown firmware % x", r[:len(d.Hello)])
 	}
 	return nil
 }
@@ -267,9 +277,21 @@ func palette(c *Colors) []byte {
 	return w
 }
 
-// Check reports whether the keyboard accepts l.
+// Check reports whether a keyboard of some model accepts l; a scene stores
+// lighting before knowing which keyboard it meets.
 func (l Lighting) Check() error {
-	e, ok := Lookup(l.Effect)
+	var err error
+	for _, m := range Models {
+		if err = m.Check(l); err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+// Check reports whether the model accepts l.
+func (m *Model) Check(l Lighting) error {
+	e, ok := m.Effect(l.Effect)
 	switch {
 	case !ok:
 		return fmt.Errorf("unknown effect %d", l.Effect)
@@ -308,7 +330,7 @@ func (d *Device) Lighting() (Lighting, error) {
 
 // Stored reads the settings the keyboard keeps for an effect, shown or not.
 func (d *Device) Stored(effect int) (Lighting, error) {
-	if _, ok := Lookup(effect); !ok {
+	if _, ok := d.Effect(effect); !ok {
 		return Lighting{}, fmt.Errorf("unknown effect %d", effect)
 	}
 	d.mu.Lock()
@@ -322,7 +344,7 @@ func (d *Device) Stored(effect int) (Lighting, error) {
 
 // SetLighting shows l, keeping what the other effects are set to.
 func (d *Device) SetLighting(l Lighting) error {
-	if err := l.Check(); err != nil {
+	if err := d.Check(l); err != nil {
 		return err
 	}
 	d.mu.Lock()
@@ -444,10 +466,10 @@ func actionOf(b []byte) Action {
 	return Action{Type: int(b[0]), Mods: int(b[1]), Code: int(b[2])<<8 | int(b[3])}
 }
 
-// DefaultLayers are the remaps a Hi75 ships with.
-func DefaultLayers() [Layers]Layer {
+// DefaultLayers are the remaps the model ships with.
+func (m *Model) DefaultLayers() [Layers]Layer {
 	var out [Layers]Layer
-	for l, s := range defaultLayers {
+	for l, s := range m.defaultLayers {
 		b, _ := hex.DecodeString(s)
 		for i := range Keys {
 			out[l][i] = actionOf(b[4*i:])
@@ -469,7 +491,7 @@ func keymapReport(layer int, l *Layer) []byte {
 
 // SetKeymap writes both layers, as the driver does after any change.
 func (d *Device) SetKeymap(layers [Layers]Layer) error {
-	if layers[0][FnIndex] != DefaultLayers()[0][FnIndex] {
+	if layers[0][d.FnIndex] != d.DefaultLayers()[0][d.FnIndex] {
 		return errors.New("the Fn key cannot be remapped")
 	}
 	d.mu.Lock()

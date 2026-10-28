@@ -18,19 +18,20 @@ var mediaCodes = []int{0xe9, 0xea, 0xe2, 0xcd, 0xb5, 0xb6, 0xb7, 0x6f, 0x70}
 
 // KeyboardKeys is the keyboard's drawing and what each key does.
 type KeyboardKeys struct {
-	Keys   []leobog.Key   `json:"keys"`
-	Width  int            `json:"width"`
-	Height int            `json:"height"`
-	Normal []ButtonAction `json:"normal"` // by Keys position
-	Fn     []ButtonAction `json:"fn"`     // while Fn is held
-	Media  []int          `json:"media"`  // consumer usages a key can send
+	Keys    []leobog.Key   `json:"keys"`
+	Width   int            `json:"width"`
+	Height  int            `json:"height"`
+	FnIndex int            `json:"fnIndex"` // the Fn key, which cannot be remapped
+	Normal  []ButtonAction `json:"normal"`  // by Keys position
+	Fn      []ButtonAction `json:"fn"`      // while Fn is held
+	Media   []int          `json:"media"`   // consumer usages a key can send
 }
 
 // keymapOf is what the keyboard should hold: the remembered remaps, with the
 // macro keys sending their trigger unless restore.
 func keymapOf(d *leobog.Device, restore bool) [leobog.Layers]leobog.Layer {
 	m := keyboardMemory(d.ID)
-	km := leobog.DefaultLayers()
+	km := d.DefaultLayers()
 	if m.Keymap != nil {
 		km = *m.Keymap
 	}
@@ -71,8 +72,8 @@ func syncKeymaps(restore bool) {
 	}
 }
 
-func layoutIndex(idx int) bool {
-	return idx != leobog.FnIndex && slices.ContainsFunc(leobog.Layout, func(k leobog.Key) bool { return k.Index == idx })
+func layoutIndex(d *leobog.Device, idx int) bool {
+	return idx != d.FnIndex && slices.ContainsFunc(d.Layout, func(k leobog.Key) bool { return k.Index == idx })
 }
 
 // keyAction describes a key's action for the page.
@@ -115,12 +116,12 @@ func (Keyboards) Keys(id string) (KeyboardKeys, error) {
 	if err != nil {
 		return KeyboardKeys{}, err
 	}
-	km, def := keymapOf(d, true), leobog.DefaultLayers()
-	out := KeyboardKeys{Keys: leobog.Layout, Width: leobog.LayoutW, Height: leobog.LayoutH, Media: mediaCodes}
+	km, def := keymapOf(d, true), d.DefaultLayers()
+	out := KeyboardKeys{Keys: d.Layout, Width: d.Width, Height: d.Height, FnIndex: d.FnIndex, Media: mediaCodes}
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
-	for _, k := range leobog.Layout {
+	for _, k := range d.Layout {
 		for l, dst := range []*[]ButtonAction{&out.Normal, &out.Fn} {
 			act := keyAction(km[l][k.Index], def[l][k.Index])
 			if i := slices.IndexFunc(bs, func(b Binding) bool { return b.Family == d.Name && b.Button == k.Index && b.Layer == l }); i >= 0 {
@@ -134,14 +135,14 @@ func (Keyboards) Keys(id string) (KeyboardKeys, error) {
 
 // SetKey sets what a key does on a layer (0 normal, 1 with Fn).
 func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
-	if layer < 0 || layer >= leobog.Layers || !layoutIndex(index) {
-		return errors.New(tr("err.buttonAction"))
-	}
 	bindMu.Lock()
 	defer bindMu.Unlock()
 	d, err := keyboards.get(id)
 	if err != nil {
 		return err
+	}
+	if layer < 0 || layer >= leobog.Layers || !layoutIndex(d, index) {
+		return errors.New(tr("err.buttonAction"))
 	}
 	find := func() int {
 		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name && b.Button == index && b.Layer == layer })
@@ -162,7 +163,7 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 		cfgMu.Unlock()
 	} else {
-		a, err := actionFor(act, leobog.DefaultLayers()[layer][index])
+		a, err := actionFor(act, d.DefaultLayers()[layer][index])
 		if err != nil {
 			return err
 		}
@@ -174,7 +175,7 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 		km := keymapOf(d, true)
 		km[layer][index] = a
 		if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) {
-			if km == leobog.DefaultLayers() {
+			if km == d.DefaultLayers() {
 				m.Keymap = nil
 			} else {
 				m.Keymap = &km
@@ -204,7 +205,7 @@ func (Keyboards) ResetKeys(id string) error {
 	}
 	refreshHooks()
 	// Written even if the app thinks it is there: the official driver may have changed it.
-	if err := d.SetKeymap(leobog.DefaultLayers()); err != nil {
+	if err := d.SetKeymap(d.DefaultLayers()); err != nil {
 		return err
 	}
 	keyboards.mu.Lock()

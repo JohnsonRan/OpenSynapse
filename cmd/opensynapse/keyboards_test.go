@@ -45,7 +45,7 @@ func TestSceneLightsRestore(t *testing.T) {
 }
 
 func TestKeyActions(t *testing.T) {
-	def := leobog.DefaultLayers()
+	def := leobog.Models[0].DefaultLayers()
 	caps := def[0][3]
 	for _, act := range []ButtonAction{
 		{Kind: "default"},
@@ -79,11 +79,11 @@ func TestKeymapWithMacros(t *testing.T) {
 	cfg.Bindings = []Binding{{Family: "LEOBOG Hi75", Button: 9, Layer: 1, Macro: "m", Trigger: firstTrigger + 2}}
 	cfgMu.Unlock()
 	defer func() { cfgMu.Lock(); cfg = saved; cfgMu.Unlock() }()
-	d := &leobog.Device{ID: "k", Name: "LEOBOG Hi75"}
+	d := &leobog.Device{Model: leobog.Models[0], ID: "k", Name: "LEOBOG Hi75"}
 	if got := keymapOf(d, false)[1][9]; got != (leobog.Action{Type: leobog.ActionKey, Code: 0x6a}) {
 		t.Fatalf("Fn+A sends %+v, not F15", got)
 	}
-	if keymapOf(d, true) != leobog.DefaultLayers() {
+	if keymapOf(d, true) != leobog.Models[0].DefaultLayers() {
 		t.Fatal("restore kept the trigger")
 	}
 }

@@ -17,9 +17,22 @@ var (
 	hidGUID = windows.GUID{Data1: 0x4D1E55B2, Data2: 0xF16F, Data3: 0x11CF, Data4: [8]byte{0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}}
 )
 
-// The config collection of a Hi75 on its cable.
-// shortcut: wired only; the 2.4 GHz receiver (3554:FA09) is untried.
-const configPath = "vid_258a&pid_010c&mi_01&col06"
+// configPath is how a model's config collection shows in its interface path.
+// shortcut: cables only; no model's 2.4 GHz receiver has been tried.
+func (m *Model) configPath() string {
+	return fmt.Sprintf("vid_%04x&pid_%04x&mi_01&col06", m.VID, m.PID)
+}
+
+// modelOf returns the model whose config collection a path is, or nil.
+func modelOf(path string) *Model {
+	p := strings.ToLower(path)
+	for _, m := range Models {
+		if strings.Contains(p, m.configPath()) {
+			return m
+		}
+	}
+	return nil
+}
 
 // PresentPaths lists the config collections of attached keyboards, without opening them.
 func PresentPaths() ([]string, error) {
@@ -29,32 +42,39 @@ func PresentPaths() ([]string, error) {
 	}
 	out := all[:0]
 	for _, p := range all {
-		if strings.Contains(strings.ToLower(p), configPath) {
+		if modelOf(p) != nil {
 			out = append(out, p)
 		}
 	}
 	return out, nil
 }
 
-// Scan opens the attached keyboard if it answers like a Hi75.
+// Scan opens the attached keyboards that answer like their model.
 func Scan() ([]*Device, error) {
 	paths, err := PresentPaths()
 	if err != nil {
 		return nil, err
 	}
+	var out []*Device
+	seen := map[*Model]bool{}
 	for _, p := range paths {
+		m := modelOf(p)
+		if seen[m] {
+			continue // shortcut: one keyboard per model; a second identical one is not shown
+		}
 		h, err := open(p)
 		if err != nil {
 			continue
 		}
-		d := &Device{ID: "258A:010C", Name: "LEOBOG Hi75", Firmware: firmware(h), port: &hidPort{h}, colors: DefaultColors()}
+		d := &Device{Model: m, ID: fmt.Sprintf("%04X:%04X", m.VID, m.PID), Name: m.Name, Firmware: firmware(h), port: &hidPort{h}, colors: DefaultColors()}
 		if err := d.identify(); err != nil {
 			windows.CloseHandle(h)
 			continue
 		}
-		return []*Device{d}, nil // shortcut: one keyboard; a second identical one is not shown
+		seen[m] = true
+		out = append(out, d)
 	}
-	return nil, nil
+	return out, nil
 }
 
 // firmware is the USB release number as the driver shows it: 0x0500 is 5.0.0.

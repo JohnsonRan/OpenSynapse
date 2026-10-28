@@ -40,14 +40,14 @@ func musicKeyboards() map[*leobog.Device]KeyboardMemory {
 	return out
 }
 
-// keyPlaces are the Hi75's key centres for the painter.
-var keyPlaces = func() []lightshow.Key {
-	out := make([]lightshow.Key, len(leobog.Layout))
-	for i, k := range leobog.Layout {
-		out[i] = lightshow.Key{Index: k.Index, X: (float64(k.X) + float64(k.W)/2) / leobog.LayoutW, Y: (float64(k.Y) + float64(k.H)/2) / leobog.LayoutH}
+// keyPlaces are a model's key centres for the painter.
+func keyPlaces(m *leobog.Model) []lightshow.Key {
+	out := make([]lightshow.Key, len(m.Layout))
+	for i, k := range m.Layout {
+		out[i] = lightshow.Key{Index: k.Index, X: (float64(k.X) + float64(k.W)/2) / float64(m.Width), Y: (float64(k.Y) + float64(k.H)/2) / float64(m.Height)}
 	}
 	return out
-}()
+}
 
 // runMusic listens to the PC only while a keyboard wants it.
 func runMusic() {
@@ -128,7 +128,7 @@ func playMusic() {
 			}
 			p.Effect, p.Color = m.Music, m.MusicColor
 			clear(colors)
-			p.Paint(l, keyPlaces, colors)
+			p.Paint(l, keyPlaces(d.Model), colors)
 			var frame leobog.KeyColors
 			for i, c := range colors {
 				frame[i] = c

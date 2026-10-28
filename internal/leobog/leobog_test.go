@@ -89,7 +89,7 @@ func (f *fakePort) get() ([]byte, error) { return append([]byte(nil), f.pending.
 
 func TestSetLightingKeepsOtherEffects(t *testing.T) {
 	f := &fakePort{t: t}
-	d := &Device{port: f, colors: DefaultColors()}
+	d := &Device{Model: hi75, port: f, colors: DefaultColors()}
 	if err := d.identify(); err != nil {
 		t.Fatal(err)
 	}
@@ -117,11 +117,10 @@ func TestSetLightingKeepsOtherEffects(t *testing.T) {
 }
 
 func TestUnknownFirmwareRefused(t *testing.T) {
-	d := &Device{port: &fakePort{t: t}}
-	old := hello
-	hello = append([]byte(nil), hello...)
-	hello[13] = 0x9c
-	defer func() { hello = old }()
+	other := *hi75
+	other.Hello = append([]byte(nil), hi75.Hello...)
+	other.Hello[13] = 0x9c
+	d := &Device{Model: &other, port: &fakePort{t: t}}
 	if d.identify() == nil {
 		t.Fatal("accepted another firmware")
 	}
@@ -155,10 +154,10 @@ func TestEncodeCustomFlag(t *testing.T) {
 
 // The driver's default layer with CapsLock as left Ctrl (CapsLock is index 3).
 func TestKeymapReportMatchesDriver(t *testing.T) {
-	l := DefaultLayers()
+	l := hi75.DefaultLayers()
 	l[0][3] = Action{Type: ActionKey, Mods: 1}
 	w := keymapReport(0, &l[0])
-	want := report(t, "0603000001000002"+defaultLayers[0])
+	want := report(t, "0603000001000002"+hi75.defaultLayers[0])
 	copy(want[8+4*3:], []byte{0, 1, 0, 0})
 	copy(want[reportLen-2:], magic)
 	if !bytes.Equal(w, want) {

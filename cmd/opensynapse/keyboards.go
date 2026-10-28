@@ -139,7 +139,7 @@ func (Keyboards) State(id string) (KeyboardState, error) {
 	}
 	l, err := d.Lighting()
 	m := keyboardMemory(d.ID)
-	return KeyboardState{Lighting: l, Effects: leobog.Effects, MaxLevel: leobog.MaxLevel, Music: m.Music, MusicColor: m.MusicColor}, err
+	return KeyboardState{Lighting: l, Effects: d.Effects, MaxLevel: leobog.MaxLevel, Music: m.Music, MusicColor: m.MusicColor}, err
 }
 
 // Stored reads what the keyboard keeps for an effect, to show it before switching.
@@ -204,13 +204,22 @@ func applySceneKeyboards(s *Scene) {
 	sceneKeyboards.Lock()
 	defer sceneKeyboards.Unlock()
 	for _, d := range keyboards.list() {
+		if want != nil && d.Check(*want) != nil {
+			continue // an effect this model lacks
+		}
 		sceneKeyboards.step(d.ID, want, d.Lighting, func(l leobog.Lighting) error { return setKeyboardLighting(d, l) })
 	}
 }
 
-// Effects lists the effects a scene can set, with the levels.
+// Effects lists the effects a scene can set, with the levels: those of the
+// connected keyboard, or of the first model when none is.
+// shortcut: with keyboards of two models, the scene offers the first one's effects; the other skips effects it lacks.
 func (Keyboards) Effects() KeyboardState {
-	return KeyboardState{Effects: leobog.Effects, MaxLevel: leobog.MaxLevel}
+	m := leobog.Models[0]
+	if kbs := keyboards.list(); len(kbs) > 0 {
+		m = kbs[0].Model
+	}
+	return KeyboardState{Effects: m.Effects, MaxLevel: leobog.MaxLevel}
 }
 
 // KeyColors returns the custom effect's colors, by matrix index.

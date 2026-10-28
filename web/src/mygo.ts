@@ -196,7 +196,10 @@ export interface GlassInfo {
   on: boolean;
 }
 
-/** Key is one key of the keyboard. */
+/**
+ * Key is one key: the matrix index the firmware uses for colors and remaps,
+ * and its rectangle on the model's drawing.
+ */
 export interface Key {
   index: number;
   name: string;
@@ -214,6 +217,8 @@ export interface KeyboardKeys {
   keys: Key[];
   width: number;
   height: number;
+  /** the Fn key, which cannot be remapped */
+  fnIndex: number;
   /** by Keys position */
   normal: ButtonAction[];
   /** while Fn is held */
@@ -533,7 +538,11 @@ export const Keyboards = {
   details(id: string): Promise<DeviceDetails> {
     return call("Keyboards.Details", id);
   },
-  /** Effects lists the effects a scene can set, with the levels. */
+  /**
+   * Effects lists the effects a scene can set, with the levels: those of the
+   * connected keyboard, or of the first model when none is.
+   * shortcut: with keyboards of two models, the scene offers the first one's effects; the other skips effects it lacks.
+   */
   effects(): Promise<KeyboardState> {
     return call("Keyboards.Effects");
   },
