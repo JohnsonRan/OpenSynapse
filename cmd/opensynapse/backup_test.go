@@ -9,6 +9,29 @@ func TestImportConfig(t *testing.T) {
 	if _, err := importConfig([]byte(`{"foo":1}`)); err == nil {
 		t.Fatal("accepted a file that is not a settings file")
 	}
+	if _, err := importConfig([]byte(`{"scenes":{"scenes":[{"name":"","apps":[]}]}}`)); err == nil {
+		t.Fatal("accepted invalid scenes config")
+	}
+	if _, err := importConfig([]byte(`{"smartPoll":{"normalRate":12345}}`)); err == nil {
+		t.Fatal("accepted invalid smart poll config")
+	}
+	for _, bad := range []string{
+		`{"scenes":"oops"}`,
+		`{"scenes":{"game":{"dpi":"oops"}}}`,
+		`{"scenes":{},"smartPoll":{"normalRate":"oops"}}`,
+		`{"scenes":{},"smart":"oops"}`,
+		`{"scenes":{},"lighting":"oops"}`,
+		`{"scenes":{},"notify":"oops"}`,
+		`{"scenes":{},"dpiDisplay":"oops"}`,
+		`{"scenes":{},"glass":"oops"}`,
+		`{"scenes":{},"language":123}`,
+		`{"scenes":{},"macros":"oops"}`,
+		`{"scenes":{},"bindings":"oops"}`,
+	} {
+		if _, err := importConfig([]byte(bad)); err == nil {
+			t.Fatalf("accepted invalid section: %s", bad)
+		}
+	}
 	src := defaultConfig()
 	src.Language = "ja"
 	src.Macros = []Macro{{ID: "a", Name: "ok", Mode: "once"}, {ID: "b", Name: "", Mode: "once"}}
