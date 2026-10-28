@@ -1,45 +1,45 @@
 package main
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
-	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
-func TestSceneLighting(t *testing.T) {
-	red := razer.RGB{R: 0xff}
-	cur := leobog.Lighting{Effect: 12, Brightness: 4, Speed: 4, Colorful: true}
-	staticStored := leobog.Lighting{Effect: 1, Brightness: 2, Speed: 0, Colorful: true}
-	pct := func(v int) *int { return &v }
-
-	if _, ok := sceneLighting(Scene{}, cur, cur); ok {
-		t.Fatal("a scene without lighting changed the keyboard")
-	}
-	// The effect comes with what the keyboard keeps for it, and the scene's color.
-	got, _ := sceneLighting(Scene{Lighting: &Lighting{Effect: razer.EffectStatic, Color: red}}, cur, staticStored)
-	if got != (leobog.Lighting{Effect: 1, Brightness: 2, Color: red}) {
-		t.Fatalf("static: %+v", got)
-	}
-	// Brightness alone keeps the effect; a dim percentage stays lit.
-	got, _ = sceneLighting(Scene{Brightness: pct(10)}, cur, cur)
-	if got.Effect != 12 || got.Brightness != 1 {
-		t.Fatalf("brightness: %+v", got)
-	}
-	if got, _ = sceneLighting(Scene{Brightness: pct(0)}, cur, cur); got.Brightness != 0 {
-		t.Fatalf("0%%: %+v", got)
-	}
-	got, _ = sceneLighting(Scene{Lighting: &Lighting{Effect: razer.EffectWave}}, cur, leobog.Lighting{Effect: 13, Brightness: 3, Color: red})
-	if got.Effect != 13 || !got.Colorful || got.Check() != nil {
-		t.Fatalf("wave: %+v", got)
-	}
-	got, _ = sceneLighting(Scene{Lighting: &Lighting{Effect: razer.EffectOff}, Brightness: pct(100)}, cur, leobog.Lighting{})
-	if got != (leobog.Lighting{}) || got.Check() != nil {
-		t.Fatalf("off: %+v", got)
-	}
-	for e, id := range sceneEffects {
-		if _, ok := leobog.Lookup(id); !ok {
-			t.Fatalf("%s maps to unknown effect %d", e, id)
+func TestSceneLightsRestore(t *testing.T) {
+	sl := sceneLights{base: map[string]leobog.Lighting{}, on: map[string]leobog.Lighting{}}
+	shown := leobog.Lighting{Effect: 12, Brightness: 4, Speed: 4, Colorful: true}
+	writes := 0
+	fail := false
+	read := func() (leobog.Lighting, error) { return shown, nil }
+	write := func(l leobog.Lighting) error {
+		if fail {
+			return errors.New("busy")
 		}
+		writes++
+		shown = l
+		return nil
+	}
+	game := leobog.Lighting{Effect: 2, Brightness: 2, Speed: 1}
+
+	sl.step("k", &game, read, write)
+	sl.step("k", &game, read, write) // already shown: no second write
+	if shown != game || writes != 1 {
+		t.Fatalf("enter: shown %+v after %d writes", shown, writes)
+	}
+	other := leobog.Lighting{Effect: 1, Brightness: 3}
+	sl.step("k", &other, read, write) // scene to scene keeps the first baseline
+	fail = true
+	sl.step("k", nil, read, write) // a failed restore is tried again
+	fail = false
+	sl.step("k", nil, read, write)
+	if shown.Effect != 12 || !shown.Colorful || len(sl.base) != 0 {
+		t.Fatalf("leave: shown %+v, base %v", shown, sl.base)
+	}
+	n := writes
+	sl.step("k", nil, read, write) // nothing pending: nothing written
+	if writes != n {
+		t.Fatal("wrote without a baseline")
 	}
 }

@@ -298,6 +298,8 @@ export interface Scene {
   input: string;
   /** 0–100, of the playback device in use */
   volume: number | null;
+  /** Keyboard: LEOBOG keyboards' lighting; unset puts back what they showed before. */
+  keyboard: LeobogLighting | null;
 }
 
 /**
@@ -498,6 +500,10 @@ export const Audio = {
 
 /** Keyboards controls LEOBOG keyboards. */
 export const Keyboards = {
+  /** Effects lists the effects a scene can set, with the levels. */
+  effects(): Promise<KeyboardState> {
+    return call("Keyboards.Effects");
+  },
   /** SetLighting shows l on the keyboard. */
   setLighting(id: string, l: LeobogLighting): Promise<void> {
     return call("Keyboards.SetLighting", id, l);

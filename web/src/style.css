@@ -1646,7 +1646,8 @@ input::placeholder {
   width: 160px;
 }
 
-.scene-grid.scene-audio {
+.scene-grid.scene-audio,
+.scene-grid.scene-kb {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 12px;
 }

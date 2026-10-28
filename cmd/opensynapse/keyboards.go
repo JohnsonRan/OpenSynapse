@@ -129,49 +129,55 @@ func (Keyboards) SetLighting(id string, l leobog.Lighting) error {
 	return setKeyboardLighting(d, l)
 }
 
-// sceneEffects are the keyboard effects closest to the scene's.
-var sceneEffects = map[string]int{
-	razer.EffectOff: leobog.EffectOff, razer.EffectStatic: 1, razer.EffectBreathing: 2,
-	razer.EffectSpectrum: 3, razer.EffectWave: 13, // dreamy rainbow, sine wave
+// sceneKeyboards remembers what each keyboard showed before a scene set its
+// lighting, so leaving the scene puts it back.
+// shortcut: kept in memory only; if OpenSynapse is killed during a scene the keyboard keeps the scene's lighting.
+var sceneKeyboards = sceneLights{base: map[string]leobog.Lighting{}, on: map[string]leobog.Lighting{}}
+
+type sceneLights struct {
+	sync.Mutex
+	base, on map[string]leobog.Lighting // keyboard ID → before scenes / set by the scene
 }
 
-// sceneLighting is what a scene turns a keyboard showing cur (and keeping
-// stored for the scene's effect) into; ok is false when the scene sets nothing.
-func sceneLighting(s Scene, cur, stored leobog.Lighting) (leobog.Lighting, bool) {
-	if s.Lighting == nil && s.Brightness == nil {
-		return cur, false
-	}
-	l := cur
-	if s.Lighting != nil {
-		l = stored
-		switch s.Lighting.Effect {
-		case razer.EffectStatic, razer.EffectBreathing:
-			l.Colorful, l.Color = false, s.Lighting.Color
-		case razer.EffectSpectrum, razer.EffectWave:
-			l.Colorful = true
+// step brings one keyboard to want, or with want nil back to its baseline.
+func (sl *sceneLights) step(id string, want *leobog.Lighting, read func() (leobog.Lighting, error), write func(leobog.Lighting) error) {
+	if want == nil {
+		if b, ok := sl.base[id]; ok && write(b) == nil {
+			delete(sl.base, id)
+			delete(sl.on, id)
 		}
+		return
 	}
-	if s.Brightness != nil && l.Effect != leobog.EffectOff {
-		l.Brightness = (*s.Brightness*leobog.MaxLevel + 99) / 100 // any light stays lit
+	if on, ok := sl.on[id]; ok && on == *want {
+		return
 	}
-	return l, true
+	if _, ok := sl.base[id]; !ok {
+		cur, err := read()
+		if err != nil {
+			return // busy or gone: try on the next tick
+		}
+		sl.base[id] = cur
+	}
+	if write(*want) == nil {
+		sl.on[id] = *want
+	}
 }
 
-// applyKeyboardScene writes what the scene sets to a keyboard.
-func applyKeyboardScene(d *leobog.Device, s Scene) error {
-	cur, err := d.Lighting()
-	if err != nil {
-		return err
+// applySceneKeyboards brings the keyboards to the scene s; nil (no scene)
+// puts back what they showed before. Cheap when nothing changes, so it runs every tick.
+func applySceneKeyboards(s *Scene) {
+	var want *leobog.Lighting
+	if s != nil {
+		want = s.Keyboard
 	}
-	stored := cur
-	if s.Lighting != nil {
-		if stored, err = d.Stored(sceneEffects[s.Lighting.Effect]); err != nil {
-			return err
-		}
+	sceneKeyboards.Lock()
+	defer sceneKeyboards.Unlock()
+	for _, d := range keyboards.list() {
+		sceneKeyboards.step(d.ID, want, d.Lighting, func(l leobog.Lighting) error { return setKeyboardLighting(d, l) })
 	}
-	l, ok := sceneLighting(s, cur, stored)
-	if !ok || l == cur {
-		return nil
-	}
-	return setKeyboardLighting(d, l)
+}
+
+// Effects lists the effects a scene can set, with the levels.
+func (Keyboards) Effects() KeyboardState {
+	return KeyboardState{Effects: leobog.Effects, MaxLevel: leobog.MaxLevel}
 }

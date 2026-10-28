@@ -21,6 +21,7 @@ import {
   type DeviceState,
   type DPIStage,
   type KeyboardState,
+  type Effect as KbEffect,
   type RGB,
   type Scene,
   type ScenesConfig,
@@ -1372,13 +1373,16 @@ function rateSelect(sel: HTMLSelectElement, value: number, onChange: (v: number)
 
 async function loadScenes() {
   let presets: EQPreset[] | null;
-  [scenes, smart, soundDevs, presets] = await Promise.all([
+  let kbs: KeyboardState | undefined;
+  [scenes, smart, soundDevs, presets, kbs] = await Promise.all([
     Scenes.config(),
     Scenes.smart(),
     Settings.audioDevices().catch(() => soundDevs),
     Audio.presets().catch(() => userPresets),
+    Keyboards.effects().catch(() => undefined),
   ]);
   userPresets = presets ?? [];
+  if (kbs) [kbEffects, kbMax] = [kbs.effects, kbs.maxLevel];
   scenes.scenes ??= [];
   smart.exceptions ??= [];
   $<HTMLInputElement>("#scenes-on").checked = scenes.enabled;
@@ -1432,6 +1436,10 @@ function option(value: string | number, label: string, selected: boolean) {
 const openScenes = new Set<string>();
 
 // sceneSummary is the one-line view of a collapsed scene.
+// Keyboard effects a scene can pick, from the app (no keyboard needed).
+let kbEffects: KbEffect[] = [];
+let kbMax = 4;
+
 function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   const parts: string[] = [];
   if (kind !== "desktop") parts.push(s.apps?.length ? s.apps.join(", ") : kind === "game" ? t("scenes.gameHint") : t("scenes.noPrograms"));
@@ -1440,6 +1448,10 @@ function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   if (s.dpi) set.push(`${s.dpi} DPI`);
   if (s.lighting) set.push(effectName(s.lighting.effect));
   if (s.brightness != null) set.push(`${t("light.brightness")} ${s.brightness}%`);
+  if (s.keyboard) {
+    const e = kbEffects.find((x) => x.id === s.keyboard!.effect);
+    set.push(`${t("cat.keyboard")} ${e ? kbEffectName(e.name) : t("kb.effect.other")}`);
+  }
   if (s.eq) set.push(`${t("tab.eq")} ${presetLabel(s.eq.preset)}`);
   if (s.output) set.push(deviceName(soundDevs.playback, s.output));
   if (s.input) set.push(deviceName(soundDevs.recording, s.input));
@@ -1487,6 +1499,12 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
       <label class="scene-color"><span class="muted small">${t("light.color")}</span><input class="color" type="color" /></label>
       <label><span class="muted small"><input class="bright-on" type="checkbox" title="${t("scenes.brightnessToggle")}" /> ${t("light.brightness")} <b class="bright-val"></b></span>
         <input class="bright" type="range" min="0" max="100" step="5" /></label>
+    </div>
+    <div class="scene-grid scene-kb">
+      <label><span class="muted small">${t("scenes.kbEffect")}</span><select class="kb-effect"></select></label>
+      <label class="kb-color-cell"><span class="muted small"><input class="kb-colorful" type="checkbox" /> ${t("kb.colorful")}</span><input class="color kb-color" type="color" /></label>
+      <label class="kb-level"><span class="muted small">${t("light.brightness")} <b class="kb-bright-val"></b></span><input class="kb-bright" type="range" min="0" step="1" /></label>
+      <label class="kb-level kb-speed-cell"><span class="muted small">${t("kb.speed")} <b class="kb-speed-val"></b></span><input class="kb-speed" type="range" min="0" step="1" /></label>
     </div>
     <div class="scene-grid scene-audio">
       <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
@@ -1556,6 +1574,7 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   syncBright();
   brightOn.onchange = () => ((s.brightness = brightOn.checked ? +bright.value : null), syncBright(), changed());
   bright.oninput = () => ((s.brightness = +bright.value), syncBright(), changed());
+  sceneKeyboard(s, q, changed);
   // Audio: a copy of a preset, and devices by ID (one unplugged now stays listed).
   const keep = option("", t("scenes.audioKeep"), false);
   const eqSel = q<HTMLSelectElement>(".eq");
@@ -1593,6 +1612,60 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   return card;
 }
 
+// The scene's LEOBOG keyboard lighting; unset puts back what the keyboard
+// showed before. Only with such a keyboard around, or a scene already set.
+function sceneKeyboard(s: Scene, q: <T extends HTMLElement>(sel: string) => T, changed: () => void) {
+  q(".scene-kb").hidden = !s.keyboard && !list.some((d) => d.driver === "leobog");
+  const sel = q<HTMLSelectElement>(".kb-effect");
+  const colorful = q<HTMLInputElement>(".kb-colorful");
+  const color = q<HTMLInputElement>(".kb-color");
+  const bright = q<HTMLInputElement>(".kb-bright");
+  const speed = q<HTMLInputElement>(".kb-speed");
+  bright.max = speed.max = String(kbMax);
+  const sync = () => {
+    const k = s.keyboard;
+    const fx = kbEffects.find((e) => e.id === k?.effect);
+    const lit = !!k && k.effect !== 0;
+    sel.innerHTML = option("", t("scenes.audioKeep"), !k) + kbEffects.map((e) => option(e.id, kbEffectName(e.name), e.id === k?.effect)).join("");
+    // visibility, not hidden: the grid keeps its columns aligned across scenes
+    q(".kb-color-cell").style.visibility = lit ? "" : "hidden";
+    for (const c of q(".scene-kb").querySelectorAll<HTMLElement>(".kb-level")) c.style.visibility = lit ? "" : "hidden";
+    q(".kb-speed-cell").style.visibility = lit && fx?.speed ? "" : "hidden";
+    colorful.checked = !!k?.colorful;
+    colorful.disabled = !fx?.color;
+    color.disabled = !!k?.colorful;
+    if (k) {
+      color.value = toHex(k.color);
+      bright.value = String(k.brightness);
+      speed.value = String(k.speed);
+      q(".kb-bright-val").textContent = `${k.brightness}/${kbMax}`;
+      q(".kb-speed-val").textContent = `${k.speed}/${kbMax}`;
+    }
+  };
+  sync();
+  sel.onchange = () => {
+    if (!sel.value) s.keyboard = null;
+    else {
+      const fx = kbEffects.find((e) => e.id === +sel.value)!;
+      const prev = s.keyboard;
+      s.keyboard = {
+        effect: fx.id,
+        brightness: prev?.brightness ?? kbMax,
+        speed: prev?.speed ?? Math.ceil(kbMax / 2),
+        colorful: prev ? prev.colorful || !fx.color : true,
+        color: prev?.color ?? fromHex(color.value),
+      };
+    }
+    sync();
+    changed();
+  };
+  colorful.onchange = () => s.keyboard && ((s.keyboard.colorful = colorful.checked), sync(), changed());
+  color.oninput = () => s.keyboard && ((s.keyboard.color = fromHex(color.value)), changed());
+  bright.oninput = () => s.keyboard && ((s.keyboard.brightness = +bright.value), sync());
+  speed.oninput = () => s.keyboard && ((s.keyboard.speed = +speed.value), sync());
+  bright.onchange = speed.onchange = changed;
+}
+
 function renderScenes() {
   if (!scenes) return;
   const c = scenes;
@@ -1621,7 +1694,7 @@ function syncSwitches() {
 
 $("#add-scene").onclick = () => {
   if (!scenes) return;
-  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null });
+  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null, keyboard: null });
   openScenes.add(`custom:${scenes.scenes.length - 1}`); // a new scene opens for editing
   renderScenes();
   saveScenes();

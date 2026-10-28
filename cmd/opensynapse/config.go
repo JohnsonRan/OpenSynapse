@@ -33,6 +33,8 @@ type Scene struct {
 	Output string   `json:"output"` // default playback device ID
 	Input  string   `json:"input"`  // default recording device ID
 	Volume *int     `json:"volume"` // 0–100, of the playback device in use
+	// Keyboard: LEOBOG keyboards' lighting; unset puts back what they showed before.
+	Keyboard *leobog.Lighting `json:"keyboard"`
 }
 
 // ScenesConfig: the first custom scene listing the foreground program wins,
@@ -323,6 +325,9 @@ func (s *Scene) normalize() error {
 	}
 	if s.EQ != nil && s.EQ.EQ.Check() != nil {
 		return errors.New(tr("err.sceneEQ", s.Name))
+	}
+	if s.Keyboard != nil && s.Keyboard.Check() != nil {
+		return errors.New(tr("err.sceneKeyboard", s.Name))
 	}
 	apps := []string{}
 	for _, a := range s.Apps {

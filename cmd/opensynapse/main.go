@@ -192,8 +192,9 @@ func main() {
 	go runHooks()
 	go keepBindings()
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
-		restoreBindingsOnQuit() // buttons work without the app
-		restoreAudioOnQuit()    // and sound plays as it did before scenes
+		restoreBindingsOnQuit()  // buttons work without the app
+		restoreAudioOnQuit()     // and sound plays as it did before scenes
+		applySceneKeyboards(nil) // and keyboards light as they did
 	})
 
 	// The update window in the app's language; it keeps it until a restart.
