@@ -15,6 +15,21 @@ OpenSynapse is not affiliated with Razer Inc.
 > [!IMPORTANT]
 > Quit Razer Synapse before you use OpenSynapse. Both apps write the same device settings and will overwrite each other.
 
+<details>
+<summary><b>Screenshots</b></summary>
+
+| Devices | Device settings |
+| :---: | :---: |
+| ![Devices](docs/screenshots/en/devices.png) | ![Device settings](docs/screenshots/en/device.png) |
+| **Buttons** | **Scenes** |
+| ![Buttons](docs/screenshots/en/buttons.png) | ![Scenes](docs/screenshots/en/profiles.png) |
+| **Macros** | **Settings** |
+| ![Macros](docs/screenshots/en/macros.png) | ![Settings](docs/screenshots/en/settings.png) |
+| **About and updates** | **Tray menu** |
+| ![About and updates](docs/screenshots/en/about.png) | ![Tray menu](docs/screenshots/en/tray.png) |
+
+</details>
+
 ## Get started
 
 1. Make sure you're on 64-bit Windows 10 or Windows 11 with the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) installed (it comes with Windows 11 and up-to-date Windows 10).

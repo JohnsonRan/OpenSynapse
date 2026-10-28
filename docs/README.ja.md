@@ -15,6 +15,21 @@ OpenSynapse は Razer Inc. とは関係ありません。
 > [!IMPORTANT]
 > OpenSynapse を使う前に Razer Synapse を終了してください。両方のアプリが同じデバイス設定を書き込むため、互いの設定を上書きしてしまいます。
 
+<details>
+<summary><b>スクリーンショット</b></summary>
+
+| デバイス | デバイスの設定 |
+| :---: | :---: |
+| ![デバイス](screenshots/ja/devices.png) | ![デバイスの設定](screenshots/ja/device.png) |
+| **ボタン** | **シーン** |
+| ![ボタン](screenshots/ja/buttons.png) | ![シーン](screenshots/ja/profiles.png) |
+| **マクロ** | **設定** |
+| ![マクロ](screenshots/ja/macros.png) | ![設定](screenshots/ja/settings.png) |
+| **情報と更新** | **トレイ メニュー** |
+| ![情報と更新](screenshots/ja/about.png) | ![トレイ メニュー](screenshots/ja/tray.png) |
+
+</details>
+
 ## はじめに
 
 1. 64 ビット版の Windows 10 または Windows 11 で、[Microsoft Edge WebView2 ランタイム](https://developer.microsoft.com/microsoft-edge/webview2/)がインストールされていることを確認します（Windows 11 と最新の Windows 10 には標準で含まれています）。

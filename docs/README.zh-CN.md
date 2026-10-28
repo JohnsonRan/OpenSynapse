@@ -15,6 +15,20 @@ OpenSynapse 与 Razer Inc. 无关联。
 > [!IMPORTANT]
 > 使用 OpenSynapse 前，请先退出 Razer Synapse。两者会写入相同的设备设置，同时运行会互相覆盖。
 
+<details>
+<summary><b>截图</b></summary>
+
+| 设备 | 设备设置 |
+| :---: | :---: |
+| ![设备](screenshots/zh-CN/devices.png) | ![设备设置](screenshots/zh-CN/device.png) |
+| **按键** | **情景模式** |
+| ![按键](screenshots/zh-CN/buttons.png) | ![情景模式](screenshots/zh-CN/profiles.png) |
+| **宏** | **设置** |
+| ![宏](screenshots/zh-CN/macros.png) | ![设置](screenshots/zh-CN/settings.png) |
+| **关于与更新** | **托盘菜单** |
+| ![关于与更新](screenshots/zh-CN/about.png) | ![托盘菜单](screenshots/zh-CN/tray.png) |
+
+</details>
 
 ## 快速上手
 
