@@ -122,7 +122,7 @@ OpenSynapse knows about 210 Razer mice, keyboards, mouse mats and accessories (l
 
 It also supports USB audio dongles built on WalkPlay chips that share the EPZ TP35 Pro's firmware family (10-band EQ), from brands such as EPZ, Moondrop, Tanchjim and CrinEar; only the TP35 Pro has been tried. Other WalkPlay families aren't enabled yet.
 
-The **LEOBOG Hi75** keyboard is supported on its cable: its lighting effect, color, brightness and speed, and scenes can switch them. Its 2.4 GHz receiver isn't supported yet.
+The **LEOBOG Hi75** keyboard is supported on its cable: lighting effects, per-key colors, music lighting, remapping keys (to other keys, media keys or macros) on the normal and Fn layers, and scenes can switch its lighting.
 
 So far, only the **DeathAdder V4 Pro**, the **EPZ TP35 Pro** and the **LEOBOG Hi75** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
 
