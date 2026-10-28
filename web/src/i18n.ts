@@ -217,7 +217,7 @@ const zh = {
 
   "scenes.title": "情景",
   "scenes.intro": "按前台程序切换鼠标 DPI 和带灯设备的灯效",
-  "scenes.more": "匹配顺序: 自定义情景 → 游戏 → 桌面；设为“保持当前”的项不会更改",
+  "scenes.more": "匹配顺序: 自定义情景 → 游戏 → 桌面；设为“保持不变”的项不会更改",
   "scenes.add": "＋ 新建情景",
   "scenes.newName": "情景 {n}",
   "scenes.delete": "删除情景",
@@ -232,9 +232,9 @@ const zh = {
   "scenes.appsGame": "补充程序，如 windowed-game.exe (可留空)",
   "scenes.dpi": "DPI (鼠标)",
   "scenes.effect": "灯效 (所有带灯设备)",
-  "scenes.keep": "保持当前",
+  "scenes.keep": "保持不变",
   "scenes.noPrograms": "未绑定程序",
-  "scenes.nothingSet": "全部保持当前",
+  "scenes.nothingSet": "全部保持不变",
   "scenes.edit": "单击展开或收起",
   "scenes.brightnessToggle": "勾选后由情景调整亮度",
 
