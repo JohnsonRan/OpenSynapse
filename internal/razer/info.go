@@ -95,7 +95,7 @@ func (d *Device) Tracking() (Tracking, error) {
 }
 
 func (t Tracking) check() error {
-	if t.Distance < 1 || t.Distance > 3 {
+	if !t.Asymmetric && (t.Distance < 1 || t.Distance > 3) {
 		return errors.New("lift-off distance must be 1–3")
 	}
 	if t.Asymmetric && (t.LiftOff < 2 || t.LiftOff > 26 || t.Landing < 1 || t.Landing >= t.LiftOff) {
