@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/egoist/mygo"
+
 	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
@@ -224,4 +226,18 @@ func (Keyboards) SetKeyColors(id string, c leobog.KeyColors) error {
 		return err
 	}
 	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.KeyColors = c })
+}
+
+// Details shows the keyboard's firmware version.
+func (Keyboards) Details(id string) (DeviceDetails, error) {
+	d, err := keyboards.get(id)
+	if err != nil {
+		return DeviceDetails{}, err
+	}
+	return DeviceDetails{Firmware: d.Firmware}, nil
+}
+
+// OpenSupport opens LEOBOG's download page, where the driver that updates the firmware is.
+func (Keyboards) OpenSupport() error {
+	return mygo.Shell.OpenExternal("https://leobogtech.com/blogs/software")
 }

@@ -151,6 +151,7 @@ type port interface {
 // Device is a connected keyboard.
 type Device struct {
 	ID, Name  string
+	Firmware  string // e.g. 5.0.0, "" if unknown
 	mu        sync.Mutex
 	port      port
 	colors    Colors

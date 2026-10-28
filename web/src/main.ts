@@ -562,7 +562,11 @@ $<HTMLInputElement>("#brightness").oninput = (e) => {
 async function loadInfo(d: DeviceInfo) {
   const tab = document.querySelector<HTMLElement>('.tab[data-tab="info"]')!;
   tab.hidden = true;
-  const info = await Devices.details(d.id).catch(() => undefined);
+  const leobog = d.driver === "leobog";
+  $("#info-hint").textContent = t(leobog ? "info.firmwareHintLeobog" : "info.firmwareHint");
+  $("#info-model-row").hidden = !leobog;
+  $("#info-model").textContent = leobog ? `${d.name} · USB ${d.id}` : "";
+  const info = await (leobog ? Keyboards.details(d.id) : Devices.details(d.id)).catch(() => undefined);
   if (!info || dev?.id !== d.id || (!info.firmware && !info.serial)) return;
   tab.hidden = false;
   document.querySelector<HTMLElement>(".tabs")!.hidden = false;
@@ -573,7 +577,8 @@ async function loadInfo(d: DeviceInfo) {
   $("#info-pair-row").hidden = !info.pairing;
   $("#info-sn-copy").onclick = () => attempt(() => navigator.clipboard.writeText(info.serial), t("info.copied"));
 }
-$("#info-fw-update").onclick = () => dev && attempt(() => Devices.openSupport(dev!.id, "firmware"));
+$("#info-fw-update").onclick = () =>
+  dev && attempt(() => (dev!.driver === "leobog" ? Keyboards.openSupport() : Devices.openSupport(dev!.id, "firmware")));
 $("#info-pair").onclick = () => dev && attempt(() => Devices.openSupport(dev!.id, "pairing"));
 
 // --- lift-off distance ---
@@ -784,12 +789,13 @@ function openKeyboard(d: DeviceInfo) {
   $("#dev-name").textContent = d.name;
   $("#dev-conn").textContent = "";
   $("#dev-battery").hidden = true;
-  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = !["kblight", "kbkeys"].includes(x.dataset.tab!)));
+  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => (x.hidden = !["kblight", "kbkeys", "info"].includes(x.dataset.tab!)));
   document.querySelector<HTMLElement>(".tabs")!.hidden = false;
   showTab("kblight");
   showView("device");
   kb = undefined;
   kbSel = -1;
+  loadInfo(d);
   return loadKeyboard(d.id);
 }
 

@@ -526,6 +526,10 @@ export const Audio = {
 
 /** Keyboards controls LEOBOG keyboards. */
 export const Keyboards = {
+  /** Details shows the keyboard's firmware version. */
+  details(id: string): Promise<DeviceDetails> {
+    return call("Keyboards.Details", id);
+  },
   /** Effects lists the effects a scene can set, with the levels. */
   effects(): Promise<KeyboardState> {
     return call("Keyboards.Effects");
@@ -537,6 +541,10 @@ export const Keyboards = {
   /** Keys returns the keyboard's keys and what they do. */
   keys(id: string): Promise<KeyboardKeys> {
     return call("Keyboards.Keys", id);
+  },
+  /** OpenSupport opens LEOBOG's download page, where the driver that updates the firmware is. */
+  openSupport(): Promise<void> {
+    return call("Keyboards.OpenSupport");
   },
   /** ResetKeys gives every key its factory action and unbinds its macros. */
   resetKeys(id: string): Promise<void> {

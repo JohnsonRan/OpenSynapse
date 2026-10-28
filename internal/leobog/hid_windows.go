@@ -12,6 +12,7 @@ var (
 	hid            = windows.NewLazySystemDLL("hid.dll")
 	procSetFeature = hid.NewProc("HidD_SetFeature")
 	procGetFeature = hid.NewProc("HidD_GetFeature")
+	procAttributes = hid.NewProc("HidD_GetAttributes")
 
 	hidGUID = windows.GUID{Data1: 0x4D1E55B2, Data2: 0xF16F, Data3: 0x11CF, Data4: [8]byte{0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}}
 )
@@ -46,7 +47,7 @@ func Scan() ([]*Device, error) {
 		if err != nil {
 			continue
 		}
-		d := &Device{ID: "258A:010C", Name: "LEOBOG Hi75", port: &hidPort{h}, colors: DefaultColors()}
+		d := &Device{ID: "258A:010C", Name: "LEOBOG Hi75", Firmware: firmware(h), port: &hidPort{h}, colors: DefaultColors()}
 		if err := d.identify(); err != nil {
 			windows.CloseHandle(h)
 			continue
@@ -54,6 +55,19 @@ func Scan() ([]*Device, error) {
 		return []*Device{d}, nil // shortcut: one keyboard; a second identical one is not shown
 	}
 	return nil, nil
+}
+
+// firmware is the USB release number as the driver shows it: 0x0500 is 5.0.0.
+func firmware(h windows.Handle) string {
+	attr := struct {
+		Size                uint32
+		VendorID, ProductID uint16
+		Version             uint16
+	}{Size: 10}
+	if r, _, _ := procAttributes.Call(uintptr(h), uintptr(unsafe.Pointer(&attr))); r == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d.%d.%d", attr.Version>>8, attr.Version>>4&0xf, attr.Version&0xf)
 }
 
 func open(path string) (windows.Handle, error) {

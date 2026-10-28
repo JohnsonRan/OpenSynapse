@@ -236,6 +236,8 @@ const zh = {
 
   "tab.info": "信息",
   "info.firmware": "固件版本",
+  "info.model": "设备型号",
+  "info.firmwareHintLeobog": "固件需要用 LEOBOG 官方驱动升级；单击“固件更新”可打开 LEOBOG 的下载页面",
   "info.firmwareUpdate": "固件更新",
   "info.firmwareHint": "固件需要用 Razer 官方的固件更新程序升级；单击“固件更新”可打开该设备的下载页面",
   "info.serial": "序列号",
@@ -597,6 +599,8 @@ const en: Record<Key, string> = {
 
   "tab.info": "Info",
   "info.firmware": "Firmware version",
+  "info.model": "Device model",
+  "info.firmwareHintLeobog": "Firmware is updated with LEOBOG's official driver. Select Firmware update to open LEOBOG's download page.",
   "info.firmwareUpdate": "Firmware update",
   "info.firmwareHint": "Firmware is updated with Razer's firmware updater. Select Firmware update to open the device's download page.",
   "info.serial": "Serial number",
@@ -957,6 +961,8 @@ const ja: Record<Key, string> = {
 
   "tab.info": "情報",
   "info.firmware": "ファームウェア バージョン",
+  "info.model": "デバイスのモデル",
+  "info.firmwareHintLeobog": "ファームウェアは LEOBOG の公式ドライバーで更新します。[ファームウェア更新] を選択すると、LEOBOG のダウンロード ページが開きます。",
   "info.firmwareUpdate": "ファームウェア更新",
   "info.firmwareHint": "ファームウェアは Razer のファームウェア アップデーターで更新します。[ファームウェア更新] を選択すると、デバイスのダウンロード ページが開きます。",
   "info.serial": "シリアル番号",

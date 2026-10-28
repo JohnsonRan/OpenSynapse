@@ -222,6 +222,12 @@
 
         <div id="tab-info" class="tab-body" hidden>
           <div class="card list">
+            <div class="list-row" id="info-model-row" hidden>
+              <div>
+                <div class="row-title" data-i18n="info.model"></div>
+                <div class="muted small selectable" id="info-model"></div>
+              </div>
+            </div>
             <div class="list-row" id="info-fw-row">
               <div>
                 <div class="row-title" data-i18n="info.firmware"></div>
@@ -244,7 +250,7 @@
               <button class="ghost" id="info-pair" data-i18n="info.pairingGuide"></button>
             </div>
           </div>
-          <p class="muted small" data-i18n="info.firmwareHint"></p>
+          <p class="muted small" id="info-hint"></p>
         </div>
 
         <div id="tab-eq" class="tab-body" hidden>
