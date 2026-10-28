@@ -129,8 +129,25 @@ function showView(name: string) {
   if (name === "settings") loadSound();
 }
 
-document.querySelectorAll<HTMLButtonElement>(".nav").forEach((b) => (b.onclick = () => showView(b.dataset.view!)));
-$("#back").onclick = () => showView("devices");
+// Coming back to Devices from another page shows the device left open; a
+// click on Devices while already there goes to the list.
+document.querySelectorAll<HTMLButtonElement>(".nav").forEach(
+  (b) =>
+    (b.onclick = () => {
+      const here = document.querySelector<HTMLElement>(".nav.active")?.dataset.view;
+      if (b.dataset.view === "devices" && here !== "devices" && dev && list.some((d) => d.id === dev!.id)) {
+        showView("device");
+        refreshState();
+        return;
+      }
+      if (b.dataset.view === "devices") dev = undefined;
+      showView(b.dataset.view!);
+    }),
+);
+$("#back").onclick = () => {
+  dev = undefined;
+  showView("devices");
+};
 
 function showTab(name: string) {
   document.querySelectorAll<HTMLElement>(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
