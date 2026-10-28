@@ -169,6 +169,7 @@ func (Settings) SetLanguage(lang string) error {
 	cfgMu.Lock()
 	cfg.Language = lang
 	cfgMu.Unlock()
-	resetAuto() // the tray tooltip names scenes in the new language
+	resetAuto()      // the tray tooltip names scenes in the new language
+	go refreshTray() // and the device rows say wired/wireless in it
 	return saveConfig()
 }
