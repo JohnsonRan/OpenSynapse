@@ -365,11 +365,12 @@ $("#add-stage").onclick = () => {
 };
 $("#xy-link").onchange = renderStages;
 
-const saveDPI = debounce((v: number) => dev && attempt(() => Devices.setDPI(dev!.id, v, v)), 300);
+const saveDPI = debounce((id: string, v: number) => attempt(() => Devices.setDPI(id, v, v)), 300);
 $<HTMLInputElement>("#dpi").oninput = (e) => {
+  if (!dev) return;
   const v = +(e.target as HTMLInputElement).value;
   $("#dpi-val").textContent = String(v);
-  saveDPI(v);
+  saveDPI(dev.id, v);
 };
 
 // --- power ---
@@ -449,11 +450,12 @@ $<HTMLInputElement>("#color").oninput = (e) => {
   applyLighting();
 };
 
-const saveBrightness = debounce((v: number) => dev && attempt(() => Devices.setBrightness(dev!.id, v)), 200);
+const saveBrightness = debounce((id: string, v: number) => attempt(() => Devices.setBrightness(id, v)), 200);
 $<HTMLInputElement>("#brightness").oninput = (e) => {
+  if (!dev) return;
   const v = +(e.target as HTMLInputElement).value;
   $("#bright-val").textContent = String(v);
-  saveBrightness(v);
+  saveBrightness(dev.id, v);
 };
 
 // --- device info: firmware, serial, receiver pairing ---
