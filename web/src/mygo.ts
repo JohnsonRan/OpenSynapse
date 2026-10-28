@@ -244,14 +244,6 @@ export interface Tracking {
 /** Devices controls connected Razer devices. */
 export const Devices = {
   /**
-   * BindButton makes a button play a macro; an empty macro restores the button.
-   * The left button cannot be bound: if OpenSynapse is not running it would
-   * only send F13, leaving no way to click.
-   */
-  bindButton(id: string, button: number, layer: number, macro: string): Promise<void> {
-    return call("Devices.BindButton", id, button, layer, macro);
-  },
-  /**
    * Buttons lists the device's remappable buttons. It fails on devices without
    * Synapse's button commands.
    */

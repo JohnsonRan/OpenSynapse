@@ -136,7 +136,7 @@ func (s Devices) SetButton(id string, button, layer int, act ButtonAction) error
 		return errors.New(tr("err.leftButton"))
 	}
 	if act.Kind == "macro" {
-		return s.BindButton(id, button, layer, act.Macro)
+		return s.bindButton(id, button, layer, act.Macro)
 	}
 	a, err := assignmentOf(button, layer, act)
 	if err != nil {

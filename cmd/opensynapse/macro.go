@@ -511,7 +511,7 @@ func restoreBindingsOnQuit() {
 // bindButton makes a button play a macro; an empty macro restores the button.
 // The left button cannot be bound: if OpenSynapse is not running it would
 // only send F13, leaving no way to click.
-func (Devices) BindButton(id string, button, layer int, macro string) error {
+func (Devices) bindButton(id string, button, layer int, macro string) error {
 	bindMu.Lock()
 	defer bindMu.Unlock()
 	d, err := devices.get(id)
