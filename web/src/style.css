@@ -1562,6 +1562,35 @@ input::placeholder {
   vector-effect: non-scaling-stroke;
 }
 
+/* The bands stay folded: most of the time a preset is all that is wanted. */
+.eq-detail summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.eq-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.eq-detail summary:hover,
+.eq-detail summary:hover .chev,
+.eq-detail[open] summary {
+  color: var(--accent);
+}
+
+.eq-detail[open] summary .chev {
+  transform: rotate(90deg);
+}
+
+.eq-detail[open] summary {
+  margin-bottom: 14px;
+}
+
 .eq-preamp {
   display: flex;
   align-items: center;

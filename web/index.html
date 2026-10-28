@@ -201,12 +201,15 @@
               </div>
             </div>
             <svg id="eq-curve" class="eq-curve" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
-            <div class="eq-preamp">
-              <span class="muted small" data-i18n="eq.preamp"></span>
-              <input id="eq-preamp" type="range" min="-10" max="10" step="1" />
-              <b class="accent"><span id="eq-preamp-val"></span> dB</b>
-            </div>
-            <div id="eq-bands" class="eq-bands"></div>
+            <details id="eq-detail" class="eq-detail">
+              <summary><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg><span data-i18n="eq.adjust"></span></summary>
+              <div class="eq-preamp">
+                <span class="muted small" data-i18n="eq.preamp"></span>
+                <input id="eq-preamp" type="range" min="-10" max="10" step="1" />
+                <b class="accent"><span id="eq-preamp-val"></span> dB</b>
+              </div>
+              <div id="eq-bands" class="eq-bands"></div>
+            </details>
           </div>
         </div>
 
