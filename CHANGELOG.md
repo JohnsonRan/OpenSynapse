@@ -4,6 +4,29 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.6.0
+
+### 简体中文
+
+- 情景模式: 可按程序切换均衡器预设、默认播放和录音设备以及音量，离开后自动恢复原样，意外退出后下次启动也会恢复
+- 声音设备: 在设置中直接切换默认的播放和录音设备
+- 设备页: 按鼠标、键盘、音频分组，卡片一眼显示 DPI、回报率、电量和音频格式；切到其他页面再回来，仍停留在刚才的设备
+- 界面: 窗口大小适配屏幕和缩放，页面充分利用宽度，滚动条仅在滚动时显示，均衡器频段默认收起
+
+### English
+
+- Scenes: switch the EQ preset, the default playback and recording devices and the volume by the program in front; everything goes back when you leave, even after OpenSynapse closes unexpectedly
+- Sound devices: switch the default playback and recording devices right from Settings
+- Devices: grouped into mice, keyboards and audio, with cards that show DPI, polling rate, battery and audio format at a glance; come back from another page to the device you left open
+- Interface: the window fits your screen and scaling, pages make use of its width, the scrollbar shows only while you scroll, and the EQ bands stay folded until you need them
+
+### 日本語
+
+- シーン: 前面のプログラムに合わせて EQ プリセット、既定の再生デバイスと録音デバイス、音量を切り替えられるようになりました。シーンを離れると元に戻り、OpenSynapse が予期せず終了した場合も次回の起動時に元に戻ります
+- サウンド デバイス: 既定の再生デバイスと録音デバイスを [設定] から直接切り替えられるようになりました
+- デバイス: マウス、キーボード、オーディオに分けて表示し、カードで DPI、ポーリングレート、バッテリー、オーディオ形式をひと目で確認できます。ほかのページから戻ると、開いていたデバイスが表示されます
+- 画面: ウィンドウが画面サイズと拡大率に合わせて開き、ページが横幅を活用するようになりました。スクロール バーはスクロール中だけ表示され、EQ の各バンドは必要になるまで折りたたまれます
+
 ## 0.5.0
 
 ### 简体中文
