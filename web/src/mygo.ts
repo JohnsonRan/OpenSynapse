@@ -236,6 +236,12 @@ export interface KeyboardState {
   /** music effect drawn over the lighting, "" for none */
   music: string;
   musicColor: RGB;
+  /** flashes on low battery, scene changes and toggled macros */
+  notices: boolean;
+  /** The key layout, for scenes that highlight keys (Effects only). */
+  keys?: Key[];
+  width?: number;
+  height?: number;
 }
 
 /** LanguageInfo: Choice is what the user picked ("" = system), Effective what is shown. */
@@ -334,6 +340,8 @@ export interface Scene {
   volume: number | null;
   /** Keyboard: LEOBOG keyboards' lighting; unset puts back what they showed before. */
   keyboard: LeobogLighting | null;
+  /** Highlight lights chosen keys of LEOBOG keyboards instead of Keyboard. */
+  highlight: SceneHighlight | null;
 }
 
 /**
@@ -343,6 +351,18 @@ export interface Scene {
 export interface SceneEQ {
   preset: string;
   eq: EQ;
+}
+
+/**
+ * SceneHighlight lights some keys in one color and the others in another,
+ * through the keyboard's custom effect.
+ */
+export interface SceneHighlight {
+  /** matrix indexes */
+  keys: number[];
+  color: RGB;
+  /** every other key */
+  rest: RGB;
 }
 
 /**
@@ -546,7 +566,10 @@ export const Keyboards = {
   effects(): Promise<KeyboardState> {
     return call("Keyboards.Effects");
   },
-  /** KeyColors returns the custom effect's colors, by matrix index. */
+  /**
+   * KeyColors returns the custom effect's colors, by matrix index; a scene
+   * highlighting keys does not change them.
+   */
   keyColors(id: string): Promise<KeyColors> {
     return call("Keyboards.KeyColors", id);
   },
@@ -580,6 +603,10 @@ export const Keyboards = {
    */
   setMusic(id: string, effect: string, color: RGB): Promise<void> {
     return call("Keyboards.SetMusic", id, effect, color);
+  },
+  /** SetNotices turns keyboard notices on or off for a keyboard. */
+  setNotices(id: string, on: boolean): Promise<void> {
+    return call("Keyboards.SetNotices", id, on);
   },
   /** State reads the keyboard's lighting. */
   state(id: string): Promise<KeyboardState> {

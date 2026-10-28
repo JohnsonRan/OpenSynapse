@@ -113,6 +113,9 @@ func playMusic() {
 		fresh = false
 		l := an.Levels()
 		mu.Unlock()
+		if noticeShowing() {
+			continue
+		}
 		if l.Loud > 0.02 || l.Bass > 0.02 {
 			quietSince = time.Time{}
 		} else if quietSince.IsZero() {

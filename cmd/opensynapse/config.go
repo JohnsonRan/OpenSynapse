@@ -35,6 +35,27 @@ type Scene struct {
 	Volume *int     `json:"volume"` // 0–100, of the playback device in use
 	// Keyboard: LEOBOG keyboards' lighting; unset puts back what they showed before.
 	Keyboard *leobog.Lighting `json:"keyboard"`
+	// Highlight lights chosen keys of LEOBOG keyboards instead of Keyboard.
+	Highlight *SceneHighlight `json:"highlight"`
+}
+
+// SceneHighlight lights some keys in one color and the others in another,
+// through the keyboard's custom effect.
+type SceneHighlight struct {
+	Keys  []int     `json:"keys"` // matrix indexes
+	Color razer.RGB `json:"color"`
+	Rest  razer.RGB `json:"rest"` // every other key
+}
+
+func (h *SceneHighlight) colors() leobog.KeyColors {
+	var c leobog.KeyColors
+	for i := range c {
+		c[i] = h.Rest
+	}
+	for _, k := range h.Keys {
+		c[k] = h.Color
+	}
+	return c
 }
 
 // ScenesConfig: the first custom scene listing the foreground program wins,
@@ -328,6 +349,12 @@ func (s *Scene) normalize() error {
 	}
 	if s.Keyboard != nil && s.Keyboard.Check() != nil {
 		return errors.New(tr("err.sceneKeyboard", s.Name))
+	}
+	if h := s.Highlight; h != nil {
+		h.Keys = slices.Compact(slices.Sorted(slices.Values(h.Keys)))
+		if slices.ContainsFunc(h.Keys, func(k int) bool { return k < 0 || k >= leobog.Keys }) {
+			return errors.New(tr("err.sceneKeyboard", s.Name))
+		}
 	}
 	apps := []string{}
 	for _, a := range s.Apps {

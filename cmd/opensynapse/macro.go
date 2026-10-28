@@ -183,7 +183,13 @@ func onTriggerKey(vk int, down bool) bool {
 	case down && running && m.Mode == "toggle", !down && running && m.Mode == "hold":
 		close(stop)
 		delete(playing, vk)
+		if m.Mode == "toggle" {
+			flashKeyboards(noticeMacro)
+		}
 	case down && !running:
+		if m.Mode == "toggle" {
+			flashKeyboards(noticeMacro)
+		}
 		stop = make(chan struct{})
 		playing[vk] = stop
 		go func() {

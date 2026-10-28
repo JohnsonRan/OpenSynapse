@@ -140,7 +140,11 @@ func refreshTray() {
 		cfgMu.Lock()
 		notify := cfg.Notify
 		cfgMu.Unlock()
-		if lowBat.check(d.ID, pct, threshold, charging) && notify {
+		if !lowBat.check(d.ID, pct, threshold, charging) {
+			continue
+		}
+		flashKeyboards(noticeBattery)
+		if notify {
 			n := mygo.NewNotification(mygo.NotificationOptions{
 				ID:    "battery-" + d.ID,
 				Title: tr("battery.title", d.Name),

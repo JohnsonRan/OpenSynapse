@@ -32,6 +32,7 @@ const (
 const (
 	desktop   = -1
 	gameScene = -2
+	noScene   = -3
 )
 
 // isGame: fullscreen/borderless with GPU load, or a process already recognized.
@@ -218,6 +219,7 @@ func runAuto() {
 	// Processes recognized as games stay games while they run, so a loading
 	// screen or a windowed menu does not count as leaving the game.
 	games := map[uint32]string{}
+	shownScene := noScene // the scene last applied, to notice a change but not the first one
 	for {
 		select {
 		case <-tick.C:
@@ -276,6 +278,10 @@ func runAuto() {
 			}
 			scenes.step(idx, devs, func(d *razer.Device) error { return applyScene(d, s) })
 			if scenes.deb.settled && scenes.deb.current == idx {
+				if shownScene != idx && shownScene != noScene {
+					flashKeyboards(noticeScene)
+				}
+				shownScene = idx
 				applySceneAudio(&s)
 				applySceneKeyboards(&s)
 			}

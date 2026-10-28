@@ -818,8 +818,9 @@ async function loadKeyboard(id: string) {
 }
 
 // kbDraw lays the keys out at their place on the keyboard, scaled to the box.
-function kbDraw(box: HTMLElement, look: (b: HTMLButtonElement, k: KbKey) => void, onPick: (k: KbKey, b: HTMLButtonElement) => void) {
-  const { keys, width: w, height: h } = kbKeys!;
+type KbLayout = { keys: KbKey[]; width: number; height: number };
+function kbDraw(box: HTMLElement, layout: KbLayout, look: (b: HTMLButtonElement, k: KbKey) => void, onPick: (k: KbKey, b: HTMLButtonElement) => void) {
+  const { keys, width: w, height: h } = layout;
   box.style.aspectRatio = `${w} / ${h}`;
   box.replaceChildren(
     ...keys.map((k) => {
@@ -849,6 +850,7 @@ function renderPaint() {
   };
   kbDraw(
     $("#kb-paint"),
+    kbKeys!,
     (b, k) => {
       b.style.background = toHex(kbColors[k.index] ?? { r: 0, g: 0, b: 0 });
       b.onpointerdown = () => (painting = true);
@@ -905,6 +907,7 @@ function renderKbKeys() {
   const acts = kbLayer ? keys.fn : keys.normal;
   kbDraw(
     $("#kb-keys"),
+    keys,
     (b, k) => {
       const a = acts[keys.keys.indexOf(k)]!;
       b.textContent = k.name;
@@ -963,6 +966,12 @@ function renderMusic() {
   };
   sel.onchange = save;
   color.onchange = save;
+  const notices = $<HTMLInputElement>("#kb-notices");
+  notices.checked = s.notices;
+  notices.onchange = () => {
+    const id = dev!.id;
+    attempt(() => Keyboards.setNotices(id, notices.checked)).then((ok) => (ok ? (s.notices = notices.checked) : (notices.checked = s.notices)));
+  };
 }
 
 function renderKeyboard() {
@@ -1575,7 +1584,7 @@ async function loadScenes() {
     Keyboards.effects().catch(() => undefined),
   ]);
   userPresets = presets ?? [];
-  if (kbs) [kbEffects, kbMax] = [kbs.effects, kbs.maxLevel];
+  if (kbs) [kbEffects, kbMax, kbLayout] = [kbs.effects, kbs.maxLevel, kbs.keys?.length ? { keys: kbs.keys, width: kbs.width!, height: kbs.height! } : undefined];
   scenes.scenes ??= [];
   smart.exceptions ??= [];
   $<HTMLInputElement>("#scenes-on").checked = scenes.enabled;
@@ -1632,6 +1641,9 @@ const openScenes = new Set<string>();
 // Keyboard effects a scene can pick, from the app (no keyboard needed).
 let kbEffects: KbEffect[] = [];
 let kbMax = 4;
+let kbLayout: KbLayout | undefined;
+// The keys LEOBOG ONE's own game set lights.
+const GAME_KEYS = ["Esc", "W", "A", "S", "D", "Up", "Down", "Left", "Right"];
 
 function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   const parts: string[] = [];
@@ -1641,7 +1653,8 @@ function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   if (s.dpi) set.push(`${s.dpi} DPI`);
   if (s.lighting) set.push(effectName(s.lighting.effect));
   if (s.brightness != null) set.push(`${t("light.brightness")} ${s.brightness}%`);
-  if (s.keyboard) {
+  if (s.highlight) set.push(`${t("cat.keyboard")} ${t("scenes.kbHighlight")}`);
+  else if (s.keyboard) {
     const e = kbEffects.find((x) => x.id === s.keyboard!.effect);
     set.push(`${t("cat.keyboard")} ${e ? kbEffectName(e.name) : t("kb.effect.other")}`);
   }
@@ -1698,6 +1711,14 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
       <label class="kb-color-cell"><span class="muted small"><input class="kb-colorful" type="checkbox" /> ${t("kb.colorful")}</span><input class="color kb-color" type="color" /></label>
       <label class="kb-level"><span class="muted small">${t("light.brightness")} <b class="kb-bright-val"></b></span><input class="kb-bright" type="range" min="0" step="1" /></label>
       <label class="kb-level kb-speed-cell"><span class="muted small">${t("kb.speed")} <b class="kb-speed-val"></b></span><input class="kb-speed" type="range" min="0" step="1" /></label>
+    </div>
+    <div class="scene-hl" hidden>
+      <div class="row">
+        <span class="muted small">${t("scenes.kbHighlightHint")}</span>
+        <label class="muted small">${t("scenes.kbHighlightColor")} <input class="color hl-color" type="color" /></label>
+        <label class="muted small">${t("scenes.kbRestColor")} <input class="color hl-rest" type="color" /></label>
+      </div>
+      <div class="kb-draw hl-draw"></div>
     </div>
     <div class="scene-grid scene-audio">
       <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
@@ -1808,18 +1829,46 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
 // The scene's LEOBOG keyboard lighting; unset puts back what the keyboard
 // showed before. Only with such a keyboard around, or a scene already set.
 function sceneKeyboard(s: Scene, q: <T extends HTMLElement>(sel: string) => T, changed: () => void) {
-  q(".scene-kb").hidden = !s.keyboard && !list.some((d) => d.driver === "leobog");
+  q(".scene-kb").hidden = !s.keyboard && !s.highlight && !list.some((d) => d.driver === "leobog");
   const sel = q<HTMLSelectElement>(".kb-effect");
   const colorful = q<HTMLInputElement>(".kb-colorful");
   const color = q<HTMLInputElement>(".kb-color");
   const bright = q<HTMLInputElement>(".kb-bright");
   const speed = q<HTMLInputElement>(".kb-speed");
   bright.max = speed.max = String(kbMax);
+  const drawHighlight = () => {
+    const h = s.highlight;
+    q(".scene-hl").hidden = !h || !kbLayout;
+    if (!h || !kbLayout) return;
+    const hc = q<HTMLInputElement>(".hl-color");
+    const rc = q<HTMLInputElement>(".hl-rest");
+    hc.value = toHex(h.color);
+    rc.value = toHex(h.rest);
+    hc.oninput = () => ((h.color = fromHex(hc.value)), drawHighlight(), changed());
+    rc.oninput = () => ((h.rest = fromHex(rc.value)), drawHighlight(), changed());
+    kbDraw(
+      q(".hl-draw"),
+      kbLayout,
+      (b, k) => {
+        b.textContent = k.name;
+        b.style.background = toHex(h.keys.includes(k.index) ? h.color : h.rest);
+      },
+      (k) => {
+        h.keys = h.keys.includes(k.index) ? h.keys.filter((x) => x !== k.index) : [...h.keys, k.index];
+        drawHighlight();
+        changed();
+      },
+    );
+  };
   const sync = () => {
     const k = s.keyboard;
     const fx = kbEffects.find((e) => e.id === k?.effect);
-    const lit = !!k && k.effect !== 0;
-    sel.innerHTML = option("", t("scenes.audioKeep"), !k) + kbEffects.map((e) => option(e.id, kbEffectName(e.name), e.id === k?.effect)).join("");
+    const lit = !!k && k.effect !== 0 && !s.highlight;
+    sel.innerHTML =
+      option("", t("scenes.audioKeep"), !k && !s.highlight) +
+      (kbLayout ? option("hl", t("scenes.kbHighlight"), !!s.highlight) : "") +
+      kbEffects.filter((e) => e.id !== 21).map((e) => option(e.id, kbEffectName(e.name), !s.highlight && e.id === k?.effect)).join("");
+    drawHighlight();
     // visibility, not hidden: the grid keeps its columns aligned across scenes
     q(".kb-color-cell").style.visibility = lit ? "" : "hidden";
     for (const c of q(".scene-kb").querySelectorAll<HTMLElement>(".kb-level")) c.style.visibility = lit ? "" : "hidden";
@@ -1837,8 +1886,13 @@ function sceneKeyboard(s: Scene, q: <T extends HTMLElement>(sel: string) => T, c
   };
   sync();
   sel.onchange = () => {
+    s.highlight = null;
     if (!sel.value) s.keyboard = null;
-    else {
+    else if (sel.value === "hl") {
+      s.keyboard = null;
+      const keys = kbLayout!.keys.filter((k) => GAME_KEYS.includes(k.name)).map((k) => k.index);
+      s.highlight = { keys, color: { r: 0xff, g: 0x2d, b: 0x2d }, rest: { r: 0, g: 0, b: 0 } };
+    } else {
       const fx = kbEffects.find((e) => e.id === +sel.value)!;
       const prev = s.keyboard;
       s.keyboard = {
@@ -1887,7 +1941,7 @@ function syncSwitches() {
 
 $("#add-scene").onclick = () => {
   if (!scenes) return;
-  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null, keyboard: null });
+  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null, keyboard: null, highlight: null });
   openScenes.add(`custom:${scenes.scenes.length - 1}`); // a new scene opens for editing
   renderScenes();
   saveScenes();

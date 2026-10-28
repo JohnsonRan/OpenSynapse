@@ -1696,3 +1696,22 @@ input::placeholder {
   margin-top: 14px;
   gap: 12px;
 }
+
+/* A scene's highlighted keys: the key picker under the keyboard row. */
+.scene-hl {
+  margin-top: 12px;
+}
+
+.scene-hl .row {
+  gap: 16px;
+}
+
+.scene-hl label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scene-hl .color {
+  width: 48px;
+}
