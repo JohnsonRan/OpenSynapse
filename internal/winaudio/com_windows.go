@@ -3,6 +3,7 @@ package winaudio
 import (
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"slices"
 	"strings"
@@ -293,5 +294,60 @@ func SetDefault(id string) error {
 			}
 		}
 		return nil
+	})
+}
+
+var iidIAudioEndpointVolume = windows.GUID{Data1: 0x5CDF2C82, Data2: 0x841E, Data3: 0x4546, Data4: [8]byte{0x97, 0x22, 0x0C, 0xF7, 0x40, 0x78, 0x22, 0x9A}}
+
+// IAudioEndpointVolume slots.
+const (
+	slotSetVolumeScalar = 7
+	slotGetVolumeScalar = 9
+)
+
+// withVolume runs fn with the device's IAudioEndpointVolume.
+func withVolume(id string, fn func(vol unsafe.Pointer) error) error {
+	p, err := windows.UTF16PtrFromString(id)
+	if err != nil {
+		return err
+	}
+	return withCOM(func() error {
+		enum, err := create(&clsidMMDeviceEnumerator, &iidIMMDeviceEnumerator)
+		if err != nil {
+			return err
+		}
+		defer release(enum)
+		var dev, vol unsafe.Pointer
+		if err := hrErr("GetDevice", call(enum, slotGetDevice, uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(&dev)))); err != nil {
+			return err
+		}
+		defer release(dev)
+		if err := hrErr("Activate", call(dev, slotActivate, uintptr(unsafe.Pointer(&iidIAudioEndpointVolume)), clsctxAll, 0, uintptr(unsafe.Pointer(&vol)))); err != nil {
+			return err
+		}
+		defer release(vol)
+		return fn(vol)
+	})
+}
+
+// Volume returns a device's master volume, 0–100 as the volume slider shows it.
+func Volume(id string) (int, error) {
+	var level float32
+	err := withVolume(id, func(vol unsafe.Pointer) error {
+		return hrErr("GetMasterVolumeLevelScalar", call(vol, slotGetVolumeScalar, uintptr(unsafe.Pointer(&level))))
+	})
+	return int(math.Round(float64(level) * 100)), err
+}
+
+// SetVolume sets a device's master volume, 0–100.
+func SetVolume(id string, pct int) error {
+	if pct < 0 || pct > 100 {
+		return errors.New("volume must be 0–100")
+	}
+	// The float travels in an integer register; Go's stdcall copies the first
+	// four arguments into XMM0–3 as well, where the callee reads a float.
+	level := uintptr(math.Float32bits(float32(pct) / 100))
+	return withVolume(id, func(vol unsafe.Pointer) error {
+		return hrErr("SetMasterVolumeLevelScalar", call(vol, slotSetVolumeScalar, level, 0))
 	})
 }

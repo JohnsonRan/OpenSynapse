@@ -35,3 +35,9 @@ func TestDefaultInvalidFlowReturnsError(t *testing.T) {
 		t.Fatal("expected error for invalid flow")
 	}
 }
+
+func TestSetVolumeRange(t *testing.T) {
+	if SetVolume("x", 101) == nil || SetVolume("x", -1) == nil {
+		t.Fatal("accepted a volume outside 0–100")
+	}
+}
