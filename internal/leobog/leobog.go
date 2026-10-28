@@ -11,6 +11,7 @@ package leobog
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -23,7 +24,10 @@ const (
 	reportID  = 0x06
 
 	cmdHello   = 0x82 // the driver's first request; its answer tells our firmware
+	cmdKeymap  = 0x03 // one layer's remaps; write only
 	cmdConfig  = 0x04 // config block; read with cmdConfig|0x80
+	cmdKeys    = 0x06 // per-key colors of the custom effect; write only
+	cmdFrame   = 0x08 // per-key colors shown until the next frame (music effects); not stored
 	cmdPalette = 0x0a // write only: the driver never reads it back
 	readFlag   = 0x80
 
@@ -32,6 +36,7 @@ const (
 
 // Config block offsets, in the whole report.
 const (
+	offCustom = 17 // 1 while the custom effect shows the per-key colors
 	offEffect = 18
 	offParams = 64 // 2 bytes per effect ID: brightness, speed<<4 | color slot
 	offMagic  = 134
@@ -69,8 +74,12 @@ type Effect struct {
 	Color bool   `json:"color"` // takes a single color besides colorful
 }
 
-// EffectOff is the effect ID with every key dark.
-const EffectOff = 0
+// EffectOff is the effect ID with every key dark; EffectCustom shows the
+// per-key colors.
+const (
+	EffectOff    = 0
+	EffectCustom = 21
+)
 
 // Effects are the Hi75's, as the driver lists them. IDs 9, 14 and 18–20 exist
 // on related boards but not here; 21 (per-key colors) needs its own report.
@@ -90,6 +99,7 @@ var Effects = []Effect{
 	{15, "windmill", true, false},
 	{16, "waterfall", true, false},
 	{17, "blossom", true, false},
+	{EffectCustom, "custom", false, false},
 	{EffectOff, "off", false, false},
 }
 
@@ -140,10 +150,11 @@ type port interface {
 
 // Device is a connected keyboard.
 type Device struct {
-	ID, Name string
-	mu       sync.Mutex
-	port     port
-	colors   Colors
+	ID, Name  string
+	mu        sync.Mutex
+	port      port
+	colors    Colors
+	keyColors KeyColors
 }
 
 func header(cmd, length, last byte) []byte {
@@ -198,7 +209,8 @@ func (d *Device) readConfig() ([]byte, error) {
 // decode reads the settings of an effect out of a config block.
 func decode(cfg []byte, colors *Colors, effect int) Lighting {
 	l := Lighting{Effect: effect}
-	if l.Effect == EffectOff || offParams+2*l.Effect+1 >= offMagic {
+	// The custom effect's levels are not the 0–4 the driver offers; it leaves them alone.
+	if l.Effect == EffectOff || l.Effect == EffectCustom || offParams+2*l.Effect+1 >= offMagic {
 		return l
 	}
 	p := cfg[offParams+2*l.Effect:]
@@ -221,7 +233,11 @@ func encode(cfg []byte, l Lighting) []byte {
 	copy(w, cfg[:offMagic+2])
 	w[1] = cmdConfig
 	w[offEffect] = byte(l.Effect)
-	if l.Effect == EffectOff {
+	w[offCustom] = 0
+	if l.Effect == EffectCustom {
+		w[offCustom] = 1
+	}
+	if l.Effect == EffectOff || l.Effect == EffectCustom {
 		return w
 	}
 	slot := byte(slotColorful)
@@ -258,7 +274,7 @@ func (l Lighting) Check() error {
 		return fmt.Errorf("unknown effect %d", l.Effect)
 	case l.Brightness < 0 || l.Brightness > MaxLevel || l.Speed < 0 || l.Speed > MaxLevel:
 		return fmt.Errorf("brightness and speed must be 0–%d", MaxLevel)
-	case !l.Colorful && !e.Color && l.Effect != EffectOff:
+	case !l.Colorful && !e.Color && l.Effect != EffectOff && l.Effect != EffectCustom:
 		return errors.New("this effect only cycles colors")
 	}
 	return nil
@@ -314,16 +330,140 @@ func (d *Device) SetLighting(l Lighting) error {
 	if err != nil {
 		return err
 	}
+	if err := d.port.set(encode(cfg, l)); err != nil {
+		return err
+	}
+	// The driver follows the config with the per-key colors for the custom
+	// effect, and with the palette for the others.
+	if l.Effect == EffectCustom {
+		return d.port.set(keyReport(cmdKeys, &d.keyColors))
+	}
 	colors := d.colors
 	if !l.Colorful && l.Effect != EffectOff {
 		colors[l.Effect] = l.Color
-	}
-	if err := d.port.set(encode(cfg, l)); err != nil {
-		return err
 	}
 	if err := d.port.set(palette(&colors)); err != nil {
 		return err
 	}
 	d.colors = colors
+	return nil
+}
+
+// ---------- per-key colors ----------
+
+// Keys is the number of matrix positions; not all have a key.
+const Keys = 126
+
+// KeyColors are colors by matrix index.
+type KeyColors [Keys]razer.RGB
+
+// The custom effect's colors are red, green and blue planes, one byte per
+// matrix index; a frame has the three bytes of each index together.
+const offRed, offGreen, offBlue = 8, 8 + Keys, 8 + 2*Keys
+
+func keyReport(cmd byte, c *KeyColors) []byte {
+	w := header(cmd, 0x7a, 1)
+	for i, rgb := range c {
+		if cmd == cmdFrame {
+			w[8+3*i], w[9+3*i], w[10+3*i] = rgb.R, rgb.G, rgb.B
+		} else {
+			w[offRed+i], w[offGreen+i], w[offBlue+i] = rgb.R, rgb.G, rgb.B
+		}
+	}
+	return w
+}
+
+// KeyColors returns the custom effect's colors the keyboard has.
+func (d *Device) KeyColors() KeyColors {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.keyColors
+}
+
+// SetKeyColors tells the device the custom effect's colors, which it cannot
+// report; ShowKeyColors also shows them.
+func (d *Device) SetKeyColors(c KeyColors) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.keyColors = c
+}
+
+// ShowKeyColors switches to the custom effect with these colors.
+func (d *Device) ShowKeyColors(c KeyColors) error {
+	d.SetKeyColors(c)
+	return d.SetLighting(Lighting{Effect: EffectCustom})
+}
+
+// Frame shows colors until the next frame, without storing them.
+func (d *Device) Frame(c *KeyColors) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.port.set(keyReport(cmdFrame, c))
+}
+
+// ---------- remaps ----------
+
+// Layers: the default layer, and the one used while Fn is held.
+const Layers = 2
+
+// Action is what a key sends, as the firmware stores it.
+type Action struct {
+	Type int `json:"type"` // ActionKey, ActionMedia, or a keyboard function
+	Mods int `json:"mods"` // ActionKey: modifier bits, left Ctrl 1, Shift 2, Alt 4, Win 8
+	Code int `json:"code"` // ActionKey: HID keyboard usage, 0 for modifiers only; ActionMedia: consumer usage
+}
+
+// Action types; the Fn layer also holds keyboard functions (7: system, 8: lighting).
+const (
+	ActionKey   = 0
+	ActionMedia = 2
+)
+
+// Layer is the actions by matrix index.
+type Layer [Keys]Action
+
+func (a Action) bytes() [4]byte {
+	return [4]byte{byte(a.Type), byte(a.Mods), byte(a.Code >> 8), byte(a.Code)}
+}
+
+func actionOf(b []byte) Action {
+	return Action{Type: int(b[0]), Mods: int(b[1]), Code: int(b[2])<<8 | int(b[3])}
+}
+
+// DefaultLayers are the remaps a Hi75 ships with.
+func DefaultLayers() [Layers]Layer {
+	var out [Layers]Layer
+	for l, s := range defaultLayers {
+		b, _ := hex.DecodeString(s)
+		for i := range Keys {
+			out[l][i] = actionOf(b[4*i:])
+		}
+	}
+	return out
+}
+
+func keymapReport(layer int, l *Layer) []byte {
+	w := header(cmdKeymap, 0, 2)
+	w[2] = byte(layer)
+	for i, a := range l {
+		b := a.bytes()
+		copy(w[8+4*i:], b[:])
+	}
+	copy(w[reportLen-2:], magic)
+	return w
+}
+
+// SetKeymap writes both layers, as the driver does after any change.
+func (d *Device) SetKeymap(layers [Layers]Layer) error {
+	if layers[0][FnIndex] != DefaultLayers()[0][FnIndex] {
+		return errors.New("the Fn key cannot be remapped")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i := range layers {
+		if err := d.port.set(keymapReport(i, &layers[i])); err != nil {
+			return err
+		}
+	}
 	return nil
 }

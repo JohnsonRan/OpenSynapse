@@ -126,3 +126,58 @@ func TestUnknownFirmwareRefused(t *testing.T) {
 		t.Fatal("accepted another firmware")
 	}
 }
+
+// The driver's per-key report with Esc red, F1 green, ` blue and Space white.
+func TestKeyReportMatchesDriver(t *testing.T) {
+	var c KeyColors
+	c[0], c[12], c[1], c[35] = razer.RGB{R: 0xff}, razer.RGB{G: 0xff}, blue, razer.RGB{R: 0xff, G: 0xff, B: 0xff}
+	w := keyReport(cmdKeys, &c)
+	want := report(t, "060600000100"+"7a01")
+	for _, i := range []int{8, 43, 146, 169, 261, 295} {
+		want[i] = 0xff
+	}
+	if !bytes.Equal(w, want) {
+		t.Fatalf("got % x", w[:300])
+	}
+}
+
+// Custom switches the config's custom flag; any other effect clears it.
+func TestEncodeCustomFlag(t *testing.T) {
+	cfg := report(t, recRead)
+	w := encode(cfg, Lighting{Effect: EffectCustom, Brightness: 2})
+	if w[offCustom] != 1 || w[offEffect] != EffectCustom || !bytes.Equal(w[offParams:offMagic], cfg[offParams:offMagic]) {
+		t.Fatalf("custom: % x", w[16:20])
+	}
+	if w := encode(w, Lighting{Effect: 12, Brightness: 4, Speed: 4, Colorful: true}); w[offCustom] != 0 || w[offEffect] != 12 {
+		t.Fatalf("leaving custom: % x", w[16:20])
+	}
+}
+
+// The driver's default layer with CapsLock as left Ctrl (CapsLock is index 3).
+func TestKeymapReportMatchesDriver(t *testing.T) {
+	l := DefaultLayers()
+	l[0][3] = Action{Type: ActionKey, Mods: 1}
+	w := keymapReport(0, &l[0])
+	want := report(t, "0603000001000002"+defaultLayers[0])
+	copy(want[8+4*3:], []byte{0, 1, 0, 0})
+	copy(want[reportLen-2:], magic)
+	if !bytes.Equal(w, want) {
+		t.Fatalf("got % x", w[:24])
+	}
+	if w := keymapReport(1, &l[1]); w[2] != 1 || actionOf(w[8+4*8:]) != (Action{Type: 7, Code: 0x19}) {
+		t.Fatalf("Fn layer: % x", w[:48])
+	}
+	if l[0][9] != (Action{Type: ActionKey, Code: 0x04}) || l[1][len(l[1])-1] != (Action{}) {
+		t.Fatal("default A is not A")
+	}
+}
+
+// A recorded music frame: Left Shift dim green, Left Ctrl green, A dark blue.
+func TestFrameMatchesDriver(t *testing.T) {
+	var c KeyColors
+	c[4], c[5], c[9] = razer.RGB{G: 0x8f}, razer.RGB{G: 0xff}, razer.RGB{G: 0x0c, B: 0x52}
+	w := keyReport(cmdFrame, &c)
+	if !bytes.Equal(w[:8], []byte{6, 8, 0, 0, 1, 0, 0x7a, 1}) || !bytes.Equal(w[8+3*4:8+3*10], []byte{0, 0x8f, 0, 0, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0c, 0x52}) {
+		t.Fatalf("got % x", w[:40])
+	}
+}
