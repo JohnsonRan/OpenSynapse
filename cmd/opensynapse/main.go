@@ -80,12 +80,13 @@ func openWindow() {
 		window.Focus()
 		return
 	}
+	size := windowSize(mygo.Screen.PrimaryDisplay().WorkArea)
 	w := mygo.NewWindow(mygo.WindowOptions{
 		Title:           "OpenSynapse",
-		Width:           1180,
-		Height:          760,
-		MinWidth:        960,
-		MinHeight:       620,
+		Width:           size.w,
+		Height:          size.h,
+		MinWidth:        size.minW,
+		MinHeight:       size.minH,
 		BackgroundColor: "#0a0a0a",
 		// No title bar; Windows keeps its own min/max/close (and Snap) over the page.
 		TitleBarStyle:  mygo.TitleBarHidden,
@@ -102,6 +103,20 @@ func openWindow() {
 	// Closing destroys the webview and its browser processes; the tray keeps running.
 	w.OnClosed(func() { setWindow(nil) })
 	setWindow(w)
+}
+
+type winSize struct{ w, h, minW, minH int }
+
+// windowSize fits the first window to the screen, in DIPs so display scaling
+// is already counted: about 60% x 75% of the work area, no smaller than the
+// layout needs and no larger than it uses, and never beyond the screen.
+// A size the user chose is remembered (StateKey) and wins over this.
+func windowSize(work mygo.Rectangle) winSize {
+	clamp := func(v, lo, hi int) int { return max(lo, min(v, hi)) }
+	s := winSize{minW: min(960, work.Width), minH: min(620, work.Height)}
+	s.w = min(clamp(work.Width*60/100, 960, 1320), work.Width)
+	s.h = min(clamp(work.Height*75/100, 620, 900), work.Height)
+	return s
 }
 
 // trayMenu: device batteries and the active scene/rate on top (read only),
