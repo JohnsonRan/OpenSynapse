@@ -42,6 +42,9 @@ jobs:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - run: bun run build:web # the app embeds the built page
+      - run: go vet ./...
+      - run: go test ./...
       - name: Build and upload the installer and the update files
         env:
           GH_TOKEN: ${{ github.token }}
