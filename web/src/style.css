@@ -157,8 +157,39 @@ main {
   padding: 28px 40px 48px;
 }
 
+/* Pages use the window's width up to a comfortable line length, and sit in
+   the middle of a wider one instead of leaving a blank strip on the right. */
 .view {
-  max-width: 920px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+/* Scrollbars stay out of sight until the page scrolls or the pointer is on
+   them, and then show thin and dark instead of the light Windows bar. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+  background-color: transparent;
+}
+
+.scrolling::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(255 255 255 / 0.22);
 }
 
 .device-head {

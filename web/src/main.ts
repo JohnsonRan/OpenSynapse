@@ -103,6 +103,20 @@ const fromHex = (h: string): RGB => ({ r: parseInt(h.slice(1, 3), 16), g: parseI
 
 // ---------- navigation ----------
 
+// Show the scrollbar while an element scrolls (style.css hides it otherwise).
+const scrollTimers = new WeakMap<Element, number>();
+document.addEventListener(
+  "scroll",
+  (e) => {
+    const el = e.target as HTMLElement;
+    if (!el?.classList) return;
+    el.classList.add("scrolling");
+    clearTimeout(scrollTimers.get(el));
+    scrollTimers.set(el, window.setTimeout(() => el.classList.remove("scrolling"), 900));
+  },
+  true, // capture: scroll events on nested elements do not bubble
+);
+
 function showView(name: string) {
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
