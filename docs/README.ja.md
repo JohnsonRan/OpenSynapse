@@ -1,6 +1,6 @@
 # OpenSynapse
 
-[English](README.md) · [简体中文](README.zh-CN.md) · **日本語**
+[English](../README.md) · [简体中文](README.zh-CN.md) · **日本語**
 
 Windows 用の軽量でオープンソースな Razer マウス・Razer デバイス設定アプリです。Razer Synapse を使わずに DPI、ライティング、ポーリングレート、電源設定を変更したり、マウスのボタンにマクロを割り当てたりできます。使用中のゲームやプログラムに合わせてデバイスを自動で切り替えることもできます。
 
@@ -149,4 +149,4 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 
 ## ライセンス
 
-GPL-2.0-or-later です。詳しくは [LICENSE](LICENSE) をご覧ください。
+GPL-2.0-or-later です。詳しくは [LICENSE](../LICENSE) をご覧ください。

@@ -1,6 +1,6 @@
 # OpenSynapse
 
-**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+**English** · [简体中文](docs/README.zh-CN.md) · [日本語](docs/README.ja.md)
 
 A lightweight, open-source settings app for Razer mice and other Razer devices on Windows. Set DPI, lighting, polling rate and power options, put macros on mouse buttons, and let your devices adjust themselves to the game or program you're using, without running Razer Synapse.
 
