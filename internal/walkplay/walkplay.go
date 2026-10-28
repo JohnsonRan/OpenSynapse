@@ -192,6 +192,28 @@ func (d *Device) EQ() (EQ, error) {
 	return e, nil
 }
 
+// writeEQ sends the bands and the preamp; d.mu is held. They play at once.
+func (d *Device) writeEQ(e EQ) error {
+	for i, b := range e.Bands {
+		if err := d.write(encodeBand(i, b, d.slot)...); err != nil {
+			return err
+		}
+		time.Sleep(20 * time.Millisecond) // the WalkPlay app paces its writes
+	}
+	return d.write(opWrite, cmdPreamp, 0x02, 0x00, byte(int8(e.Preamp)))
+}
+
+// ApplyEQ plays an EQ without saving it in the dongle. It also skips the
+// half-second pause saving causes, so it suits frequent switching.
+func (d *Device) ApplyEQ(e EQ) error {
+	if err := e.Check(); err != nil {
+		return err
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.writeEQ(e)
+}
+
 // SetEQ writes the bands and the preamp, and saves them in the dongle.
 func (d *Device) SetEQ(e EQ) error {
 	if err := e.Check(); err != nil {
@@ -199,15 +221,11 @@ func (d *Device) SetEQ(e EQ) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for i, b := range e.Bands {
-		if err := d.write(encodeBand(i, b, d.slot)...); err != nil {
-			return err
-		}
-		time.Sleep(20 * time.Millisecond) // the WalkPlay app paces its writes
+	if err := d.writeEQ(e); err != nil {
+		return err
 	}
-	// The WalkPlay app's commit sequence: preamp, then apply and save.
+	// The rest of the WalkPlay app's commit sequence: apply and save.
 	for _, r := range [][]byte{
-		{opWrite, cmdPreamp, 0x02, 0x00, byte(int8(e.Preamp))},
 		{opWrite, 0x05, 0x00},
 		{opWrite, 0x17, 0x00},
 		{opWrite, cmdTempWrite, 0x04, 0x00, 0x00, 0xFF, 0xFF, 0x00},

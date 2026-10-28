@@ -129,3 +129,18 @@ func TestCandidatePaths(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyEQDoesNotSave(t *testing.T) {
+	f := &fakePort{in: make(chan []byte, 8), answer: func([]byte) []byte { return nil }}
+	d := &Device{port: f, slot: 1}
+	e := EQ{Bands: make([]Band, Bands)}
+	for i := range e.Bands {
+		e.Bands[i] = Band{Freq: 1000, Q: 1, Type: "peak"}
+	}
+	if err := d.ApplyEQ(e); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.sent) != Bands+1 || f.sent[Bands][2] != cmdPreamp {
+		t.Fatalf("%d reports, last % X", len(f.sent), f.sent[len(f.sent)-1][:4])
+	}
+}
