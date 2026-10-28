@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 	"github.com/JohnsonRan/OpenSynapse/internal/walkplay"
 )
@@ -15,8 +16,14 @@ func main() {
 		log.Fatal(err)
 	}
 	dongles, _ := walkplay.Scan()
-	if len(devs)+len(dongles) == 0 {
+	keyboards, _ := leobog.Scan()
+	if len(devs)+len(dongles)+len(keyboards) == 0 {
 		fmt.Println("no supported device found")
+	}
+	for _, k := range keyboards {
+		l, e := k.Lighting()
+		fmt.Printf("%s %s\n  lighting     %+v %v\n", k.ID, k.Name, l, errStr(e))
+		k.Close()
 	}
 	for _, d := range dongles {
 		fmt.Printf("%s %s\n", d.ID, d.Name)
