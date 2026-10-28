@@ -4,6 +4,26 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.5.0
+
+### 简体中文
+
+- 音频: 支持 WalkPlay 方案的 USB 小尾巴声卡 (如 EPZ TP35 Pro)，可调 10 段参量均衡器、数字滤波器、高增益、功放模式和麦克风增益
+- 均衡器预设: 内置低音增强、人声、FPS 游戏等预设，也能保存自己的预设，备份时一并导出
+- 声音输出: 在设置中直接调整每个播放设备的位深度和采样率
+
+### English
+
+- Audio: tune USB audio dongles built on WalkPlay chips, such as the EPZ TP35 Pro, with a 10-band parametric EQ, the digital filter, high gain, the amplifier mode and the microphone gain
+- EQ presets: start from built-in presets such as bass boost, vocal and FPS games, or save your own; they come along when you back up your settings
+- Sound output: set the bit depth and sample rate of every playback device right from Settings
+
+### 日本語
+
+- オーディオ: EPZ TP35 Pro など WalkPlay チップを搭載した USB オーディオ ドングルで、10 バンドのパラメトリック EQ、デジタル フィルター、ハイ ゲイン、アンプ モード、マイク ゲインを調整できるようになりました
+- EQ プリセット: 低音強調、ボーカル、FPS ゲームなどの組み込みプリセットを選べるほか、自分のプリセットも保存できます。設定のバックアップにも含まれます
+- サウンド出力: 各再生デバイスのビット深度とサンプル レートを [設定] から直接変更できるようになりました
+
 ## 0.4.1
 
 ### 简体中文
