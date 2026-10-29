@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"github.com/JohnsonRan/OpenSynapse/internal/evision"
 	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 	"github.com/JohnsonRan/OpenSynapse/internal/via"
@@ -86,7 +87,8 @@ func watchDevices() {
 		audio, _ := walkplay.PresentPaths()
 		kbs, _ := leobog.PresentPaths()
 		qmk, _ := via.PresentPaths()
-		paths = append(append(append(paths, audio...), kbs...), qmk...)
+		ev, _ := evision.PresentPaths()
+		paths = append(append(append(append(paths, audio...), kbs...), qmk...), ev...)
 		slices.Sort(paths)
 		key := strings.Join(paths, "\n")
 		if key == last {
@@ -112,6 +114,7 @@ func watchDevices() {
 		if err := viaKeyboards.rescan(); err != nil {
 			log.Println("rescan VIA keyboards:", err)
 		}
+		_ = lightKeyboards.rescan()
 		resetAuto() // a new or switched device gets the current scene and polling rate
 		kickBindings()
 		watchDPI()
@@ -178,7 +181,7 @@ func (Devices) List() []DeviceInfo {
 	for _, d := range devices.list() {
 		out = append(out, DeviceInfo{ID: d.ID, Name: d.Name, Category: d.Category, Family: d.Family(), Wired: d.Wired(), MaxDPI: d.MaxDPI, PollRates: d.SupportedPollRates(), Features: d.Features()})
 	}
-	return append(append(append(out, dongles.infos()...), keyboards.infos()...), viaKeyboards.infos()...)
+	return append(append(append(append(out, dongles.infos()...), keyboards.infos()...), viaKeyboards.infos()...), lightKeyboards.infos()...)
 }
 
 // Rescan looks for devices again.
@@ -195,6 +198,7 @@ func (s Devices) Rescan() ([]DeviceInfo, error) {
 	if err := viaKeyboards.rescan(); err != nil {
 		return nil, err
 	}
+	_ = lightKeyboards.rescan()
 	return s.List(), nil
 }
 

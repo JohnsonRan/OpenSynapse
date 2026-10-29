@@ -672,6 +672,45 @@ export const Via = {
   },
 } as const;
 
+/** Lights controls keyboards whose lighting alone can be set. */
+export const Lights = {
+  /** Details: these keyboards do not report a firmware version. */
+  details(id: string): Promise<DeviceDetails> {
+    return call("Lights.Details", id);
+  },
+  /** KeyColors: these keyboards have no per-key colors here. */
+  keyColors(id: string): Promise<KeyColors> {
+    return call("Lights.KeyColors", id);
+  },
+  /** Keys: no key can be changed; the page hides the Keys tab. */
+  keys(id: string): Promise<KeyboardKeys> {
+    return call("Lights.Keys", id);
+  },
+  /** ResetKeys: no key can be changed. */
+  resetKeys(id: string): Promise<void> {
+    return call("Lights.ResetKeys", id);
+  },
+  /** SetKey: no key can be changed. */
+  setKey(id: string, layer: number, index: number, act: ButtonAction): Promise<void> {
+    return call("Lights.SetKey", id, layer, index, act);
+  },
+  /** SetLighting sets and stores the keyboard's lighting. */
+  setLighting(id: string, l: LeobogLighting): Promise<void> {
+    return call("Lights.SetLighting", id, l);
+  },
+  /** State reads the keyboard's lighting. */
+  state(id: string): Promise<KeyboardState> {
+    return call("Lights.State", id);
+  },
+  /**
+   * Stored is the lighting with another effect: these keyboards keep one
+   * brightness, speed and color for all of them.
+   */
+  stored(id: string, effect: number): Promise<LeobogLighting> {
+    return call("Lights.Stored", id, effect);
+  },
+} as const;
+
 /** Macros records, edits and stores macros. */
 export const Macros = {
   /** Delete removes a macro that no button plays. */

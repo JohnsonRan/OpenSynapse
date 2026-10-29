@@ -189,6 +189,7 @@ func main() {
 	if err := viaKeyboards.rescan(); err != nil {
 		log.Println("scan VIA keyboards:", err)
 	}
+	_ = lightKeyboards.rescan()
 	loadPendingAudio() // after the scan, which forgets dongles that are gone
 	go runAuto()
 	go watchDevices()
@@ -207,6 +208,7 @@ func main() {
 	mygo.Bind(Audio{})
 	mygo.Bind(Keyboards{})
 	mygo.Bind(Via{})
+	mygo.Bind(Lights{})
 	mygo.Bind(Macros{})
 	mygo.Bind(Scenes{})
 	mygo.Bind(Settings{})

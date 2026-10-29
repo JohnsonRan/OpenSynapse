@@ -54,3 +54,15 @@ func TestViaKeyActions(t *testing.T) {
 		t.Fatal("trigger, Fn or default")
 	}
 }
+
+// The page's speed runs slow to fast; EVision's from 5 (slowest) to 0.
+func TestEVisionSpeed(t *testing.T) {
+	if evisionSpeed(0) != 5 || evisionSpeed(4) != 0 || evisionLevel(5) != 0 || evisionLevel(0) != 4 {
+		t.Fatal("ends")
+	}
+	for l := range 5 {
+		if evisionLevel(evisionSpeed(l)) != l {
+			t.Fatalf("level %d → %d → %d", l, evisionSpeed(l), evisionLevel(evisionSpeed(l)))
+		}
+	}
+}

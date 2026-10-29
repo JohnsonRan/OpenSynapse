@@ -7,6 +7,7 @@ import {
   Macros,
   Settings,
   Scenes,
+  Lights,
   Via,
   type AppInfo,
   type AudioDevices,
@@ -782,9 +783,10 @@ async function loadButtons(d: DeviceInfo) {
 
 // ---------- keyboards: BY-520 (Keyboards) and VIA (Via) ----------
 
-const isKeyboard = (d: DeviceInfo) => d.driver === "leobog" || d.driver === "via";
-// The page drives both kinds; VIA keyboards lack per-key colors and a factory reset.
-const kbApi = (d: DeviceInfo | undefined = dev) => (d?.driver === "via" ? Via : Keyboards);
+const isKeyboard = (d: DeviceInfo) => ["leobog", "via", "lights"].includes(d.driver ?? "");
+// The page drives every kind; VIA keyboards lack per-key colors and a factory
+// reset, and those of Lights have their lighting alone.
+const kbApi = (d: DeviceInfo | undefined = dev) => (d?.driver === "via" ? Via : d?.driver === "lights" ? Lights : Keyboards);
 
 let kb: KeyboardState | undefined;
 function kbEffectName(name: string) {
