@@ -7,6 +7,7 @@ import {
   Macros,
   Settings,
   Scenes,
+  Via,
   type AppInfo,
   type AudioDevices,
   type AudioState,
@@ -231,8 +232,9 @@ function deviceCard(d: DeviceInfo) {
       .catch(() => chips(t("overview.noAnswer")));
     return card;
   }
-  if (d.driver === "leobog") {
-    Keyboards.state(d.id)
+  if (isKeyboard(d)) {
+    kbApi(d)
+      .state(d.id)
       .then((s) => {
         const e = s.effects.find((x) => x.id === s.lighting.effect);
         chips(e ? kbEffectName(e.name) : t("kb.effect.other"));
@@ -287,7 +289,7 @@ async function openDevice(d: DeviceInfo) {
   dev = d;
   state = undefined;
   if (d.category === "audio") return openAudio(d);
-  if (d.driver === "leobog") return openKeyboard(d);
+  if (isKeyboard(d)) return openKeyboard(d);
   const f = d.features;
   $("#dev-cat").textContent = category(d.category);
   $("#dev-name").textContent = d.name;
@@ -322,7 +324,7 @@ async function openDevice(d: DeviceInfo) {
 async function refreshState(full = true) {
   if (!dev || $("#view-device").hidden) return;
   if (dev.category === "audio") return full ? loadAudio(dev.id) : undefined;
-  if (dev.driver === "leobog") return full ? loadKeyboard(dev.id) : undefined;
+  if (isKeyboard(dev)) return full ? loadKeyboard(dev.id) : undefined;
   const id = dev.id;
   let fresh: DeviceState;
   try {
@@ -563,11 +565,11 @@ $<HTMLInputElement>("#brightness").oninput = (e) => {
 async function loadInfo(d: DeviceInfo) {
   const tab = document.querySelector<HTMLElement>('.tab[data-tab="info"]')!;
   tab.hidden = true;
-  const leobog = d.driver === "leobog";
+  const leobog = isKeyboard(d);
   $("#info-hint").textContent = t(!leobog ? "info.firmwareHint" : d.name.startsWith("LEOBOG ") ? "info.firmwareHintLeobog" : "info.firmwareHintKeyboard");
   $("#info-model-row").hidden = !leobog;
   $("#info-model").textContent = leobog ? `${d.name} · USB ${d.id}` : "";
-  const info = await (leobog ? Keyboards.details(d.id) : Devices.details(d.id)).catch(() => undefined);
+  const info = await (leobog ? kbApi(d).details(d.id) : Devices.details(d.id)).catch(() => undefined);
   if (!info || dev?.id !== d.id || (!info.firmware && !info.serial)) return;
   tab.hidden = false;
   document.querySelector<HTMLElement>(".tabs")!.hidden = false;
@@ -778,7 +780,11 @@ async function loadButtons(d: DeviceInfo) {
   renderList();
 }
 
-// ---------- LEOBOG keyboards ----------
+// ---------- keyboards: BY-520 (Keyboards) and VIA (Via) ----------
+
+const isKeyboard = (d: DeviceInfo) => d.driver === "leobog" || d.driver === "via";
+// The page drives both kinds; VIA keyboards lack per-key colors and a factory reset.
+const kbApi = (d: DeviceInfo | undefined = dev) => (d?.driver === "via" ? Via : Keyboards);
 
 let kb: KeyboardState | undefined;
 function kbEffectName(name: string) {
@@ -807,15 +813,19 @@ let kbMacros: Macro[] = [];
 async function loadKeyboard(id: string) {
   let st: KeyboardState;
   try {
-    [st, kbKeys, kbColors, kbMacros] = await Promise.all([Keyboards.state(id), Keyboards.keys(id), Keyboards.keyColors(id), Macros.list()]);
+    [st, kbKeys, kbColors, kbMacros] = await Promise.all([kbApi().state(id), kbApi().keys(id), kbApi().keyColors(id), Macros.list()]);
   } catch (e) {
     toast(isCallError(e) ? e.message : String(e), true);
     return;
   }
   if (dev?.id !== id) return; // switched device meanwhile
   kb = st;
-  // Remaps and the factory reset need the model's factory keys; most models lack them.
+  // Remaps and the factory reset need the model's factory keys; most BY-520 models lack them.
   document.querySelector<HTMLElement>('.tab[data-tab="kbkeys"]')!.hidden = !kbKeys.remap;
+  $("#kb-factory").hidden = dev.driver !== "leobog";
+  $("#kb-music-card").hidden = !st.perKey;
+  $("#kb-colorful-label").hidden = !st.colorful;
+  document.querySelector<HTMLElement>("#tab-kbkeys .info")!.title = t(dev.driver === "via" ? "kb.keysMoreVia" : "kb.keysMore");
   renderKeyboard();
   renderKbKeys();
 }
@@ -929,7 +939,7 @@ function renderKbKeys() {
   const sel = $<HTMLSelectElement>("#kb-key-action");
   sel.innerHTML = kbKeyOptions(acts[i]!);
   const apply = (act: ButtonAction) =>
-    attempt(() => Keyboards.setKey(id, layer, k.index, act), t("buttons.saved")).then((ok) => {
+    attempt(() => kbApi().setKey(id, layer, k.index, act), t("buttons.saved")).then((ok) => {
       if (ok) (layer ? keys.fn : keys.normal)[i] = act;
       renderKbKeys();
     });
@@ -971,13 +981,13 @@ $("#kb-factory").onclick = async () => {
 
 $("#kb-keys-reset").onclick = async () => {
   if (!dev || !kbKeys) return;
-  if (!(await attempt(() => Keyboards.resetKeys(dev!.id), t("buttons.saved")))) return;
+  if (!(await attempt(() => kbApi().resetKeys(dev!.id), t("buttons.saved")))) return;
   kbSel = -1;
   loadKeyboard(dev.id);
 };
 
 // Every control writes the whole lighting; sliders wait for a pause.
-const saveKeyboard = debounce(() => kb && dev && attempt(() => Keyboards.setLighting(dev!.id, kb!.lighting)), 150);
+const saveKeyboard = debounce(() => kb && dev && attempt(() => kbApi().setLighting(dev!.id, kb!.lighting)), 150);
 
 const MUSIC_EFFECTS = ["pulse", "spectrum", "bass"];
 
@@ -1016,7 +1026,7 @@ function renderKeyboard() {
   sel.onchange = async () => {
     const id = dev!.id;
     // Each effect keeps its own brightness, speed and color on the keyboard.
-    const stored = await Keyboards.stored(id, +sel.value).catch(() => ({ ...l, effect: +sel.value }));
+    const stored = await kbApi().stored(id, +sel.value).catch(() => ({ ...l, effect: +sel.value }));
     if (dev?.id !== id) return;
     s.lighting = stored;
     const e = s.effects.find((x) => x.id === stored.effect);
@@ -1024,9 +1034,10 @@ function renderKeyboard() {
     renderKeyboard();
     saveKeyboard();
   };
-  const on = !!fx && l.effect !== 0 && l.effect !== 21; // custom is painted below
-  $("#kb-paint-card").hidden = l.effect !== 21 || !kbKeys;
-  if (l.effect === 21 && kbKeys) renderPaint();
+  const custom = fx?.name === "custom";
+  const on = !!fx && l.effect !== 0 && !custom; // custom is painted below
+  $("#kb-paint-card").hidden = !custom || !kbKeys;
+  if (custom && kbKeys) renderPaint();
   $("#kb-color-row").hidden = !on;
   $("#kb-bright-row").hidden = !on;
   $("#kb-speed-row").hidden = !on || !fx!.speed;

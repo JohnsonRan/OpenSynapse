@@ -240,6 +240,12 @@ export interface KeyboardState {
   musicColor: RGB;
   /** flashes on low battery, scene changes and toggled macros */
   notices: boolean;
+  /**
+   * Colorful: effects can cycle colors instead of one; PerKey: the keyboard
+   * takes per-key colors, so the custom effect, music lighting and notices.
+   */
+  colorful: boolean;
+  perKey: boolean;
   /** The key layout, for scenes that highlight keys (Effects only). */
   keys?: Key[];
   width?: number;
@@ -624,6 +630,45 @@ export const Keyboards = {
   /** Stored reads what the keyboard keeps for an effect, to show it before switching. */
   stored(id: string, effect: number): Promise<LeobogLighting> {
     return call("Keyboards.Stored", id, effect);
+  },
+} as const;
+
+/** Via controls QMK keyboards with VIA. */
+export const Via = {
+  /** Details: VIA does not report a firmware version. */
+  details(id: string): Promise<DeviceDetails> {
+    return call("Via.Details", id);
+  },
+  /** KeyColors: VIA keyboards have no per-key colors. */
+  keyColors(id: string): Promise<KeyColors> {
+    return call("Via.KeyColors", id);
+  },
+  /** Keys returns the keyboard's keys and what they do. */
+  keys(id: string): Promise<KeyboardKeys> {
+    return call("Via.Keys", id);
+  },
+  /** ResetKeys gives every key the firmware's keymap back and unbinds its macros. */
+  resetKeys(id: string): Promise<void> {
+    return call("Via.ResetKeys", id);
+  },
+  /** SetKey sets what a key does on a layer (0 normal, 1 with Fn). */
+  setKey(id: string, layer: number, index: number, act: ButtonAction): Promise<void> {
+    return call("Via.SetKey", id, layer, index, act);
+  },
+  /** SetLighting sets and stores the keyboard's lighting. */
+  setLighting(id: string, l: LeobogLighting): Promise<void> {
+    return call("Via.SetLighting", id, l);
+  },
+  /** State reads the keyboard's lighting. */
+  state(id: string): Promise<KeyboardState> {
+    return call("Via.State", id);
+  },
+  /**
+   * Stored is the lighting with another effect: the keyboard keeps one
+   * brightness, speed and color for all of them.
+   */
+  stored(id: string, effect: number): Promise<LeobogLighting> {
+    return call("Via.Stored", id, effect);
   },
 } as const;
 

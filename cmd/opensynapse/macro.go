@@ -481,6 +481,7 @@ func applyBindings(restore bool) {
 
 func applyBindingsLocked(restore bool) {
 	syncKeymaps(restore)
+	syncViaBindings(restore)
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()

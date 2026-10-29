@@ -96,6 +96,9 @@ type config struct {
 	EQPresets  []EQPreset          `json:"eqPresets"` // the user's, for audio dongles
 	// Keyboards: by device ID, what this PC's LEOBOG keyboards were set to; not taken from imports.
 	Keyboards map[string]KeyboardMemory `json:"keyboards,omitempty"`
+	// ViaKeys: by device ID, what a VIA keyboard's keys did before the app changed
+	// them, by "layer:index"; not taken from imports.
+	ViaKeys map[string]map[string]uint16 `json:"viaKeys,omitempty"`
 }
 
 var (
@@ -291,6 +294,9 @@ func parseConfig(b []byte, defaults config) (config, error) {
 	}
 	if v, ok := raw["keyboards"]; ok {
 		_ = json.Unmarshal(v, &c.Keyboards)
+	}
+	if v, ok := raw["viaKeys"]; ok {
+		_ = json.Unmarshal(v, &c.ViaKeys)
 	}
 	if v, ok := raw["eqPresets"]; ok {
 		var p []EQPreset

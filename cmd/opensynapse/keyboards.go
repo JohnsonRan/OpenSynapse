@@ -151,6 +151,10 @@ type KeyboardState struct {
 	Music      string          `json:"music"`    // music effect drawn over the lighting, "" for none
 	MusicColor razer.RGB       `json:"musicColor"`
 	Notices    bool            `json:"notices"` // flashes on low battery, scene changes and toggled macros
+	// Colorful: effects can cycle colors instead of one; PerKey: the keyboard
+	// takes per-key colors, so the custom effect, music lighting and notices.
+	Colorful bool `json:"colorful"`
+	PerKey   bool `json:"perKey"`
 	// The key layout, for scenes that highlight keys (Effects only).
 	Keys   []leobog.Key `json:"keys,omitempty"`
 	Width  int          `json:"width,omitempty"`
@@ -165,7 +169,7 @@ func (Keyboards) State(id string) (KeyboardState, error) {
 	}
 	l, err := d.Lighting()
 	m := keyboardMemory(d.ID)
-	return KeyboardState{Lighting: l, Effects: d.Effects, MaxLevel: leobog.MaxLevel, Music: m.Music, MusicColor: m.MusicColor, Notices: m.Notices}, err
+	return KeyboardState{Lighting: l, Effects: d.Effects, MaxLevel: leobog.MaxLevel, Music: m.Music, MusicColor: m.MusicColor, Notices: m.Notices, Colorful: true, PerKey: true}, err
 }
 
 // Stored reads what the keyboard keeps for an effect, to show it before switching.
