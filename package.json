@@ -13,10 +13,10 @@
     "typecheck": "tsc -p web"
   },
   "dependencies": {
-    "mygo-runtime": "^0.7.1"
+    "mygo-runtime": "^0.7.3"
   },
   "devDependencies": {
-    "mygo-cli": "^0.7.1",
+    "mygo-cli": "^0.7.3",
     "typescript": "^7",
     "vite": "^8"
   }
