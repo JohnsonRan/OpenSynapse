@@ -180,7 +180,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 - USB 声卡协议参考了 [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) 整理的 WalkPlay 应用资料，未复制 devicePEQ 的任何代码。
 - LEOBOG 键盘协议记录自官方驱动 LEOBOG ONE 发给键盘的请求。
 - EVision 键盘协议依照 [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) 的 EVision 控制器 (GPL-2.0-or-later) 实现，未复制 OpenRGB 的代码。
-- VIA 协议依照 QMK (GPL-2.0) 实现。VIA 键盘列表和键位图来自 [the-via/keyboards](https://github.com/the-via/keyboards)，在构建时用 [@the-via/reader](https://github.com/the-via/reader) 解析 (二者均为 GPL-3.0)；因此发布的程序以 GPL-3.0 分发，OpenSynapse 的 GPL-2.0-or-later 许可证允许这样做。
+- VIA 协议依照 QMK (GPL-2.0) 实现。VIA 键盘列表和键位图来自 [the-via/keyboards](https://github.com/the-via/keyboards)，在构建时用 [@the-via/reader](https://github.com/the-via/reader) 解析 (二者均为 GPL-3.0)；因此发布的程序以 GPL-3.0 (见 [LICENSES/](../LICENSES/)) 分发，OpenSynapse 的 GPL-2.0-or-later 许可证允许这样做。
 - 其他 BY-520 键盘的列表 (型号编号、按键矩阵、灯效和键位图) 来自 [Let Me Drive](https://letmedrive.cn) 整理自各厂商驱动的数据表。这里只使用其数据，未复制任何代码。
 - 按键重映射命令是通过研究 Razer Synapse 4 自带的设备脚本确定的。
 - 界面仅借鉴了 Razer Synapse 的整体风格 (深色主题、绿色强调色)。所有图标和图片均为原创。

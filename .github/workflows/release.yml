@@ -60,9 +60,10 @@ jobs:
           zip_name="opensynapse-${version}-windows-amd64-portable.zip"
           mkdir -p portable/OpenSynapse
           cp build/windows-amd64/OpenSynapse.exe portable/OpenSynapse/
+          cp LICENSE LICENSES/GPL-3.0.txt portable/OpenSynapse/
           touch portable/OpenSynapse/portable
           (cd portable && 7z a -tzip "../$zip_name" OpenSynapse)
-          gh release upload "$GITHUB_REF_NAME" "$zip_name" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$GITHUB_REF_NAME" "$zip_name" LICENSES/GPL-3.0.txt --repo "$GITHUB_REPOSITORY" --clobber
 
   publish:
     needs: build

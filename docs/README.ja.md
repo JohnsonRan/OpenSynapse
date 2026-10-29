@@ -180,7 +180,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 - USB オーディオ ドングルのプロトコルは、[devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) がまとめた WalkPlay アプリの資料に基づいています。devicePEQ のコードは含まれていません。
 - LEOBOG キーボードのプロトコルは、公式ドライバー LEOBOG ONE がキーボードに送る要求を記録して特定しました。
 - EVision キーボードのプロトコルは [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) の EVision コントローラー (GPL-2.0-or-later) に従って実装しました。OpenRGB のコードはコピーしていません。
-- VIA プロトコルは QMK (GPL-2.0) に従って実装しました。VIA のキーボード一覧とキー配置は [the-via/keyboards](https://github.com/the-via/keyboards) のもので、ビルド時に [@the-via/reader](https://github.com/the-via/reader) で解析しています (どちらも GPL-3.0)。そのため配布するプログラムは GPL-3.0 となります。これは OpenSynapse の GPL-2.0-or-later ライセンスで認められています。
+- VIA プロトコルは QMK (GPL-2.0) に従って実装しました。VIA のキーボード一覧とキー配置は [the-via/keyboards](https://github.com/the-via/keyboards) のもので、ビルド時に [@the-via/reader](https://github.com/the-via/reader) で解析しています (どちらも GPL-3.0)。そのため配布するプログラムは GPL-3.0 ([LICENSES/](../LICENSES/) を参照) となります。これは OpenSynapse の GPL-2.0-or-later ライセンスで認められています。
 - ほかの BY-520 キーボードの一覧 (モデル番号、キー マトリックス、エフェクト、キー配置) は、[Let Me Drive](https://letmedrive.cn) が各メーカーのドライバーから集めたデータ表を基にしています。使っているのはデータのみで、コードはコピーしていません。
 - ボタンの割り当て変更に使うコマンドは、Razer Synapse 4 に付属するデバイス スクリプトを調べて特定しました。
 - 画面デザインは Razer Synapse の全体的な雰囲気（ダーク テーマ、緑のアクセント カラー）のみを参考にしています。アイコンと画像はすべてオリジナルです。
