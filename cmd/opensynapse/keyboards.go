@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo"
@@ -12,8 +14,9 @@ import (
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
-// LEOBOG keyboards (internal/leobog): their lighting. They show on the
-// Devices page as keyboards.
+// Keyboards on Sinowealth's BY-520 firmware, the LEOBOG Hi75's
+// (internal/leobog): their lighting and keys. They show on the Devices page
+// as keyboards.
 
 type keyboardHub struct {
 	mu      sync.Mutex
@@ -137,7 +140,7 @@ func setKeyboardLighting(d *leobog.Device, l leobog.Lighting) error {
 	return rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Colors = c })
 }
 
-// Keyboards controls LEOBOG keyboards.
+// Keyboards controls BY-520 keyboards.
 type Keyboards struct{}
 
 // KeyboardState is the lighting shown and the effects the keyboard has.
@@ -306,7 +309,15 @@ func (Keyboards) Details(id string) (DeviceDetails, error) {
 	return DeviceDetails{Firmware: d.Firmware}, nil
 }
 
-// OpenSupport opens LEOBOG's download page, where the driver that updates the firmware is.
-func (Keyboards) OpenSupport() error {
-	return mygo.Shell.OpenExternal("https://leobogtech.com/blogs/software")
+// OpenSupport opens where the driver that updates the firmware is: LEOBOG's
+// download page, or a search for another brand's driver.
+func (Keyboards) OpenSupport(id string) error {
+	d, err := keyboards.get(id)
+	if err != nil {
+		return err
+	}
+	if strings.HasPrefix(d.Name, "LEOBOG ") {
+		return mygo.Shell.OpenExternal("https://leobogtech.com/blogs/software")
+	}
+	return mygo.Shell.OpenExternal("https://www.bing.com/search?q=" + url.QueryEscape(d.Name+" driver download"))
 }

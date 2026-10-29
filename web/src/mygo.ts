@@ -219,6 +219,8 @@ export interface KeyboardKeys {
   height: number;
   /** the Fn key, which cannot be remapped */
   fnIndex: number;
+  /** keys can be remapped and reset: the model's factory keys are known */
+  remap: boolean;
   /** by Keys position */
   normal: ButtonAction[];
   /** while Fn is held */
@@ -552,7 +554,7 @@ export const Audio = {
   },
 } as const;
 
-/** Keyboards controls LEOBOG keyboards. */
+/** Keyboards controls BY-520 keyboards. */
 export const Keyboards = {
   /** Details shows the keyboard's firmware version. */
   details(id: string): Promise<DeviceDetails> {
@@ -577,9 +579,12 @@ export const Keyboards = {
   keys(id: string): Promise<KeyboardKeys> {
     return call("Keyboards.Keys", id);
   },
-  /** OpenSupport opens LEOBOG's download page, where the driver that updates the firmware is. */
-  openSupport(): Promise<void> {
-    return call("Keyboards.OpenSupport");
+  /**
+   * OpenSupport opens where the driver that updates the firmware is: LEOBOG's
+   * download page, or a search for another brand's driver.
+   */
+  openSupport(id: string): Promise<void> {
+    return call("Keyboards.OpenSupport", id);
   },
   /** Reset restores the keyboard's factory keys and lighting, and unbinds its macros. */
   reset(id: string): Promise<void> {

@@ -564,7 +564,7 @@ async function loadInfo(d: DeviceInfo) {
   const tab = document.querySelector<HTMLElement>('.tab[data-tab="info"]')!;
   tab.hidden = true;
   const leobog = d.driver === "leobog";
-  $("#info-hint").textContent = t(leobog ? "info.firmwareHintLeobog" : "info.firmwareHint");
+  $("#info-hint").textContent = t(!leobog ? "info.firmwareHint" : d.name.startsWith("LEOBOG ") ? "info.firmwareHintLeobog" : "info.firmwareHintKeyboard");
   $("#info-model-row").hidden = !leobog;
   $("#info-model").textContent = leobog ? `${d.name} · USB ${d.id}` : "";
   const info = await (leobog ? Keyboards.details(d.id) : Devices.details(d.id)).catch(() => undefined);
@@ -579,7 +579,7 @@ async function loadInfo(d: DeviceInfo) {
   $("#info-sn-copy").onclick = () => attempt(() => navigator.clipboard.writeText(info.serial), t("info.copied"));
 }
 $("#info-fw-update").onclick = () =>
-  dev && attempt(() => (dev!.driver === "leobog" ? Keyboards.openSupport() : Devices.openSupport(dev!.id, "firmware")));
+  dev && attempt(() => (dev!.driver === "leobog" ? Keyboards.openSupport(dev!.id) : Devices.openSupport(dev!.id, "firmware")));
 $("#info-pair").onclick = () => dev && attempt(() => Devices.openSupport(dev!.id, "pairing"));
 
 // --- lift-off distance ---
@@ -814,6 +814,8 @@ async function loadKeyboard(id: string) {
   }
   if (dev?.id !== id) return; // switched device meanwhile
   kb = st;
+  // Remaps and the factory reset need the model's factory keys; most models lack them.
+  document.querySelector<HTMLElement>('.tab[data-tab="kbkeys"]')!.hidden = !kbKeys.remap;
   renderKeyboard();
   renderKbKeys();
 }

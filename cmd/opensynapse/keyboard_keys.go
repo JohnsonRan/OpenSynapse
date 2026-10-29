@@ -22,6 +22,7 @@ type KeyboardKeys struct {
 	Width   int            `json:"width"`
 	Height  int            `json:"height"`
 	FnIndex int            `json:"fnIndex"` // the Fn key, which cannot be remapped
+	Remap   bool           `json:"remap"`   // keys can be remapped and reset: the model's factory keys are known
 	Normal  []ButtonAction `json:"normal"`  // by Keys position
 	Fn      []ButtonAction `json:"fn"`      // while Fn is held
 	Media   []int          `json:"media"`   // consumer usages a key can send
@@ -59,6 +60,9 @@ var (
 // syncKeymaps writes the keymap to keyboards that hold another; bindMu is held.
 func syncKeymaps(restore bool) {
 	for _, d := range keyboards.list() {
+		if !d.CanRemap() {
+			continue
+		}
 		want := keymapOf(d, restore)
 		keyboards.mu.Lock()
 		have := keyboards.written[d.ID]
@@ -125,7 +129,7 @@ func (Keyboards) Keys(id string) (KeyboardKeys, error) {
 		return KeyboardKeys{}, err
 	}
 	km, def := keymapOf(d, true), d.DefaultLayers()
-	out := KeyboardKeys{Keys: d.Layout, Width: d.Width, Height: d.Height, FnIndex: d.FnIndex, Media: mediaCodes}
+	out := KeyboardKeys{Keys: d.Layout, Width: d.Width, Height: d.Height, FnIndex: d.FnIndex, Remap: d.CanRemap(), Media: mediaCodes}
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
@@ -149,7 +153,7 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 	if err != nil {
 		return err
 	}
-	if layer < 0 || layer >= leobog.Layers || !layoutIndex(d, index) {
+	if layer < 0 || layer >= leobog.Layers || !layoutIndex(d, index) || !d.CanRemap() {
 		return errors.New(tr("err.buttonAction"))
 	}
 	find := func() int {
