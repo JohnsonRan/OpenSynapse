@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -34,17 +35,17 @@ var blue = razer.RGB{B: 0xff}
 func TestDecode(t *testing.T) {
 	c := DefaultColors()
 	c[2] = blue
-	got := decode(report(t, recRead), &c, 2)
+	got := hi75.decode(report(t, recRead), &c, 2)
 	if got != (Lighting{Effect: 2, Brightness: 4, Speed: 4, Color: blue}) {
 		t.Fatalf("got %+v", got)
 	}
-	if got := decode(report(t, recRead), &c, 1); got != (Lighting{Effect: 1, Brightness: 4, Speed: 4, Colorful: true}) {
+	if got := hi75.decode(report(t, recRead), &c, 1); got != (Lighting{Effect: 1, Brightness: 4, Speed: 4, Colorful: true}) {
 		t.Fatalf("static: got %+v", got)
 	}
 }
 
 func TestEncodeMatchesDriver(t *testing.T) {
-	w := encode(report(t, recRead), Lighting{Effect: 1, Brightness: 4, Speed: 4, Colorful: true})
+	w := hi75.encode(report(t, recRead), Lighting{Effect: 1, Brightness: 4, Speed: 4, Colorful: true})
 	if !bytes.Equal(w, report(t, recWrite)) {
 		t.Fatalf("got % x", w[:136])
 	}
@@ -100,10 +101,11 @@ func (f *fakePort) get() ([]byte, error) { return append([]byte(nil), f.pending.
 
 func TestSetLightingKeepsOtherEffects(t *testing.T) {
 	f := &fakePort{t: t}
-	d := &Device{Model: hi75, port: f, colors: DefaultColors()}
-	if err := d.identify(); err != nil {
-		t.Fatal(err)
+	ident, err := hello(f)
+	if err != nil || modelFor(0x258a, 0x010c, ident) != hi75 {
+		t.Fatalf("hello: % x, %v", ident, err)
 	}
+	d := &Device{Model: hi75, port: f, colors: DefaultColors()}
 	red := razer.RGB{R: 0xff}
 	if err := d.SetLighting(Lighting{Effect: 1, Brightness: 1, Speed: 0, Color: red}); err != nil {
 		t.Fatal(err)
@@ -127,13 +129,76 @@ func TestSetLightingKeepsOtherEffects(t *testing.T) {
 	}
 }
 
-func TestUnknownFirmwareRefused(t *testing.T) {
-	other := *hi75
-	other.Hello = append([]byte(nil), hi75.Hello...)
-	other.Hello[13] = 0x9c
-	d := &Device{Model: &other, port: &fakePort{t: t}}
-	if d.identify() == nil {
-		t.Fatal("accepted another firmware")
+func TestModelNumbers(t *testing.T) {
+	if m := modelFor(0x258a, 0x010c, []byte{3, 0, 0, 0, 0xff, 0xff}); m != nil {
+		t.Fatalf("unknown model number taken as %s", m.Name)
+	}
+	if m := modelFor(0x258a, 0x010c, []byte{3, 0, 0, 0, 0, 0xa3}); m == nil || m.Name != "LEOBOG Hi75C Pro" {
+		t.Fatalf("Hi75C Pro: %v", m)
+	}
+	if m := modelFor(0x258a, 0x010d, hi75.ident); m != nil {
+		t.Fatal("model number matched under other USB IDs")
+	}
+}
+
+// Every model of the table can be drawn, lit and refused remaps.
+func TestCatalog(t *testing.T) {
+	if len(Models) < 100 || Models[0] != hi75 {
+		t.Fatalf("%d models", len(Models))
+	}
+	seen := map[string]bool{}
+	for _, m := range Models[1:] {
+		id := fmt.Sprintf("%04x:%04x:% x", m.VID, m.PID, m.ident)
+		if seen[id] || m.ident[5] == 0x9b && m.PID == 0x010c {
+			t.Fatalf("%s: %s twice", m.Name, id)
+		}
+		seen[id] = true
+		if len(m.Layout) == 0 || m.Width == 0 || m.CanRemap() || m.CanReset() || m.custom != catalogCustom {
+			t.Fatalf("%s: %+v", m.Name, m)
+		}
+		for _, k := range m.Layout {
+			if k.Index < 0 || k.Index >= Keys || k.X+k.W > m.Width || k.Y+k.H > m.Height {
+				t.Fatalf("%s: key %+v", m.Name, k)
+			}
+		}
+		for _, e := range m.Effects {
+			if e.Name == "" || e.Color && e.ID >= paletteEffects {
+				t.Fatalf("%s: effect %+v", m.Name, e)
+			}
+		}
+		if err := (&Device{Model: m}).SetKeymap(m.DefaultLayers()); err == nil {
+			t.Fatalf("%s: remapped without factory keys", m.Name)
+		}
+	}
+}
+
+// A table model: custom is its own ID, levels follow its scale, and a block
+// with shared levels has them changed there.
+func TestCatalogLighting(t *testing.T) {
+	m := &Model{custom: catalogCustom, brightness: []int{0, 5, 10, 15, 20}, Effects: []Effect{{2, "breathing", true, true}}}
+	cfg := report(t, recRead)
+	w := m.encode(cfg, Lighting{Effect: EffectCustom})
+	if w[offEffect] != catalogCustom || w[offCustom] != 1 || m.effectOf(w) != EffectCustom {
+		t.Fatalf("custom: % x", w[16:20])
+	}
+	w = m.encode(cfg, Lighting{Effect: 2, Brightness: 3, Speed: 2})
+	if w[offParams+4] != 15 || w[offParams+5] != 0x20 {
+		t.Fatalf("per effect: % x", w[offParams+4:offParams+6])
+	}
+	c := DefaultColors()
+	if l := m.decode(w, &c, 2); l.Brightness != 3 || l.Speed != 2 {
+		t.Fatalf("decoded %+v", l)
+	}
+	cfg[offMode] = 1
+	w = m.encode(cfg, Lighting{Effect: 2, Brightness: 4, Speed: 1, Colorful: true})
+	if !bytes.Equal(w[offLevels:offLevels+3], []byte{20, 1, slotColorful}) || !bytes.Equal(w[offParams:offMagic], cfg[offParams:offMagic]) {
+		t.Fatalf("shared: % x", w[offLevels:offLevels+3])
+	}
+	if l := m.decode(w, &c, 2); l != (Lighting{Effect: 2, Brightness: 4, Speed: 1, Colorful: true}) {
+		t.Fatalf("decoded shared %+v", l)
+	}
+	if levelOf([]int{0, 4, 8, 12, 16, 20}, 13) != 2 || rawOf([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, MaxLevel) != 9 || rawOf([]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0) != 0 {
+		t.Fatal("scale")
 	}
 }
 
@@ -154,11 +219,11 @@ func TestKeyReportMatchesDriver(t *testing.T) {
 // Custom switches the config's custom flag; any other effect clears it.
 func TestEncodeCustomFlag(t *testing.T) {
 	cfg := report(t, recRead)
-	w := encode(cfg, Lighting{Effect: EffectCustom, Brightness: 2})
+	w := hi75.encode(cfg, Lighting{Effect: EffectCustom, Brightness: 2})
 	if w[offCustom] != 1 || w[offEffect] != EffectCustom || !bytes.Equal(w[offParams:offMagic], cfg[offParams:offMagic]) {
 		t.Fatalf("custom: % x", w[16:20])
 	}
-	if w := encode(w, Lighting{Effect: 12, Brightness: 4, Speed: 4, Colorful: true}); w[offCustom] != 0 || w[offEffect] != 12 {
+	if w := hi75.encode(w, Lighting{Effect: 12, Brightness: 4, Speed: 4, Colorful: true}); w[offCustom] != 0 || w[offEffect] != 12 {
 		t.Fatalf("leaving custom: % x", w[16:20])
 	}
 }

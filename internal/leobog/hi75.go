@@ -4,10 +4,11 @@ package leobog
 // recorded from the driver: its key layout on a 679 x 284 drawing, its
 // effects, and its factory remaps.
 var hi75 = &Model{
-	Name:  "LEOBOG Hi75",
-	VID:   0x258A,
-	PID:   0x010C,
-	Hello: []byte{0x06, 0x82, 0x01, 0x00, 0x01, 0x00, 0x06, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x9b},
+	Name:   "LEOBOG Hi75",
+	VID:    0x258A,
+	PID:    0x010C,
+	ident:  []byte{0x03, 0x00, 0x00, 0x00, 0x00, 0x9b},
+	custom: EffectCustom,
 	// IDs 9, 14 and 18-20 exist on related boards but not here.
 	Effects: []Effect{
 		{1, "static", false, true},
