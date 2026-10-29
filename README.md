@@ -126,7 +126,7 @@ The **LEOBOG Hi75** keyboard is supported on its cable: lighting effects, per-ke
 
 About 110 other keyboards on the same Sinowealth BY-520 firmware are recognized by the model number they report, from brands such as LEOBOG, AULA, Redragon, YUNZII, Machenike, AJAZZ, FURYCUBE and E-YOOSO. They get lighting effects, per-key colors and music lighting; remapping keys and the factory reset stay off, because their factory keymaps aren't known.
 
-Keyboards running QMK with VIA are supported too: the 2,029 models in VIA's keyboard list, Keychron's among them. Their keys can be remapped on the normal and Fn layers (to other keys, media keys or macros), and their lighting effect, brightness, speed and color can be set. Per-key colors, music lighting and scenes aren't available for them. None has been tested yet.
+Keyboards running QMK with VIA are supported too: the 2,029 models in VIA's keyboard list, Keychron's among them, and the WOBKEY Rainy 75 from WOBKEY's own definitions. Where several keyboards share USB IDs, the one whose name matches what the keyboard reports is taken, and the others can be picked next to its name on its page. Their keys can be remapped on the normal and Fn layers (to other keys, media keys or macros), and their lighting effect, brightness, speed and color can be set. Per-key colors, music lighting and scenes aren't available for them. None has been tested yet.
 
 Keyboards on EVision firmware (rebranded Sonix chips, used by Redragon, AJAZZ, VGN, MageGee and others) get their lighting effect, brightness, speed and color. The newer V2 firmware is recognized by its answer to a request; the first version only on the 13 keyboards OpenRGB lists. Keys can't be remapped on them, and none has been tested yet.
 
