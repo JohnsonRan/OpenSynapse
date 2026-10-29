@@ -128,6 +128,8 @@ OpenSynapse 可识别约 210 款 Razer 鼠标、键盘、鼠标垫和配件 (不
 
 也支持运行 QMK 并开启 VIA 的键盘，即 VIA 键盘列表中的 2,029 款 (包括 Keychron)。可以在普通层和 Fn 层把按键改为其他按键、媒体键或宏，并设置灯效、亮度、速度和颜色；不支持逐键颜色、音乐律动和情景模式。这些键盘均尚未实测。
 
+使用 EVision 固件的键盘 (Sonix 芯片换标，Redragon、AJAZZ、VGN、MageGee 等品牌在用) 可以设置灯效、亮度、速度和颜色。较新的 V2 固件按其对请求的应答识别；第一代固件仅识别 OpenRGB 列出的 13 款键盘。这些键盘不支持改键，均尚未实测。
+
 目前只有 **DeathAdder V4 Pro**、**EPZ TP35 Pro** 和 **LEOBOG Hi75** 在真机上测试过。其他设备理论上可用，但尚未验证。如果你试用了其他设备，欢迎反馈使用情况。
 
 ## 常见问题
@@ -177,6 +179,7 @@ uv run --no-project python scripts/gendevices.py ../openrazer
 - 协议资料和设备列表来自 [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0)。协议在本项目中重新实现，未复制 openrazer 的任何代码。
 - USB 声卡协议参考了 [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC) 整理的 WalkPlay 应用资料，未复制 devicePEQ 的任何代码。
 - LEOBOG 键盘协议记录自官方驱动 LEOBOG ONE 发给键盘的请求。
+- EVision 键盘协议依照 [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) 的 EVision 控制器 (GPL-2.0-or-later) 实现，未复制 OpenRGB 的代码。
 - VIA 协议依照 QMK (GPL-2.0) 实现。VIA 键盘列表和键位图来自 [the-via/keyboards](https://github.com/the-via/keyboards)，在构建时用 [@the-via/reader](https://github.com/the-via/reader) 解析 (二者均为 GPL-3.0)；因此发布的程序以 GPL-3.0 分发，OpenSynapse 的 GPL-2.0-or-later 许可证允许这样做。
 - 其他 BY-520 键盘的列表 (型号编号、按键矩阵、灯效和键位图) 来自 [Let Me Drive](https://letmedrive.cn) 整理自各厂商驱动的数据表。这里只使用其数据，未复制任何代码。
 - 按键重映射命令是通过研究 Razer Synapse 4 自带的设备脚本确定的。

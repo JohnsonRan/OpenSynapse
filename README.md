@@ -128,6 +128,8 @@ About 110 other keyboards on the same Sinowealth BY-520 firmware are recognized 
 
 Keyboards running QMK with VIA are supported too: the 2,029 models in VIA's keyboard list, Keychron's among them. Their keys can be remapped on the normal and Fn layers (to other keys, media keys or macros), and their lighting effect, brightness, speed and color can be set. Per-key colors, music lighting and scenes aren't available for them. None has been tested yet.
 
+Keyboards on EVision firmware (rebranded Sonix chips, used by Redragon, AJAZZ, VGN, MageGee and others) get their lighting effect, brightness, speed and color. The newer V2 firmware is recognized by its answer to a request; the first version only on the 13 keyboards OpenRGB lists. Keys can't be remapped on them, and none has been tested yet.
+
 So far, only the **DeathAdder V4 Pro**, the **EPZ TP35 Pro** and the **LEOBOG Hi75** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
 
 ## FAQ
@@ -177,6 +179,7 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
 - The audio dongle protocol follows the WalkPlay app as documented by [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC). No devicePEQ code is copied.
 - The LEOBOG keyboard protocol was recorded from the official LEOBOG ONE driver's own requests to the keyboard.
+- The EVision keyboard protocol follows [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB)'s EVision controllers (GPL-2.0-or-later). No OpenRGB code is copied.
 - The VIA protocol follows QMK (GPL-2.0). The VIA keyboard list and key layouts come from [the-via/keyboards](https://github.com/the-via/keyboards) and are parsed with [@the-via/reader](https://github.com/the-via/reader) at build time (both GPL-3.0); because of them, builds are distributed under GPL-3.0, which OpenSynapse's GPL-2.0-or-later license allows.
 - The list of other BY-520 keyboards (model numbers, key matrices, effects and key layouts) comes from the tables of [Let Me Drive](https://letmedrive.cn), which collected them from the vendors' drivers. Only the data is used; none of its code is copied.
 - The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
