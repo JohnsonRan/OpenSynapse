@@ -124,6 +124,8 @@ It also supports USB audio dongles built on WalkPlay chips that share the EPZ TP
 
 The **LEOBOG Hi75** keyboard is supported on its cable: lighting effects, per-key colors, music lighting, remapping keys (to other keys, media keys or macros) on the normal and Fn layers, and scenes can switch its lighting.
 
+About 110 other keyboards on the same Sinowealth BY-520 firmware are recognized by the model number they report, from brands such as LEOBOG, AULA, Redragon, YUNZII, Machenike, AJAZZ, FURYCUBE and E-YOOSO. They get lighting effects, per-key colors and music lighting; remapping keys and the factory reset stay off, because their factory keymaps aren't known.
+
 So far, only the **DeathAdder V4 Pro**, the **EPZ TP35 Pro** and the **LEOBOG Hi75** have been tested on real hardware. Other devices should work but haven't been verified. If you try one, please report how it went.
 
 ## FAQ
@@ -173,6 +175,7 @@ The app is written in Go, with a [MyGo](https://github.com/egoist/mygo) WebView2
 - Protocol details and the device list come from [openrazer](https://github.com/openrazer/openrazer) (GPL-2.0). The protocol was reimplemented here; no openrazer code is copied.
 - The audio dongle protocol follows the WalkPlay app as documented by [devicePEQ](https://github.com/jeromeof/devicePEQ) (ISC). No devicePEQ code is copied.
 - The LEOBOG keyboard protocol was recorded from the official LEOBOG ONE driver's own requests to the keyboard.
+- The list of other BY-520 keyboards (model numbers, key matrices, effects and key layouts) comes from the tables of [Let Me Drive](https://letmedrive.cn), which collected them from the vendors' drivers. Only the data is used; none of its code is copied.
 - The button remapping commands were identified by examining the device scripts included with Razer Synapse 4.
 - The interface borrows only the general look of Razer Synapse (dark theme, green accent). All icons and artwork are original.
 
