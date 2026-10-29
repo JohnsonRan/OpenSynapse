@@ -61,6 +61,9 @@ var Models = sync.OnceValue(func() map[[2]uint16][]*Model {
 	for _, r := range raw {
 		m := &Model{Name: r.Name, VID: r.VID, PID: r.PID, Rows: r.Rows, Cols: r.Cols, Width: r.Width, Height: r.Height}
 		for _, k := range r.Keys {
+			if k[0] < 0 || k[1] < 0 || k[0] >= r.Rows || k[1] >= r.Cols {
+				continue
+			}
 			m.Keys = append(m.Keys, Key{Row: k[0], Col: k[1], X: k[2], Y: k[3], W: k[4], H: k[5]})
 		}
 		if l := r.Lighting; l != nil {
@@ -77,9 +80,10 @@ var Models = sync.OnceValue(func() map[[2]uint16][]*Model {
 	return out
 })
 
-// Pick is the model among those sharing USB IDs whose name has most in
-// common with the product name the keyboard reports, or the first.
-func Pick(models []*Model, product string) *Model {
+// Pick returns the best-matching model among those sharing USB IDs, and
+// whether the choice is unsure (several models share the IDs and none matched
+// the product name).
+func Pick(models []*Model, product string) (*Model, bool) {
 	words := func(s string) map[string]bool {
 		out := map[string]bool{}
 		for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
@@ -102,5 +106,5 @@ func Pick(models []*Model, product string) *Model {
 			best, score = m, n
 		}
 	}
-	return best
+	return best, len(models) > 1 && score == 0
 }

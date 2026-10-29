@@ -71,7 +71,11 @@ func Scan() ([]*Device, error) {
 			continue
 		}
 		variants := Models()[[2]uint16{vid, pid}]
-		d := &Device{Model: Pick(variants, productString(port.w)), Variants: variants, ID: id, port: port}
+		m, unsure := Pick(variants, productString(port.w))
+		d := NewDevice(m, port)
+		d.Variants = variants
+		d.ID = id
+		d.Unsure = unsure
 		if err := d.open(); err != nil {
 			port.close()
 			continue
@@ -156,12 +160,18 @@ func openPort(path string) (*hidPort, error) {
 	return p, nil
 }
 
+func (p *hidPort) Send(report []byte) error { return p.send(report) }
+
 func (p *hidPort) send(report []byte) error {
 	var n uint32
 	return windows.WriteFile(p.w, append([]byte{0}, report...), &n, nil)
 }
 
+func (p *hidPort) Replies() <-chan []byte { return p.replies() }
+
 func (p *hidPort) replies() <-chan []byte { return p.in }
+
+func (p *hidPort) Close() { p.close() }
 
 func (p *hidPort) close() {
 	p.once.Do(func() {

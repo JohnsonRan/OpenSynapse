@@ -108,7 +108,7 @@ function add(json: string, rename?: string) {
   let width = 0;
   let height = 0;
   for (const k of ks as { row: number; col: number; x: number; y: number; w: number; h: number; r?: number; rx?: number; ry?: number; d?: boolean }[]) {
-    if (k.d || k.row >= rows || k.col >= cols) continue; // decals and keys off the matrix
+    if (k.d || k.row < 0 || k.col < 0 || k.row >= rows || k.col >= cols) continue; // decals and keys off the matrix
     // A rotated key is drawn upright, centered where it would be.
     let cx = k.x + k.w / 2;
     let cy = k.y + k.h / 2;
