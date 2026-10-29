@@ -10,6 +10,7 @@
 package via
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -86,11 +87,16 @@ type State struct {
 	Hue, Sat                  byte
 }
 
-// port carries reports; tests replace it.
-type port interface {
-	send(report []byte) error
-	replies() <-chan []byte
-	close()
+// Port carries reports; tests replace it.
+type Port interface {
+	Send(report []byte) error
+	Replies() <-chan []byte
+	Close()
+}
+
+type conn struct {
+	mu   sync.Mutex
+	port Port
 }
 
 // Device is a connected keyboard.
@@ -100,8 +106,13 @@ type Device struct {
 	ID       string   // USB IDs, e.g. 3434:0100
 	Protocol int
 	Layers   int
-	mu       sync.Mutex
-	port     port
+	Unsure   bool // true when several models share the USB IDs and none matched the product name
+	conn     *conn
+}
+
+// NewDevice creates a device for model m communicating through port.
+func NewDevice(m *Model, p Port) *Device {
+	return &Device{Model: m, conn: &conn{port: p}}
 }
 
 var replyTimeout = time.Second
@@ -115,18 +126,21 @@ func (d *Device) request(data ...byte) ([]byte, error) {
 	// Late answers to an earlier request that timed out would be taken for this one.
 	for drained := false; !drained; {
 		select {
-		case <-d.port.replies():
+		case _, ok := <-d.conn.port.Replies():
+			if !ok {
+				return nil, errors.New("keyboard disconnected")
+			}
 		default:
 			drained = true
 		}
 	}
-	if err := d.port.send(r); err != nil {
+	if err := d.conn.port.Send(r); err != nil {
 		return nil, err
 	}
 	timeout := time.After(replyTimeout)
 	for {
 		select {
-		case a, ok := <-d.port.replies():
+		case a, ok := <-d.conn.port.Replies():
 			if !ok {
 				return nil, errors.New("keyboard disconnected")
 			}
@@ -136,7 +150,7 @@ func (d *Device) request(data ...byte) ([]byte, error) {
 			if a[0] == cmdUnhandled {
 				return nil, errUnhandled
 			}
-			if a[0] == data[0] {
+			if bytes.Equal(a[:len(data)], data) {
 				return a[:ReportLen], nil
 			}
 		case <-timeout:
@@ -147,8 +161,8 @@ func (d *Device) request(data ...byte) ([]byte, error) {
 
 // open asks the keyboard for its protocol and number of layers.
 func (d *Device) open() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	a, err := d.request(cmdProtocol)
 	if err != nil {
 		return err
@@ -172,8 +186,8 @@ func (d *Device) Keymap(layer int) ([]uint16, error) {
 	if layer < 0 || layer >= d.Layers {
 		return nil, fmt.Errorf("no layer %d", layer)
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	n := d.Rows * d.Cols
 	buf := make([]byte, 0, 2*n)
 	const chunk = ReportLen - 4 // as VIA reads it
@@ -197,8 +211,8 @@ func (d *Device) Keycode(layer, row, col int) (uint16, error) {
 	if layer < 0 || layer >= d.Layers || row < 0 || row >= d.Rows || col < 0 || col >= d.Cols {
 		return 0, errors.New("no such key")
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	a, err := d.request(cmdGetKeycode, byte(layer), byte(row), byte(col))
 	if err != nil {
 		return 0, err
@@ -211,8 +225,8 @@ func (d *Device) SetKeycode(layer, row, col int, code uint16) error {
 	if layer < 0 || layer >= d.Layers || row < 0 || row >= d.Rows || col < 0 || col >= d.Cols {
 		return errors.New("no such key")
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	a, err := d.request(cmdSetKeycode, byte(layer), byte(row), byte(col), byte(code>>8), byte(code))
 	if err == nil && binary.BigEndian.Uint16(a[4:]) != code {
 		err = errors.New("keyboard kept another keycode")
@@ -222,23 +236,23 @@ func (d *Device) SetKeycode(layer, row, col int, code uint16) error {
 
 // ResetKeymap gives every key the firmware's keymap back.
 func (d *Device) ResetKeymap() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	_, err := d.request(cmdResetKeymap)
 	return err
 }
 
-// Use makes the keyboard one of its variants, by name.
-func (d *Device) Use(name string) bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+// WithModel returns a copy of d configured as variant name.
+func (d *Device) WithModel(name string) (*Device, bool) {
 	for _, m := range d.Variants {
 		if m.Name == name {
-			d.Model = m
-			return true
+			next := *d
+			next.Model = m
+			next.Unsure = false
+			return &next, true
 		}
 	}
-	return false
+	return nil, false
 }
 
 // HasLighting reports whether the keyboard's lighting can be changed here.
@@ -254,11 +268,11 @@ func (d *Device) get(v *Value, n int) ([]byte, error) {
 
 // Lighting reads the lighting settings.
 func (d *Device) Lighting() (State, error) {
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	if !d.HasLighting() {
 		return State{}, errors.New("no lighting controls")
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	var s State
 	for _, f := range []struct {
 		v   *Value
@@ -285,6 +299,8 @@ func (d *Device) Lighting() (State, error) {
 
 // SetLighting sets the lighting and stores it.
 func (d *Device) SetLighting(s State) error {
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
 	if !d.HasLighting() {
 		return errors.New("no lighting controls")
 	}
@@ -300,8 +316,6 @@ func (d *Device) SetLighting(s State) error {
 			return fmt.Errorf("value %d out of range", f.val)
 		}
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	channels := map[byte]bool{}
 	set := func(v *Value, data ...byte) error {
 		if v == nil {
@@ -340,7 +354,7 @@ func (l *Lighting) hasEffect(v int) bool {
 
 // Close releases the keyboard.
 func (d *Device) Close() {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.port.close()
+	d.conn.mu.Lock()
+	defer d.conn.mu.Unlock()
+	d.conn.port.Close()
 }

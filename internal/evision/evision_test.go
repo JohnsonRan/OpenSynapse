@@ -106,3 +106,12 @@ func (p *v1Port) send(r []byte) error {
 }
 func (p *v1Port) replies() <-chan []byte { return p.in }
 func (p *v1Port) close()                 {}
+
+func TestClosedReply(t *testing.T) {
+	p := &v1Port{in: make(chan []byte)}
+	close(p.in)
+	d := &Device{port: p}
+	if _, err := d.query(cmdCapabilites, 0, nil, 0); err == nil || err.Error() != "keyboard disconnected" {
+		t.Fatalf("expected disconnected, got %v", err)
+	}
+}

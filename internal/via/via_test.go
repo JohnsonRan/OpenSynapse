@@ -20,7 +20,7 @@ func newFake(t *testing.T, m *Model, layers int) *fakeKeyboard {
 	return &fakeKeyboard{t: t, m: m, keymap: make([]byte, 2*layers*m.Rows*m.Cols), values: map[[2]byte][]byte{}, in: make(chan []byte, 4)}
 }
 
-func (f *fakeKeyboard) send(r []byte) error {
+func (f *fakeKeyboard) Send(r []byte) error {
 	if len(r) != ReportLen {
 		f.t.Fatalf("report of %d bytes", len(r))
 	}
@@ -54,8 +54,8 @@ func (f *fakeKeyboard) send(r []byte) error {
 	return nil
 }
 
-func (f *fakeKeyboard) replies() <-chan []byte { return f.in }
-func (f *fakeKeyboard) close()                 {}
+func (f *fakeKeyboard) Replies() <-chan []byte { return f.in }
+func (f *fakeKeyboard) Close()                 {}
 
 var model = &Model{Name: "Test 60", Rows: 5, Cols: 15, Light: &Lighting{
 	Brightness: &Value{3, 1, 255}, Effect: &Value{3, 2, 255}, Speed: &Value{3, 3, 255}, Color: &Value{3, 4, 255},
@@ -65,7 +65,7 @@ var model = &Model{Name: "Test 60", Rows: 5, Cols: 15, Light: &Lighting{
 func TestKeymapAndLighting(t *testing.T) {
 	f := newFake(t, model, 4)
 	binary.BigEndian.PutUint16(f.keymap[2*(5*15+4*15+3):], 0x5221) // layer 1, row 4, col 3: MO(1)
-	d := &Device{Model: model, port: f}
+	d := NewDevice(model, f)
 	if err := d.open(); err != nil || d.Protocol != ProtocolV3 || d.Layers != 4 {
 		t.Fatalf("open: %v, protocol %d, %d layers", err, d.Protocol, d.Layers)
 	}
@@ -125,7 +125,7 @@ func TestCatalog(t *testing.T) {
 				t.Fatalf("%04x:%04x %s", id[0], id[1], m.Name)
 			}
 			for _, k := range m.Keys {
-				if k.Row >= m.Rows || k.Col >= m.Cols || k.X < 0 || k.Y < 0 || k.X+k.W > m.Width || k.Y+k.H > m.Height {
+				if k.Row < 0 || k.Col < 0 || k.Row >= m.Rows || k.Col >= m.Cols || k.X < 0 || k.Y < 0 || k.X+k.W > m.Width || k.Y+k.H > m.Height {
 					t.Fatalf("%s: key %+v in %dx%d", m.Name, k, m.Width, m.Height)
 				}
 			}
@@ -143,17 +143,64 @@ func TestPick(t *testing.T) {
 	if len(rainy) < 2 || rainy[0].Name != "GMMK Numpad" {
 		t.Fatalf("320F:5088: %d models", len(rainy))
 	}
-	if m := Pick(rainy, "Rainy 75 Lite 2.4G"); m.Name != "WOBKEY Rainy 75 Lite (2.4G)" {
-		t.Fatalf("picked %s", m.Name)
+	if m, unsure := Pick(rainy, "Rainy 75 Lite 2.4G"); m.Name != "WOBKEY Rainy 75 Lite (2.4G)" || unsure {
+		t.Fatalf("picked %s, unsure %v", m.Name, unsure)
 	}
-	if m := Pick(rainy, "2.4G Receiver"); m.Name == "GMMK Numpad" {
-		t.Fatalf("picked %s", m.Name)
+	if m, unsure := Pick(rainy, "2.4G Receiver"); m.Name == "GMMK Numpad" || unsure {
+		t.Fatalf("picked %s, unsure %v", m.Name, unsure)
 	}
-	if m := Pick(rainy, "USB Keyboard"); m != rainy[0] {
-		t.Fatalf("picked %s", m.Name)
+	if m, unsure := Pick(rainy, "USB Keyboard"); m != rainy[0] || !unsure {
+		t.Fatalf("picked %s, unsure %v", m.Name, unsure)
 	}
-	d := &Device{Model: rainy[0], Variants: rainy}
-	if !d.Use("WOBKEY Rainy 75 JIS (2.4G)") || d.Name != "WOBKEY Rainy 75 JIS (2.4G)" || d.Use("nope") {
-		t.Fatal("Use")
+	d := NewDevice(rainy[0], &fakeKeyboard{in: make(chan []byte)})
+	d.Variants = rainy
+	d.Unsure = true
+	next, ok := d.WithModel("WOBKEY Rainy 75 JIS (2.4G)")
+	if !ok || next.Name != "WOBKEY Rainy 75 JIS (2.4G)" || next.Unsure || d.Name != rainy[0].Name || !d.Unsure {
+		t.Fatal("WithModel")
+	}
+	if _, ok := d.WithModel("nope"); ok {
+		t.Fatal("WithModel unknown")
+	}
+}
+
+type closedPort struct {
+	in chan []byte
+}
+
+func (p *closedPort) Send([]byte) error      { return nil }
+func (p *closedPort) Replies() <-chan []byte { return p.in }
+func (p *closedPort) Close()                 {}
+
+func TestClosedReply(t *testing.T) {
+	p := &closedPort{in: make(chan []byte)}
+	close(p.in)
+	d := NewDevice(model, p)
+	if _, err := d.request(cmdProtocol); err == nil || err.Error() != "keyboard disconnected" {
+		t.Fatalf("expected disconnected, got %v", err)
+	}
+}
+
+func TestStaleReply(t *testing.T) {
+	f := newFake(t, model, 4)
+	d := NewDevice(model, f)
+	if err := d.open(); err != nil {
+		t.Fatal(err)
+	}
+	// Stale answer for (0, 0, 0) queued before request for (0, 0, 1).
+	stale := make([]byte, ReportLen)
+	stale[0], stale[1], stale[2], stale[3] = cmdGetKeycode, 0, 0, 0
+	stale[4], stale[5] = 0x11, 0x11
+	f.in <- stale
+
+	i := 2 * ((0*model.Rows+0)*model.Cols + 1)
+	f.keymap[i], f.keymap[i+1] = 0x22, 0x22
+
+	code, err := d.Keycode(0, 0, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 0x2222 {
+		t.Fatalf("got %04x, expected 0x2222", code)
 	}
 }

@@ -110,7 +110,10 @@ func request(cmd byte, offset uint16, data []byte, size byte) []byte {
 func (d *Device) query(cmd byte, offset uint16, data []byte, size byte) ([]byte, error) {
 	for drained := false; !drained; {
 		select {
-		case <-d.port.replies():
+		case _, ok := <-d.port.replies():
+			if !ok {
+				return nil, errors.New("keyboard disconnected")
+			}
 		default:
 			drained = true
 		}
