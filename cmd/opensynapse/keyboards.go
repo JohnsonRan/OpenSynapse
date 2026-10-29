@@ -155,10 +155,6 @@ type KeyboardState struct {
 	// takes per-key colors, so the custom effect, music lighting and notices.
 	Colorful bool `json:"colorful"`
 	PerKey   bool `json:"perKey"`
-	// Models: the models sharing the keyboard's USB IDs when it cannot tell
-	// which it is, to pick from; Model is the one taken.
-	Models []string `json:"models,omitempty"`
-	Model  string   `json:"model,omitempty"`
 	// The key layout, for scenes that highlight keys (Effects only).
 	Keys   []leobog.Key `json:"keys,omitempty"`
 	Width  int          `json:"width,omitempty"`

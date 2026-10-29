@@ -118,7 +118,7 @@ func (Lights) Keys(id string) (KeyboardKeys, error) {
 	if _, err := lightKeyboards.get(id); err != nil {
 		return KeyboardKeys{}, err
 	}
-	return KeyboardKeys{Keys: []leobog.Key{}, FnIndex: -1, Normal: []ButtonAction{}, Fn: []ButtonAction{}, Media: mediaCodes}, nil
+	return KeyboardKeys{Keys: []leobog.Key{}, FnIndex: -1, Remap: false, Reset: false, Normal: []ButtonAction{}, Fn: []ButtonAction{}, Media: mediaCodes}, nil
 }
 
 var errNoKeys = errors.New("this keyboard's keys cannot be changed")

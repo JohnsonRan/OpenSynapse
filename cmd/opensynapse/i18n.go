@@ -49,6 +49,7 @@ var messages = map[string]map[string]string{
 		"err.importFile":    "这不是 OpenSynapse 的设置文件",
 		"err.noSoundDevice": "Windows 中没有这个设备的播放设备",
 		"err.presetName":    "请为预设命名",
+		"err.pickModel":     "请先在名称旁选择键盘型号",
 		"err.saveBlocked":   "设置未保存：无法读取 %s。为避免覆盖其中的设置，已暂停保存。请修复或移走该文件，然后重启 OpenSynapse。",
 	},
 	"en": {
@@ -89,6 +90,7 @@ var messages = map[string]map[string]string{
 		"err.importFile":    "This isn't an OpenSynapse settings file",
 		"err.noSoundDevice": "Windows has no playback device for this device",
 		"err.presetName":    "Give the preset a name",
+		"err.pickModel":     "Pick this keyboard's model next to its name first",
 		"err.saveBlocked":   "Settings weren't saved: OpenSynapse can't read %s. To avoid overwriting the settings in it, saving is paused. Fix or move the file, and then restart OpenSynapse.",
 	},
 	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
@@ -130,6 +132,7 @@ var messages = map[string]map[string]string{
 		"err.importFile":    "OpenSynapse の設定ファイルではありません",
 		"err.noSoundDevice": "このデバイスの再生デバイスが Windows にありません",
 		"err.presetName":    "プリセットに名前を付けてください",
+		"err.pickModel":     "先に名前の横でキーボードのモデルを選択してください",
 		"err.saveBlocked":   "設定は保存されませんでした。%s を読み取れません。その中の設定を上書きしないよう、保存を一時停止しています。ファイルを修正するか移動してから、OpenSynapse を再起動してください。",
 	},
 }

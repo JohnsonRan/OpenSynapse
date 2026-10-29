@@ -814,6 +814,23 @@ let kbColors: RGB[] = []; // the custom effect's, by matrix index
 let kbMacros: Macro[] = [];
 
 async function loadKeyboard(id: string) {
+  if (dev?.driver === "via") {
+    try {
+      const vm = await Via.models(id);
+      if (dev?.id !== id) return;
+      const model = $<HTMLSelectElement>("#dev-model");
+      model.hidden = !vm.models?.length;
+      model.innerHTML = (vm.models ?? []).map((m) => option(esc(m), esc(m), m === vm.model)).join("");
+      model.onchange = async () => {
+        if (!(await attempt(() => Via.setModel(id, model.value)))) return;
+        $("#dev-name").textContent = model.value;
+        kbSel = -1;
+        loadKeyboard(id);
+      };
+    } catch {}
+  } else {
+    $("#dev-model").hidden = true;
+  }
   let st: KeyboardState;
   try {
     [st, kbKeys, kbColors, kbMacros] = await Promise.all([kbApi().state(id), kbApi().keys(id), kbApi().keyColors(id), Macros.list()]);
@@ -825,19 +842,9 @@ async function loadKeyboard(id: string) {
   kb = st;
   // Remaps and the factory reset need the model's factory keys; most BY-520 models lack them.
   document.querySelector<HTMLElement>('.tab[data-tab="kbkeys"]')!.hidden = !kbKeys.remap;
-  $("#kb-factory").hidden = dev.driver !== "leobog";
+  $("#kb-factory").hidden = !kbKeys.reset;
   $("#kb-music-card").hidden = !st.perKey;
   $("#kb-colorful-label").hidden = !st.colorful;
-  // Keyboards sharing USB IDs: the user tells which one this is.
-  const model = $<HTMLSelectElement>("#dev-model");
-  model.hidden = !st.models?.length;
-  model.innerHTML = (st.models ?? []).map((m) => option(esc(m), esc(m), m === st.model)).join("");
-  model.onchange = async () => {
-    if (!(await attempt(() => Via.setModel(id, model.value)))) return;
-    $("#dev-name").textContent = model.value;
-    kbSel = -1;
-    loadKeyboard(id);
-  };
   // A keyboard without lighting controls opens on its keys.
   const lit = st.effects.length > 0;
   document.querySelector<HTMLElement>('.tab[data-tab="kblight"]')!.hidden = !lit;

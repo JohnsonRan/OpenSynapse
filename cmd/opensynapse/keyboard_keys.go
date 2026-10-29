@@ -22,7 +22,8 @@ type KeyboardKeys struct {
 	Width   int            `json:"width"`
 	Height  int            `json:"height"`
 	FnIndex int            `json:"fnIndex"` // the Fn key, which cannot be remapped
-	Remap   bool           `json:"remap"`   // keys can be remapped and reset: the model's factory keys are known
+	Remap   bool           `json:"remap"`   // keys can be remapped: the model's factory keys are known
+	Reset   bool           `json:"reset"`   // factory reset supported
 	Normal  []ButtonAction `json:"normal"`  // by Keys position
 	Fn      []ButtonAction `json:"fn"`      // while Fn is held
 	Media   []int          `json:"media"`   // consumer usages a key can send
@@ -129,7 +130,7 @@ func (Keyboards) Keys(id string) (KeyboardKeys, error) {
 		return KeyboardKeys{}, err
 	}
 	km, def := keymapOf(d, true), d.DefaultLayers()
-	out := KeyboardKeys{Keys: d.Layout, Width: d.Width, Height: d.Height, FnIndex: d.FnIndex, Remap: d.CanRemap(), Media: mediaCodes}
+	out := KeyboardKeys{Keys: d.Layout, Width: d.Width, Height: d.Height, FnIndex: d.FnIndex, Remap: d.CanRemap(), Reset: d.CanReset(), Media: mediaCodes}
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()

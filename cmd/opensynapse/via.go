@@ -34,12 +34,14 @@ func (h *viaHub) rescan() error {
 	if err != nil {
 		return err
 	}
-	for _, d := range found {
+	for i, d := range found {
 		cfgMu.Lock()
 		name := cfg.ViaModels[d.ID]
 		cfgMu.Unlock()
 		if name != "" {
-			d.Use(name)
+			if next, ok := d.WithModel(name); ok {
+				found[i] = next
+			}
 		}
 	}
 	h.mu.Lock()
@@ -50,6 +52,22 @@ func (h *viaHub) rescan() error {
 		d.Close()
 	}
 	return nil
+}
+
+func (h *viaHub) replace(id string, update func(*via.Device) (*via.Device, error)) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i, d := range h.devs {
+		if d.ID == id {
+			next, err := update(d)
+			if err != nil {
+				return err
+			}
+			h.devs[i] = next
+			return nil
+		}
+	}
+	return errors.New("device not connected")
 }
 
 func (h *viaHub) list() []*via.Device {
@@ -154,18 +172,39 @@ func rgbToHS(c razer.RGB) (byte, byte) {
 	return byte(math.Round(h/6*255)) % 255, byte(math.Round(d / mx * 255))
 }
 
+// ViaModels is the models sharing a keyboard's USB IDs and whether the
+// current choice is unsure.
+type ViaModels struct {
+	Models []string `json:"models"`
+	Model  string   `json:"model"`
+	Unsure bool     `json:"unsure"`
+}
+
+// Models returns the variants sharing the keyboard's USB IDs and the picked one.
+func (Via) Models(id string) (ViaModels, error) {
+	d, err := viaKeyboards.get(id)
+	if err != nil {
+		return ViaModels{}, err
+	}
+	out := ViaModels{Model: d.Name, Unsure: d.Unsure}
+	if len(d.Variants) > 1 {
+		for _, m := range d.Variants {
+			out.Models = append(out.Models, m.Name)
+		}
+	}
+	return out, nil
+}
+
 // State reads the keyboard's lighting.
 func (Via) State(id string) (KeyboardState, error) {
 	d, err := viaKeyboards.get(id)
 	if err != nil {
 		return KeyboardState{}, err
 	}
-	st := KeyboardState{Effects: []leobog.Effect{}, MaxLevel: viaMaxLevel, Model: d.Name}
-	if len(d.Variants) > 1 {
-		for _, m := range d.Variants {
-			st.Models = append(st.Models, m.Name)
-		}
+	if d.Unsure {
+		return KeyboardState{}, errors.New(tr("err.pickModel"))
 	}
+	st := KeyboardState{Effects: []leobog.Effect{}, MaxLevel: viaMaxLevel}
 	if !d.HasLighting() {
 		return st, nil
 	}
@@ -188,6 +227,9 @@ func (Via) SetLighting(id string, l leobog.Lighting) error {
 	if err != nil {
 		return err
 	}
+	if d.Unsure {
+		return errors.New(tr("err.pickModel"))
+	}
 	if !d.HasLighting() {
 		return errors.New("this keyboard's lighting cannot be changed")
 	}
@@ -197,12 +239,15 @@ func (Via) SetLighting(id string, l leobog.Lighting) error {
 
 // SetModel makes the keyboard another of the models sharing its USB IDs.
 func (Via) SetModel(id, name string) error {
-	d, err := viaKeyboards.get(id)
+	err := viaKeyboards.replace(id, func(d *via.Device) (*via.Device, error) {
+		next, ok := d.WithModel(name)
+		if !ok {
+			return nil, errors.New("unknown model")
+		}
+		return next, nil
+	})
 	if err != nil {
 		return err
-	}
-	if !d.Use(name) {
-		return errors.New("unknown model")
 	}
 	cfgMu.Lock()
 	if cfg.ViaModels == nil {
@@ -233,7 +278,8 @@ func viaOriginal(id string, layer, index int) (uint16, bool) {
 }
 
 // rememberOriginal keeps what a key does before the app's first change to it.
-func rememberOriginal(id string, layer, index int, code uint16) {
+// It reports whether a new entry was added.
+func rememberOriginal(id string, layer, index int, code uint16) bool {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
 	if cfg.ViaKeys == nil {
@@ -244,7 +290,9 @@ func rememberOriginal(id string, layer, index int, code uint16) {
 	}
 	if _, ok := cfg.ViaKeys[id][viaKeyOf(layer, index)]; !ok {
 		cfg.ViaKeys[id][viaKeyOf(layer, index)] = code
+		return true
 	}
+	return false
 }
 
 func forgetOriginal(id string, layer, index int) {
@@ -302,13 +350,16 @@ func (Via) Keys(id string) (KeyboardKeys, error) {
 	if err != nil {
 		return KeyboardKeys{}, err
 	}
+	if d.Unsure {
+		return KeyboardKeys{}, errors.New(tr("err.pickModel"))
+	}
 	var maps [2][]uint16
 	for l := range viaLayers(d) {
 		if maps[l], err = d.Keymap(l); err != nil {
 			return KeyboardKeys{}, err
 		}
 	}
-	out := KeyboardKeys{Width: d.Width, Height: d.Height, FnIndex: -1, Remap: true, Media: mediaCodes, Keys: []leobog.Key{}}
+	out := KeyboardKeys{Width: d.Width, Height: d.Height, FnIndex: -1, Remap: true, Reset: false, Media: mediaCodes, Keys: []leobog.Key{}}
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
@@ -352,7 +403,13 @@ func setViaKey(d *via.Device, layer int, k via.Key, code uint16) error {
 	if err != nil || cur == code {
 		return err
 	}
-	rememberOriginal(d.ID, layer, d.Index(k.Row, k.Col), cur)
+	idx := d.Index(k.Row, k.Col)
+	if rememberOriginal(d.ID, layer, idx, cur) {
+		if err := saveConfig(); err != nil {
+			forgetOriginal(d.ID, layer, idx)
+			return err
+		}
+	}
 	return d.SetKeycode(layer, k.Row, k.Col, code)
 }
 
@@ -363,6 +420,9 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 	d, err := viaKeyboards.get(id)
 	if err != nil {
 		return err
+	}
+	if d.Unsure {
+		return errors.New(tr("err.pickModel"))
 	}
 	k, ok := viaKey(d, index)
 	if !ok || layer < 0 || layer >= viaLayers(d) {
@@ -384,10 +444,13 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 			cfgMu.Unlock()
 			return errors.New(tr("err.macroMissing"))
 		}
+		oldIdx := find()
+		var oldBinding Binding
 		trig := 0
-		if i := find(); i >= 0 {
-			cfg.Bindings[i].Macro = act.Macro
-			trig = cfg.Bindings[i].Trigger
+		if oldIdx >= 0 {
+			oldBinding = cfg.Bindings[oldIdx]
+			cfg.Bindings[oldIdx].Macro = act.Macro
+			trig = cfg.Bindings[oldIdx].Trigger
 		} else if trig = freeTrigger(cfg.Bindings); trig != 0 {
 			cfg.Bindings = append(cfg.Bindings, Binding{Family: viaFamily(d), Button: index, Layer: layer, Macro: act.Macro, Trigger: trig})
 		} else {
@@ -396,6 +459,23 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 		cfgMu.Unlock()
 		code = triggerCode(trig)
+		refreshHooks()
+		if err := setViaKey(d, layer, k, code); err != nil {
+			cfgMu.Lock()
+			if oldIdx >= 0 {
+				if cur := find(); cur >= 0 {
+					cfg.Bindings[cur] = oldBinding
+				}
+			} else {
+				if cur := find(); cur >= 0 {
+					cfg.Bindings = slices.Delete(cfg.Bindings, cur, cur+1)
+				}
+			}
+			cfgMu.Unlock()
+			refreshHooks()
+			return err
+		}
+		return saveConfig()
 	case "default":
 		orig, ok := viaOriginal(d.ID, layer, index)
 		if !ok {
@@ -407,17 +487,15 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 			return err
 		}
 	}
-	if act.Kind != "macro" {
-		cfgMu.Lock()
-		if i := find(); i >= 0 {
-			cfg.Bindings = slices.Delete(cfg.Bindings, i, i+1)
-		}
-		cfgMu.Unlock()
-	}
-	refreshHooks()
 	if err := setViaKey(d, layer, k, code); err != nil {
 		return err
 	}
+	cfgMu.Lock()
+	if i := find(); i >= 0 {
+		cfg.Bindings = slices.Delete(cfg.Bindings, i, i+1)
+	}
+	cfgMu.Unlock()
+	refreshHooks()
 	if act.Kind == "default" {
 		forgetOriginal(d.ID, layer, index)
 	}
@@ -431,6 +509,9 @@ func (Via) ResetKeys(id string) error {
 	d, err := viaKeyboards.get(id)
 	if err != nil {
 		return err
+	}
+	if d.Unsure {
+		return errors.New(tr("err.pickModel"))
 	}
 	if err := d.ResetKeymap(); err != nil {
 		return err
@@ -450,6 +531,9 @@ func syncViaBindings(restore bool) {
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
 	for _, d := range viaKeyboards.list() {
+		if d.Unsure {
+			continue
+		}
 		for _, b := range bs {
 			k, ok := viaKey(d, b.Button)
 			if b.Family != viaFamily(d) || !ok || b.Layer >= viaLayers(d) {

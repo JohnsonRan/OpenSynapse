@@ -219,8 +219,10 @@ export interface KeyboardKeys {
   height: number;
   /** the Fn key, which cannot be remapped */
   fnIndex: number;
-  /** keys can be remapped and reset: the model's factory keys are known */
+  /** keys can be remapped: the model's factory keys are known */
   remap: boolean;
+  /** factory reset supported */
+  reset: boolean;
   /** by Keys position */
   normal: ButtonAction[];
   /** while Fn is held */
@@ -246,12 +248,6 @@ export interface KeyboardState {
    */
   colorful: boolean;
   perKey: boolean;
-  /**
-   * Models: the models sharing the keyboard's USB IDs when it cannot tell
-   * which it is, to pick from; Model is the one taken.
-   */
-  models?: string[];
-  model?: string;
   /** The key layout, for scenes that highlight keys (Effects only). */
   keys?: Key[];
   width?: number;
@@ -424,6 +420,16 @@ export interface Tracking {
   liftOff: number;
   /** asymmetric: 1–25, below LiftOff */
   landing: number;
+}
+
+/**
+ * ViaModels is the models sharing a keyboard's USB IDs and whether the
+ * current choice is unsure.
+ */
+export interface ViaModels {
+  models: string[];
+  model: string;
+  unsure: boolean;
 }
 
 // ---- Services ----
@@ -652,6 +658,10 @@ export const Via = {
   /** Keys returns the keyboard's keys and what they do. */
   keys(id: string): Promise<KeyboardKeys> {
     return call("Via.Keys", id);
+  },
+  /** Models returns the variants sharing the keyboard's USB IDs and the picked one. */
+  models(id: string): Promise<ViaModels> {
+    return call("Via.Models", id);
   },
   /** ResetKeys gives every key the firmware's keymap back and unbinds its macros. */
   resetKeys(id: string): Promise<void> {

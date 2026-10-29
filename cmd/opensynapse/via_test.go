@@ -66,3 +66,67 @@ func TestEVisionSpeed(t *testing.T) {
 		}
 	}
 }
+
+type fakeViaPort struct {
+	in chan []byte
+}
+
+func (p *fakeViaPort) Send([]byte) error      { return nil }
+func (p *fakeViaPort) Replies() <-chan []byte { return p.in }
+func (p *fakeViaPort) Close()                 {}
+
+func TestViaModelsAndUnsure(t *testing.T) {
+	m1 := &via.Model{Name: "Model 1", Rows: 5, Cols: 15}
+	m2 := &via.Model{Name: "Model 2", Rows: 5, Cols: 15}
+	p := &fakeViaPort{in: make(chan []byte)}
+	d := via.NewDevice(m1, p)
+	d.ID = "1234:5678"
+	d.Variants = []*via.Model{m1, m2}
+	d.Unsure = true
+
+	viaKeyboards.mu.Lock()
+	viaKeyboards.devs = []*via.Device{d}
+	viaKeyboards.mu.Unlock()
+	t.Cleanup(func() {
+		viaKeyboards.mu.Lock()
+		viaKeyboards.devs = nil
+		viaKeyboards.mu.Unlock()
+	})
+
+	vm, err := (Via{}).Models(d.ID)
+	if err != nil || len(vm.Models) != 2 || !vm.Unsure || vm.Model != "Model 1" {
+		t.Fatalf("Models: %+v, %v", vm, err)
+	}
+
+	if _, err := (Via{}).State(d.ID); err == nil || err.Error() != tr("err.pickModel") {
+		t.Fatalf("expected pickModel error, got %v", err)
+	}
+	if _, err := (Via{}).Keys(d.ID); err == nil || err.Error() != tr("err.pickModel") {
+		t.Fatalf("expected pickModel error, got %v", err)
+	}
+
+	if err := (Via{}).SetModel(d.ID, "Model 2"); err != nil {
+		t.Fatal(err)
+	}
+	vm2, err := (Via{}).Models(d.ID)
+	if err != nil || vm2.Unsure || vm2.Model != "Model 2" {
+		t.Fatalf("Models after SetModel: %+v, %v", vm2, err)
+	}
+}
+
+func TestRememberOriginal(t *testing.T) {
+	cfgMu.Lock()
+	cfg.ViaKeys = nil
+	cfgMu.Unlock()
+
+	if !rememberOriginal("dev1", 0, 1, 0x0004) {
+		t.Fatal("first remember should return true")
+	}
+	if rememberOriginal("dev1", 0, 1, 0x0004) {
+		t.Fatal("second remember should return false")
+	}
+	orig, ok := viaOriginal("dev1", 0, 1)
+	if !ok || orig != 0x0004 {
+		t.Fatalf("got %04x, %v", orig, ok)
+	}
+}
