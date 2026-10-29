@@ -119,17 +119,41 @@ func TestCatalog(t *testing.T) {
 	if len(ms) < 1000 {
 		t.Fatalf("%d keyboards", len(ms))
 	}
-	for id, m := range ms {
-		if m.Rows < 1 || m.Cols < 1 || len(m.Keys) == 0 {
-			t.Fatalf("%04x:%04x %s", id[0], id[1], m.Name)
-		}
-		for _, k := range m.Keys {
-			if k.Row >= m.Rows || k.Col >= m.Cols || k.X < 0 || k.Y < 0 || k.X+k.W > m.Width || k.Y+k.H > m.Height {
-				t.Fatalf("%s: key %+v in %dx%d", m.Name, k, m.Width, m.Height)
+	for id, vs := range ms {
+		for _, m := range vs {
+			if m.Rows < 1 || m.Cols < 1 || len(m.Keys) == 0 {
+				t.Fatalf("%04x:%04x %s", id[0], id[1], m.Name)
+			}
+			for _, k := range m.Keys {
+				if k.Row >= m.Rows || k.Col >= m.Cols || k.X < 0 || k.Y < 0 || k.X+k.W > m.Width || k.Y+k.H > m.Height {
+					t.Fatalf("%s: key %+v in %dx%d", m.Name, k, m.Width, m.Height)
+				}
 			}
 		}
 	}
-	if m := ms[[2]uint16{0x3434, 0x0100}]; m == nil || m.Light == nil || m.Light.Effect == nil || len(m.Light.Effects) < 10 {
+	if m := ms[[2]uint16{0x3434, 0x0100}][0]; m == nil || m.Light == nil || m.Light.Effect == nil || len(m.Light.Effects) < 10 {
 		t.Fatalf("Keychron Q1: %+v", m)
+	}
+}
+
+// Keyboards sharing USB IDs: the reported product name picks one, and an
+// uninformative name the first.
+func TestPick(t *testing.T) {
+	rainy := Models()[[2]uint16{0x320F, 0x5088}]
+	if len(rainy) < 2 || rainy[0].Name != "GMMK Numpad" {
+		t.Fatalf("320F:5088: %d models", len(rainy))
+	}
+	if m := Pick(rainy, "Rainy 75 Lite 2.4G"); m.Name != "WOBKEY Rainy 75 Lite (2.4G)" {
+		t.Fatalf("picked %s", m.Name)
+	}
+	if m := Pick(rainy, "2.4G Receiver"); m.Name == "GMMK Numpad" {
+		t.Fatalf("picked %s", m.Name)
+	}
+	if m := Pick(rainy, "USB Keyboard"); m != rainy[0] {
+		t.Fatalf("picked %s", m.Name)
+	}
+	d := &Device{Model: rainy[0], Variants: rainy}
+	if !d.Use("WOBKEY Rainy 75 JIS (2.4G)") || d.Name != "WOBKEY Rainy 75 JIS (2.4G)" || d.Use("nope") {
+		t.Fatal("Use")
 	}
 }

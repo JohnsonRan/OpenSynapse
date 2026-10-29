@@ -96,7 +96,8 @@ type port interface {
 // Device is a connected keyboard.
 type Device struct {
 	*Model
-	ID       string // USB IDs, e.g. 3434:0100
+	Variants []*Model // the models sharing its USB IDs, Model among them
+	ID       string   // USB IDs, e.g. 3434:0100
 	Protocol int
 	Layers   int
 	mu       sync.Mutex
@@ -225,6 +226,19 @@ func (d *Device) ResetKeymap() error {
 	defer d.mu.Unlock()
 	_, err := d.request(cmdResetKeymap)
 	return err
+}
+
+// Use makes the keyboard one of its variants, by name.
+func (d *Device) Use(name string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, m := range d.Variants {
+		if m.Name == name {
+			d.Model = m
+			return true
+		}
+	}
+	return false
 }
 
 // HasLighting reports whether the keyboard's lighting can be changed here.

@@ -74,22 +74,33 @@ function lighting(menus: unknown[]) {
 
 const unit = 40;
 const gap = 4;
-const seen = new Set<string>();
+// Vendors publish definitions of keyboards VIA's list lacks, for VIA's Design
+// tab. Several keyboards then share USB IDs; the app tells them apart by the
+// product name they report, or lets the user pick.
+const vendor: [string, string][] = [
+  ["https://drive.wobkey.com/f/d/XNltG/Rainy-75-RGB-USB-3.0.JSON", "WOBKEY Rainy 75"],
+  ["https://drive.wobkey.com/f/d/jX5hd/Rainy-75-Non-RGB-USB-3.0.JSON", "WOBKEY Rainy 75 Lite"],
+  ["https://drive.wobkey.com/f/d/mEU5/Rainy75-ISO-USB.JSON", "WOBKEY Rainy 75 ISO"],
+  ["https://drive.wobkey.com/f/d/npgIl/Rainy-75-JIS-New-USB.JSON", "WOBKEY Rainy 75 JIS"],
+  ["https://drive.wobkey.com/f/d/o29f2/Rainy-75-RGB-2.4G-3.0.JSON", "WOBKEY Rainy 75 (2.4G)"],
+  ["https://drive.wobkey.com/f/d/WANup/Rainy-75-Non-RGB-2.4G-3.0.JSON", "WOBKEY Rainy 75 Lite (2.4G)"],
+  ["https://drive.wobkey.com/f/d/G8TE/Rainy75-ISO-2.4G.JSON", "WOBKEY Rainy 75 ISO (2.4G)"],
+  ["https://drive.wobkey.com/f/d/8byUO/Rainy-75-JIS-NEW-2.4G.JSON", "WOBKEY Rainy 75 JIS (2.4G)"],
+];
+
 const keyboards = [];
 let skipped = 0;
-for (const f of files(join(repo, "v3"))) {
+
+function add(json: string, rename?: string) {
   let def;
   try {
-    def = reader.keyboardDefinitionV3ToVIADefinitionV3(JSON.parse(readFileSync(f, "utf8")));
+    def = reader.keyboardDefinitionV3ToVIADefinitionV3(JSON.parse(json));
   } catch {
     skipped++; // not a keyboard definition, or one VIA cannot read either
-    continue;
+    return;
   }
   const vid = def.vendorProductId >>> 16;
   const pid = def.vendorProductId & 0xffff;
-  const id = `${vid}:${pid}`;
-  if (seen.has(id)) continue; // shortcut: two keyboards sharing USB IDs show as the first one
-  seen.add(id);
   const { rows, cols } = def.matrix;
   const ks = [...def.layouts.keys];
   for (const opts of Object.values(def.layouts.optionKeys) as Record<string, unknown[]>[]) ks.push(...(opts["0"] ?? []));
@@ -109,7 +120,7 @@ for (const f of files(join(repo, "v3"))) {
     const box = [k.row, k.col, Math.round((cx - k.w / 2) * unit), Math.round((cy - k.h / 2) * unit), Math.round(k.w * unit) - gap, Math.round(k.h * unit) - gap];
     keys.push(box);
   }
-  if (!keys.length) continue;
+  if (!keys.length) return;
   const minX = Math.min(...keys.map((k) => k[2]!));
   const minY = Math.min(...keys.map((k) => k[3]!));
   for (const k of keys) {
@@ -118,9 +129,17 @@ for (const f of files(join(repo, "v3"))) {
     width = Math.max(width, k[2]! + k[4]!);
     height = Math.max(height, k[3]! + k[5]!);
   }
-  const name = typeof def.name === "string" ? def.name : def.name.options[0];
+  const name = rename ?? (typeof def.name === "string" ? def.name : def.name.options[0]);
   keyboards.push({ name, vid, pid, rows, cols, width, height, keys, lighting: lighting(def.menus ?? []) });
 }
+
+for (const f of files(join(repo, "v3"))) add(readFileSync(f, "utf8"));
+for (const [url, name] of vendor) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  add(await r.text(), name);
+}
+// VIA's own first among keyboards sharing USB IDs: the stable sort keeps that order.
 keyboards.sort((a, b) => a.vid - b.vid || a.pid - b.pid);
 writeFileSync(out, gzipSync(JSON.stringify(keyboards), { level: 9 }));
 report(`${keyboards.length} keyboards (${skipped} files skipped) → ${out}`);

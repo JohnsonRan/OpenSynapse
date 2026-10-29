@@ -14,6 +14,7 @@ var (
 	procGetParsed  = hid.NewProc("HidD_GetPreparsedData")
 	procFreeParsed = hid.NewProc("HidD_FreePreparsedData")
 	procGetCaps    = hid.NewProc("HidP_GetCaps")
+	procProduct    = hid.NewProc("HidD_GetProductString")
 
 	hidGUID = windows.GUID{Data1: 0x4D1E55B2, Data2: 0xF16F, Data3: 0x11CF, Data4: [8]byte{0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}}
 )
@@ -44,7 +45,7 @@ func PresentPaths() ([]string, error) {
 	models := Models()
 	out := all[:0]
 	for _, p := range all {
-		if vid, pid, ok := usbIDs(p); ok && models[[2]uint16{vid, pid}] != nil {
+		if vid, pid, ok := usbIDs(p); ok && len(models[[2]uint16{vid, pid}]) > 0 {
 			out = append(out, p)
 		}
 	}
@@ -69,7 +70,8 @@ func Scan() ([]*Device, error) {
 		if err != nil {
 			continue
 		}
-		d := &Device{Model: Models()[[2]uint16{vid, pid}], ID: id, port: port}
+		variants := Models()[[2]uint16{vid, pid}]
+		d := &Device{Model: Pick(variants, productString(port.w)), Variants: variants, ID: id, port: port}
 		if err := d.open(); err != nil {
 			port.close()
 			continue
@@ -102,6 +104,14 @@ func isRawHID(path string) bool {
 	}
 	procGetCaps.Call(pp, uintptr(unsafe.Pointer(&c)))
 	return c.UsagePage == usagePage && c.Usage == usage && c.OutputReportLength == ReportLen+1
+}
+
+func productString(h windows.Handle) string {
+	buf := make([]uint16, 128)
+	if r, _, _ := procProduct.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)*2)); r == 0 {
+		return ""
+	}
+	return strings.TrimSpace(windows.UTF16ToString(buf))
 }
 
 // hidPort writes on one handle and reads on another: synchronous handles
