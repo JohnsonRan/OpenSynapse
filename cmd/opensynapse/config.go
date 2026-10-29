@@ -99,6 +99,8 @@ type config struct {
 	// ViaKeys: by device ID, what a VIA keyboard's keys did before the app changed
 	// them, by "layer:index"; not taken from imports.
 	ViaKeys map[string]map[string]uint16 `json:"viaKeys,omitempty"`
+	// ViaModels: by device ID, the model picked among those sharing its USB IDs.
+	ViaModels map[string]string `json:"viaModels,omitempty"`
 }
 
 var (
@@ -297,6 +299,9 @@ func parseConfig(b []byte, defaults config) (config, error) {
 	}
 	if v, ok := raw["viaKeys"]; ok {
 		_ = json.Unmarshal(v, &c.ViaKeys)
+	}
+	if v, ok := raw["viaModels"]; ok {
+		_ = json.Unmarshal(v, &c.ViaModels)
 	}
 	if v, ok := raw["eqPresets"]; ok {
 		var p []EQPreset

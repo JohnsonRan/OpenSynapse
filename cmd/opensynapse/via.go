@@ -34,6 +34,14 @@ func (h *viaHub) rescan() error {
 	if err != nil {
 		return err
 	}
+	for _, d := range found {
+		cfgMu.Lock()
+		name := cfg.ViaModels[d.ID]
+		cfgMu.Unlock()
+		if name != "" {
+			d.Use(name)
+		}
+	}
 	h.mu.Lock()
 	old := h.devs
 	h.devs = found
@@ -66,6 +74,10 @@ func (h *viaHub) infos() []DeviceInfo {
 	}
 	return out
 }
+
+// viaFamily keys a keyboard's macro bindings: by USB IDs, which stay when
+// the user picks another of the models sharing them.
+func viaFamily(d *via.Device) string { return "via:" + d.ID }
 
 // Via controls QMK keyboards with VIA.
 type Via struct{}
@@ -148,7 +160,12 @@ func (Via) State(id string) (KeyboardState, error) {
 	if err != nil {
 		return KeyboardState{}, err
 	}
-	st := KeyboardState{Effects: []leobog.Effect{}, MaxLevel: viaMaxLevel}
+	st := KeyboardState{Effects: []leobog.Effect{}, MaxLevel: viaMaxLevel, Model: d.Name}
+	if len(d.Variants) > 1 {
+		for _, m := range d.Variants {
+			st.Models = append(st.Models, m.Name)
+		}
+	}
 	if !d.HasLighting() {
 		return st, nil
 	}
@@ -176,6 +193,24 @@ func (Via) SetLighting(id string, l leobog.Lighting) error {
 	}
 	h, s := rgbToHS(l.Color)
 	return d.SetLighting(via.State{Effect: l.Effect, Brightness: fromLevel(d.Light.Brightness, l.Brightness), Speed: fromLevel(d.Light.Speed, l.Speed), Hue: h, Sat: s})
+}
+
+// SetModel makes the keyboard another of the models sharing its USB IDs.
+func (Via) SetModel(id, name string) error {
+	d, err := viaKeyboards.get(id)
+	if err != nil {
+		return err
+	}
+	if !d.Use(name) {
+		return errors.New("unknown model")
+	}
+	cfgMu.Lock()
+	if cfg.ViaModels == nil {
+		cfg.ViaModels = map[string]string{}
+	}
+	cfg.ViaModels[id] = name
+	cfgMu.Unlock()
+	return saveConfig()
 }
 
 // KeyColors: VIA keyboards have no per-key colors.
@@ -293,7 +328,7 @@ func (Via) Keys(id string) (KeyboardKeys, error) {
 				}
 				act = viaKeyAction(maps[l][i], def)
 			}
-			if j := slices.IndexFunc(bs, func(b Binding) bool { return b.Family == d.Name && b.Button == i && b.Layer == l }); j >= 0 {
+			if j := slices.IndexFunc(bs, func(b Binding) bool { return b.Family == viaFamily(d) && b.Button == i && b.Layer == l }); j >= 0 {
 				act = ButtonAction{Kind: "macro", Macro: bs[j].Macro}
 			}
 			*dst = append(*dst, act)
@@ -339,7 +374,7 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 	}
 	find := func() int {
-		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name && b.Button == index && b.Layer == layer })
+		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == viaFamily(d) && b.Button == index && b.Layer == layer })
 	}
 	var code uint16
 	switch act.Kind {
@@ -354,7 +389,7 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 			cfg.Bindings[i].Macro = act.Macro
 			trig = cfg.Bindings[i].Trigger
 		} else if trig = freeTrigger(cfg.Bindings); trig != 0 {
-			cfg.Bindings = append(cfg.Bindings, Binding{Family: d.Name, Button: index, Layer: layer, Macro: act.Macro, Trigger: trig})
+			cfg.Bindings = append(cfg.Bindings, Binding{Family: viaFamily(d), Button: index, Layer: layer, Macro: act.Macro, Trigger: trig})
 		} else {
 			cfgMu.Unlock()
 			return errors.New(tr("err.noTrigger", numTriggers))
@@ -401,7 +436,7 @@ func (Via) ResetKeys(id string) error {
 		return err
 	}
 	cfgMu.Lock()
-	cfg.Bindings = slices.DeleteFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name })
+	cfg.Bindings = slices.DeleteFunc(cfg.Bindings, func(b Binding) bool { return b.Family == viaFamily(d) })
 	delete(cfg.ViaKeys, d.ID)
 	cfgMu.Unlock()
 	refreshHooks()
@@ -417,7 +452,7 @@ func syncViaBindings(restore bool) {
 	for _, d := range viaKeyboards.list() {
 		for _, b := range bs {
 			k, ok := viaKey(d, b.Button)
-			if b.Family != d.Name || !ok || b.Layer >= viaLayers(d) {
+			if b.Family != viaFamily(d) || !ok || b.Layer >= viaLayers(d) {
 				continue
 			}
 			want := triggerCode(b.Trigger)

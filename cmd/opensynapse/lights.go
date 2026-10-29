@@ -136,11 +136,18 @@ func (Lights) Details(id string) (DeviceDetails, error) { return DeviceDetails{}
 
 type evisionKB struct{ *evision.Device }
 
+// scanEVision leaves keyboards VIA drives alone: EVision chips also run
+// VIA firmware (the Rainy 75), which then sets more than the lighting.
+// The VIA keyboards are scanned first.
 func scanEVision() ([]lightKeyboard, error) {
 	ds, err := evision.Scan()
-	out := make([]lightKeyboard, len(ds))
-	for i, d := range ds {
-		out[i] = evisionKB{d}
+	var out []lightKeyboard
+	for _, d := range ds {
+		if _, viaErr := viaKeyboards.get(d.ID); viaErr == nil {
+			d.Close()
+			continue
+		}
+		out = append(out, evisionKB{d})
 	}
 	return out, err
 }

@@ -52,7 +52,7 @@ func (Settings) Import() (bool, error) {
 	applyBindingsLocked(true)
 	cfgMu.Lock()
 	next.Keyboards = cfg.Keyboards // what the keyboards here hold, not the other PC's
-	next.ViaKeys = cfg.ViaKeys
+	next.ViaKeys, next.ViaModels = cfg.ViaKeys, cfg.ViaModels
 	cfg = next
 	cfgMu.Unlock()
 	bindMu.Unlock()

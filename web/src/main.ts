@@ -288,6 +288,7 @@ events.devicesChanged.on((next) => {
 
 async function openDevice(d: DeviceInfo) {
   dev = d;
+  $("#dev-model").hidden = true;
   state = undefined;
   if (d.category === "audio") return openAudio(d);
   if (isKeyboard(d)) return openKeyboard(d);
@@ -827,6 +828,20 @@ async function loadKeyboard(id: string) {
   $("#kb-factory").hidden = dev.driver !== "leobog";
   $("#kb-music-card").hidden = !st.perKey;
   $("#kb-colorful-label").hidden = !st.colorful;
+  // Keyboards sharing USB IDs: the user tells which one this is.
+  const model = $<HTMLSelectElement>("#dev-model");
+  model.hidden = !st.models?.length;
+  model.innerHTML = (st.models ?? []).map((m) => option(esc(m), esc(m), m === st.model)).join("");
+  model.onchange = async () => {
+    if (!(await attempt(() => Via.setModel(id, model.value)))) return;
+    $("#dev-name").textContent = model.value;
+    kbSel = -1;
+    loadKeyboard(id);
+  };
+  // A keyboard without lighting controls opens on its keys.
+  const lit = st.effects.length > 0;
+  document.querySelector<HTMLElement>('.tab[data-tab="kblight"]')!.hidden = !lit;
+  if (!lit && kbKeys.remap && !$("#tab-kblight").hidden) showTab("kbkeys");
   document.querySelector<HTMLElement>("#tab-kbkeys .info")!.title = t(dev.driver === "via" ? "kb.keysMoreVia" : "kb.keysMore");
   renderKeyboard();
   renderKbKeys();

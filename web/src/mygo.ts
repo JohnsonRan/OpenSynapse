@@ -246,6 +246,12 @@ export interface KeyboardState {
    */
   colorful: boolean;
   perKey: boolean;
+  /**
+   * Models: the models sharing the keyboard's USB IDs when it cannot tell
+   * which it is, to pick from; Model is the one taken.
+   */
+  models?: string[];
+  model?: string;
   /** The key layout, for scenes that highlight keys (Effects only). */
   keys?: Key[];
   width?: number;
@@ -658,6 +664,10 @@ export const Via = {
   /** SetLighting sets and stores the keyboard's lighting. */
   setLighting(id: string, l: LeobogLighting): Promise<void> {
     return call("Via.SetLighting", id, l);
+  },
+  /** SetModel makes the keyboard another of the models sharing its USB IDs. */
+  setModel(id: string, name: string): Promise<void> {
+    return call("Via.SetModel", id, name);
   },
   /** State reads the keyboard's lighting. */
   state(id: string): Promise<KeyboardState> {
