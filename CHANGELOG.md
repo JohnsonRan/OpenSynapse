@@ -4,6 +4,32 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.8.0
+
+### 简体中文
+
+- 更多键盘: 与 Hi75 同方案的约 110 款键盘 (LEOBOG、AULA、Redragon、YUNZII、机械师等) 可调灯效、逐键颜色和音乐律动
+- QMK / VIA 键盘: 支持 VIA 键盘列表中的 2,029 款 (包括 Keychron) 以及 WOBKEY Rainy 75，可在普通层和 Fn 层改键、绑定宏，并调整灯效、亮度、速度和颜色；多款键盘共用同一 USB ID 时，可在设备名称旁选择型号
+- EVision 键盘: Redragon、AJAZZ、VGN、MageGee 等使用 EVision 方案的键盘可调灯效、亮度、速度和颜色
+- 抢先体验: 以上新增键盘均尚未经过真机测试，欢迎反馈使用情况
+- 其他: 基于 MyGo 0.7.3，检查更新时遵循系统代理，切换 DPI 提示和自动检查更新时会弹出提示；含 VIA 键盘数据的发布版本以 GPL-3.0 分发
+
+### English
+
+- More keyboards: about 110 keyboards on the Hi75's firmware, from LEOBOG, AULA, Redragon, YUNZII, Machenike and others, get lighting effects, per-key colors and music lighting
+- QMK and VIA keyboards: the 2,029 models in VIA's list, Keychron's among them, and the WOBKEY Rainy 75 can have keys remapped and macros bound on the normal and Fn layers, plus their effect, brightness, speed and color set; when several models share USB IDs, pick yours next to the keyboard's name
+- EVision keyboards: Redragon, AJAZZ, VGN, MageGee and other keyboards on EVision firmware get their effect, brightness, speed and color
+- Early access: none of these new keyboards has been tested on real hardware yet, so reports are very welcome
+- Also: built on MyGo 0.7.3, update checks follow the system proxy, the DPI display and update-check switches confirm with a notice, and releases that include VIA's keyboard data are distributed under GPL-3.0
+
+### 日本語
+
+- 対応キーボードの追加: Hi75 と同じファームウェアを使う約 110 機種 (LEOBOG、AULA、Redragon、YUNZII、Machenike など) で、ライティング エフェクト、キーごとの色、音楽ライティングを設定できます
+- QMK / VIA キーボード: VIA のキーボード一覧にある 2,029 機種 (Keychron を含む) と WOBKEY Rainy 75 で、通常レイヤーと Fn レイヤーのキーの割り当て変更やマクロの割り当て、エフェクト、明るさ、速度、色の設定ができます。複数のモデルが同じ USB ID を使う場合は、キーボード名の横でモデルを選択できます
+- EVision キーボード: Redragon、AJAZZ、VGN、MageGee など EVision ファームウェアのキーボードで、エフェクト、明るさ、速度、色を設定できます
+- 先行公開: 追加したキーボードはいずれも実機でのテストがまだです。ぜひ使用感をお知らせください
+- そのほか: MyGo 0.7.3 を採用し、更新の確認でシステムのプロキシ設定を使うようになりました。DPI の表示と更新の自動確認を切り替えると通知が表示されます。VIA のキーボード データを含むリリースは GPL-3.0 で配布します
+
 ## 0.7.0
 
 ### 简体中文
