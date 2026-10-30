@@ -1,6 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"os"
+	"slices"
 	"testing"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
@@ -76,6 +80,10 @@ func (p *fakeViaPort) Replies() <-chan []byte { return p.in }
 func (p *fakeViaPort) Close()                 {}
 
 func TestViaModelsAndUnsure(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	saved := cfg
+	defer func() { cfg = saved }()
+
 	m1 := &via.Model{Name: "Model 1", Rows: 5, Cols: 15}
 	m2 := &via.Model{Name: "Model 2", Rows: 5, Cols: 15}
 	p := &fakeViaPort{in: make(chan []byte)}
@@ -115,6 +123,10 @@ func TestViaModelsAndUnsure(t *testing.T) {
 }
 
 func TestRememberOriginal(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	saved := cfg
+	defer func() { cfg = saved }()
+
 	cfgMu.Lock()
 	cfg.ViaKeys = nil
 	cfgMu.Unlock()
@@ -128,5 +140,79 @@ func TestRememberOriginal(t *testing.T) {
 	orig, ok := viaOriginal("dev1", 0, 1)
 	if !ok || orig != 0x0004 {
 		t.Fatalf("got %04x, %v", orig, ok)
+	}
+}
+
+type failingSetKeyPort struct {
+	in chan []byte
+}
+
+func (p *failingSetKeyPort) Send(r []byte) error {
+	if len(r) > 0 && r[0] == 0x04 { // cmdGetKeycode
+		a := append([]byte(nil), r...)
+		a[4], a[5] = 0x00, 0x04 // keycode 0x0004
+		p.in <- a
+		return nil
+	}
+	if len(r) > 0 && r[0] == 0x05 { // cmdSetKeycode
+		return errors.New("hardware write failed")
+	}
+	return nil
+}
+
+func (p *failingSetKeyPort) Replies() <-chan []byte { return p.in }
+func (p *failingSetKeyPort) Close()                 {}
+
+func TestViaSetKeyMacroFailureRollback(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	saved := cfg
+	defer func() { cfg = saved }()
+
+	cfgMu.Lock()
+	cfg = config{
+		Macros: []Macro{{ID: "macro1", Name: "Macro 1"}},
+	}
+	cfgMu.Unlock()
+
+	m := &via.Model{Name: "Model 1", Rows: 5, Cols: 15, Keys: []via.Key{{Row: 0, Col: 0}}}
+	p := &failingSetKeyPort{in: make(chan []byte, 4)}
+	d := via.NewDevice(m, p)
+	d.ID = "test:device"
+	d.Layers = 4
+
+	viaKeyboards.mu.Lock()
+	viaKeyboards.devs = []*via.Device{d}
+	viaKeyboards.mu.Unlock()
+	t.Cleanup(func() {
+		viaKeyboards.mu.Lock()
+		viaKeyboards.devs = nil
+		viaKeyboards.mu.Unlock()
+	})
+
+	err := (Via{}).SetKey(d.ID, 0, 0, ButtonAction{Kind: "macro", Macro: "macro1"})
+	if err == nil {
+		t.Fatal("expected SetKey to fail when SetKeycode fails")
+	}
+
+	cfgMu.Lock()
+	memBindings := slices.Clone(cfg.Bindings)
+	cfgMu.Unlock()
+	if len(memBindings) != 0 {
+		t.Fatalf("memory bindings not rolled back: %+v", memBindings)
+	}
+
+	b, err := os.ReadFile(configPath())
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+	var diskCfg config
+	if err := json.Unmarshal(b, &diskCfg); err != nil {
+		t.Fatalf("unmarshal disk config: %v", err)
+	}
+	if len(diskCfg.Bindings) != 0 {
+		t.Fatalf("disk bindings not rolled back: %+v", diskCfg.Bindings)
+	}
+	if orig, ok := diskCfg.ViaKeys[d.ID]["0:0"]; !ok || orig != 0x0004 {
+		t.Fatalf("expected captured original on disk, got %04x (ok=%v)", orig, ok)
 	}
 }

@@ -820,7 +820,8 @@ async function loadKeyboard(id: string) {
       if (dev?.id !== id) return;
       const model = $<HTMLSelectElement>("#dev-model");
       model.hidden = !vm.models?.length;
-      model.innerHTML = (vm.models ?? []).map((m) => option(esc(m), esc(m), m === vm.model)).join("");
+      const placeholder = vm.unsure ? `<option value="" disabled selected>${t("kb.pickModel")}</option>` : "";
+      model.innerHTML = placeholder + (vm.models ?? []).map((m) => option(esc(m), esc(m), !vm.unsure && m === vm.model)).join("");
       model.onchange = async () => {
         if (!(await attempt(() => Via.setModel(id, model.value)))) return;
         $("#dev-name").textContent = model.value;

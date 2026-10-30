@@ -444,37 +444,27 @@ func (Via) SetKey(id string, layer, index int, act ButtonAction) error {
 			cfgMu.Unlock()
 			return errors.New(tr("err.macroMissing"))
 		}
-		oldIdx := find()
-		var oldBinding Binding
+		// The binding is committed only once the key sends its trigger, so a
+		// failed write leaves nothing behind, in memory or on disk.
 		trig := 0
-		if oldIdx >= 0 {
-			oldBinding = cfg.Bindings[oldIdx]
-			cfg.Bindings[oldIdx].Macro = act.Macro
-			trig = cfg.Bindings[oldIdx].Trigger
-		} else if trig = freeTrigger(cfg.Bindings); trig != 0 {
-			cfg.Bindings = append(cfg.Bindings, Binding{Family: viaFamily(d), Button: index, Layer: layer, Macro: act.Macro, Trigger: trig})
-		} else {
+		if i := find(); i >= 0 {
+			trig = cfg.Bindings[i].Trigger
+		} else if trig = freeTrigger(cfg.Bindings); trig == 0 {
 			cfgMu.Unlock()
 			return errors.New(tr("err.noTrigger", numTriggers))
 		}
 		cfgMu.Unlock()
-		code = triggerCode(trig)
-		refreshHooks()
-		if err := setViaKey(d, layer, k, code); err != nil {
-			cfgMu.Lock()
-			if oldIdx >= 0 {
-				if cur := find(); cur >= 0 {
-					cfg.Bindings[cur] = oldBinding
-				}
-			} else {
-				if cur := find(); cur >= 0 {
-					cfg.Bindings = slices.Delete(cfg.Bindings, cur, cur+1)
-				}
-			}
-			cfgMu.Unlock()
-			refreshHooks()
+		if err := setViaKey(d, layer, k, triggerCode(trig)); err != nil {
 			return err
 		}
+		cfgMu.Lock()
+		if i := find(); i >= 0 {
+			cfg.Bindings[i].Macro = act.Macro
+		} else {
+			cfg.Bindings = append(cfg.Bindings, Binding{Family: viaFamily(d), Button: index, Layer: layer, Macro: act.Macro, Trigger: trig})
+		}
+		cfgMu.Unlock()
+		refreshHooks()
 		return saveConfig()
 	case "default":
 		orig, ok := viaOriginal(d.ID, layer, index)
