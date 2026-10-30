@@ -81,8 +81,8 @@ var Models = sync.OnceValue(func() map[[2]uint16][]*Model {
 })
 
 // Pick returns the best-matching model among those sharing USB IDs, and
-// whether the choice is unsure (several models share the IDs and none matched
-// the product name).
+// whether the choice is unsure (several models share the IDs and none or more
+// than one matched the product name best).
 func Pick(models []*Model, product string) (*Model, bool) {
 	words := func(s string) map[string]bool {
 		out := map[string]bool{}
@@ -94,7 +94,7 @@ func Pick(models []*Model, product string) (*Model, bool) {
 		return out
 	}
 	have := words(product)
-	best, score := models[0], 0
+	best, score, tied := models[0], 0, false
 	for _, m := range models {
 		n := 0
 		for w := range words(m.Name) {
@@ -103,8 +103,10 @@ func Pick(models []*Model, product string) (*Model, bool) {
 			}
 		}
 		if n > score {
-			best, score = m, n
+			best, score, tied = m, n, false
+		} else if n > 0 && n == score {
+			tied = true
 		}
 	}
-	return best, len(models) > 1 && score == 0
+	return best, len(models) > 1 && (score == 0 || tied)
 }

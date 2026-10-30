@@ -146,7 +146,7 @@ func TestPick(t *testing.T) {
 	if m, unsure := Pick(rainy, "Rainy 75 Lite 2.4G"); m.Name != "WOBKEY Rainy 75 Lite (2.4G)" || unsure {
 		t.Fatalf("picked %s, unsure %v", m.Name, unsure)
 	}
-	if m, unsure := Pick(rainy, "2.4G Receiver"); m.Name == "GMMK Numpad" || unsure {
+	if m, unsure := Pick(rainy, "2.4G Receiver"); m.Name == "GMMK Numpad" || !unsure {
 		t.Fatalf("picked %s, unsure %v", m.Name, unsure)
 	}
 	if m, unsure := Pick(rainy, "USB Keyboard"); m != rainy[0] || !unsure {
@@ -181,18 +181,27 @@ func TestClosedReply(t *testing.T) {
 	}
 }
 
+type staleReplyPort struct {
+	*fakeKeyboard
+}
+
+func (p *staleReplyPort) Send(r []byte) error {
+	if r[0] == cmdGetKeycode {
+		stale := make([]byte, ReportLen)
+		stale[0], stale[1], stale[2], stale[3] = cmdGetKeycode, 0, 0, 0
+		stale[4], stale[5] = 0x11, 0x11
+		p.fakeKeyboard.in <- stale
+	}
+	return p.fakeKeyboard.Send(r)
+}
+
 func TestStaleReply(t *testing.T) {
 	f := newFake(t, model, 4)
-	d := NewDevice(model, f)
+	p := &staleReplyPort{fakeKeyboard: f}
+	d := NewDevice(model, p)
 	if err := d.open(); err != nil {
 		t.Fatal(err)
 	}
-	// Stale answer for (0, 0, 0) queued before request for (0, 0, 1).
-	stale := make([]byte, ReportLen)
-	stale[0], stale[1], stale[2], stale[3] = cmdGetKeycode, 0, 0, 0
-	stale[4], stale[5] = 0x11, 0x11
-	f.in <- stale
-
 	i := 2 * ((0*model.Rows+0)*model.Cols + 1)
 	f.keymap[i], f.keymap[i+1] = 0x22, 0x22
 
