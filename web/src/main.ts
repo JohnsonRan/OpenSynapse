@@ -2117,7 +2117,10 @@ function renderAbout(a: AppInfo) {
 
 const loadAbout = () => Settings.app().then(renderAbout).catch(() => {});
 events.aboutChanged.on(renderAbout);
-$<HTMLInputElement>("#auto-update").onchange = (e) => attempt(() => Settings.setAutoUpdate((e.target as HTMLInputElement).checked));
+$<HTMLInputElement>("#auto-update").onchange = (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  attempt(() => Settings.setAutoUpdate(on), t(on ? "update.autoOn" : "update.autoOff"));
+};
 $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); // MyGo's update window shows the result
 // The name openrazer in the credits links to the project.
 {
@@ -2130,7 +2133,10 @@ $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); //
 document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
 
 Settings.dpiDisplay().then((on) => ($<HTMLInputElement>("#dpi-display").checked = on));
-$<HTMLInputElement>("#dpi-display").onchange = (e) => attempt(() => Settings.setDPIDisplay((e.target as HTMLInputElement).checked));
+$<HTMLInputElement>("#dpi-display").onchange = (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  attempt(() => Settings.setDPIDisplay(on), t(on ? "settings.dpiDisplayOn" : "settings.dpiDisplayOff"));
+};
 $("#export").onclick = () => attempt(async () => (await Settings.export()) && toast(t("backup.exported")));
 // Everything on the page may change: reload it.
 $("#import").onclick = () => attempt(async () => (await Settings.import()) && location.reload());
