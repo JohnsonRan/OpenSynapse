@@ -82,6 +82,28 @@ async function attempt(fn: () => Promise<unknown>, ok?: string) {
   }
 }
 
+// confirmed guards an irreversible action: the first click arms the button and
+// shows text saying what a second click does; a second click within 4 s
+// returns true. One button is armed at a time, and showing another page, tab
+// or device disarms it, so a click never confirms an action armed elsewhere.
+let armed: { b: HTMLElement; label: string; timer: number } | undefined;
+function disarm() {
+  if (!armed) return;
+  clearTimeout(armed.timer);
+  armed.b.textContent = armed.label;
+  armed.b.classList.remove("armed");
+  armed = undefined;
+}
+function confirmed(b: HTMLElement, text: string) {
+  const again = armed?.b === b;
+  disarm();
+  if (again) return true;
+  armed = { b, label: b.textContent ?? "", timer: window.setTimeout(disarm, 4000) };
+  b.textContent = text;
+  b.classList.add("armed");
+  return false;
+}
+
 function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number) {
   let t = 0;
   return (...a: A) => {
@@ -127,6 +149,7 @@ document.addEventListener(
 
 function showView(name: string) {
   stopCapture();
+  disarm();
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
   const rail = name === "device" ? "devices" : name;
@@ -160,6 +183,7 @@ $("#back").onclick = () => {
 
 function showTab(name: string) {
   stopCapture();
+  disarm();
   document.querySelectorAll<HTMLElement>(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
   document.querySelectorAll<HTMLElement>(".tab-body").forEach((v) => (v.hidden = v.id !== `tab-${name}`));
 }
@@ -1015,18 +1039,9 @@ function renderKbKeys() {
   };
 }
 
-// Factory reset takes a second click within 4 s.
-let factoryArmed = 0;
 $("#kb-factory").onclick = async () => {
   const b = $("#kb-factory");
-  if (!factoryArmed) {
-    b.textContent = t("kb.factoryConfirm");
-    factoryArmed = window.setTimeout(() => ((factoryArmed = 0), (b.textContent = t("kb.factory"))), 4000);
-    return;
-  }
-  clearTimeout(factoryArmed);
-  factoryArmed = 0;
-  if (!dev) return;
+  if (!confirmed(b, t("kb.factoryConfirm")) || !dev) return;
   const id = dev.id;
   // The reset takes a few seconds while the keyboard stores it; the page waits,
   // until it shows the reset settings: an edit before would send the old ones back.
@@ -1044,7 +1059,7 @@ $("#kb-factory").onclick = async () => {
 };
 
 $("#kb-keys-reset").onclick = async () => {
-  if (!dev || !kbKeys) return;
+  if (!dev || !kbKeys || !confirmed($("#kb-keys-reset"), t("confirm.resetKeys"))) return;
   if (!(await attempt(() => kbApi().resetKeys(dev!.id), t("buttons.saved")))) return;
   kbSel = -1;
   loadKeyboard(dev.id);
@@ -1251,6 +1266,7 @@ function renderPresets() {
 $<HTMLSelectElement>("#eq-preset").onchange = (e) => {
   const v = (e.target as HTMLSelectElement).value;
   const p = presetEQ(v);
+  disarm(); // Delete was armed for the preset shown before
   if (!audio || !p) return;
   chosenPreset = v;
   audio.eq = structuredClone(p);
@@ -1284,7 +1300,7 @@ presetName.onkeydown = (e) => {
 };
 $("#eq-preset-delete").onclick = async () => {
   const v = $<HTMLSelectElement>("#eq-preset").value;
-  if (!v.startsWith("u:")) return;
+  if (!v.startsWith("u:") || !confirmed($("#eq-preset-delete"), t("confirm.delete"))) return;
   const name = v.slice(2);
   if (!(await attempt(() => Audio.deletePreset(name), t("eq.deleted", { name })))) return;
   userPresets = userPresets.filter((p) => p.name !== name);
@@ -1464,6 +1480,7 @@ function renderMacroList() {
 
 function renderMacro() {
   stopCapture(); // a key being added belongs to the macro shown before
+  disarm(); // and so does an armed Delete
   $("#macro-edit").hidden = !macro;
   if (!macro) return;
   const m = macro;
@@ -1593,7 +1610,7 @@ $("#add-macro").onclick = () => {
 
 $("#macro-delete").onclick = () => {
   const m = macro;
-  if (!m || recording) return;
+  if (!m || recording || !confirmed($("#macro-delete"), t("confirm.delete"))) return;
   deletedMacros.add(m);
   attempt(async () => {
     await macroSaves.get(m);
@@ -1862,7 +1879,8 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
     const name = q<HTMLInputElement>(".scene-name");
     name.value = s.name;
     name.onchange = () => ((s.name = name.value.trim() || s.name), (name.value = s.name), changed());
-    q<HTMLButtonElement>(".x").onclick = onDelete!;
+    const del = q<HTMLButtonElement>(".x");
+    del.onclick = () => confirmed(del, t("confirm.delete")) && onDelete!();
   }
   const dpi = q<HTMLInputElement>(".dpi");
   dpi.value = s.dpi ? String(s.dpi) : "";
@@ -2182,7 +2200,7 @@ $<HTMLInputElement>("#dpi-display").onchange = (e) => {
 };
 $("#export").onclick = () => attempt(async () => (await Settings.export()) && toast(t("backup.exported")));
 // Everything on the page may change: reload it.
-$("#import").onclick = () => attempt(async () => (await Settings.import()) && location.reload());
+$("#import").onclick = () => confirmed($("#import"), t("confirm.import")) && attempt(async () => (await Settings.import()) && location.reload());
 
 const glassSwitch = $<HTMLInputElement>("#glass");
 glassSwitch.checked = glass.on;

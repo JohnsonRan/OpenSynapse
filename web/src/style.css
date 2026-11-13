@@ -1150,7 +1150,7 @@ h3 {
 
 .macro-top {
   display: grid;
-  grid-template-columns: 1fr 36px;
+  grid-template-columns: 1fr minmax(36px, auto);
   gap: 8px;
 }
 
@@ -1752,6 +1752,20 @@ input::placeholder {
 
 .ghost.danger {
   color: var(--danger);
+}
+
+/* An irreversible action waiting for its second click (confirmed in main.ts).
+   An icon button widens to show what the second click does. */
+button.ghost.armed,
+button.ghost.armed:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button.ghost.x.armed {
+  width: auto;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 /* A page waiting on the device, e.g. during a factory reset. */
