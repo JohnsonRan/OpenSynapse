@@ -270,7 +270,15 @@ func (Via) SetModel(id, name string) error {
 // They are kept by matrix index, row*Cols+col: on a model with another matrix
 // width an index is another key, or none, and the key the app changed would
 // keep its trigger with nothing left to restore it.
+//
+// A keyboard that is unsure shows a guessed model, which says nothing about
+// where its changed keys are, and its keys cannot be reset before a model is
+// picked. The pick goes through: refusing it would leave no way out, and
+// with a model picked the Keys tab can restore the defaults.
 func changedKeysFit(d, next *via.Device) bool {
+	if d.Unsure {
+		return true
+	}
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
 	var changed []int

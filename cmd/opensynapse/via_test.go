@@ -186,6 +186,22 @@ func TestViaSetModelKeepsChangedKeysInPlace(t *testing.T) {
 	if err := (Via{}).SetModel(d.ID, "Wide"); err != nil || model() != "Wide" {
 		t.Fatalf("without changed keys: %v, model %s", err, model())
 	}
+
+	// A keyboard with changed keys whose picked model is not known any more:
+	// the model it shows is a guess, and the keys cannot be reset before a
+	// model is picked. Refusing the pick as well would leave no way out.
+	unsure := via.NewDevice(numpad, &fakeViaPort{in: make(chan []byte)})
+	unsure.ID, unsure.Variants, unsure.Unsure = d.ID, d.Variants, true
+	viaKeyboards.mu.Lock()
+	viaKeyboards.devs = []*via.Device{unsure}
+	viaKeyboards.mu.Unlock()
+	set([]Binding{{Family: viaFamily(d), Button: index, Trigger: firstTrigger}}, nil)
+	if err := (Via{}).ResetKeys(d.ID); err == nil || err.Error() != tr("err.pickModel") {
+		t.Fatalf("ResetKeys before a model is picked: %v", err)
+	}
+	if err := (Via{}).SetModel(d.ID, "Wide"); err != nil || model() != "Wide" {
+		t.Fatalf("picking a model for a keyboard that had none: %v, model %s", err, model())
+	}
 }
 
 func TestRememberOriginal(t *testing.T) {
