@@ -9,7 +9,7 @@ OpenSynapse is not affiliated with Razer Inc.
 ## Why OpenSynapse
 
 - **Light on your PC.** In the background, OpenSynapse is a single small process that uses about 20–30 MB of memory. The settings window is loaded only while it's open, and closing it frees all of its memory.
-- **No account, no cloud.** Everything stays on your PC. OpenSynapse doesn't connect to the internet.
+- **No account, no cloud.** Everything stays on your PC. The only connection OpenSynapse makes is the update check against its GitHub releases; turn off **Check for updates automatically** on the **About** page to stop the background checks.
 - **Adapts to what you're doing.** Raise the polling rate when a game starts, switch DPI and lighting for specific programs, and go back to your usual settings afterward.
 
 > [!IMPORTANT]
