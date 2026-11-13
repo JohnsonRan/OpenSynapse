@@ -101,10 +101,12 @@ func watchDPI() {
 	for _, d := range devices.list() {
 		if d.Category == "mouse" {
 			razer.WatchDPI(d.PID, dpiWatch.stop, func(s razer.DPIStage) {
-				if osdOn() {
-					showDPI(s)
-				}
-				deviceUpdated(d.ID)
+				guard("DPI display", func() {
+					if osdOn() {
+						showDPI(s)
+					}
+					deviceUpdated(d.ID)
+				})
 			})
 		}
 	}

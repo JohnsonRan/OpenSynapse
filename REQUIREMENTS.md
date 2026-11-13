@@ -143,7 +143,7 @@ after a release.
 
 | Option or finding | Source | Why it waits |
 | --- | --- | --- |
-| No background job recovers from a panic | code survey, 2026-11-14 | Medium; no panic is known since invalid scenes are dropped at load; the wrapper touches every job |
+| A panic contained in a background job is only logged, the page gets no notice; the input hook callbacks, callbacks on the main thread and the goroutines in `internal/` are not contained | code survey, 2026-11-14 | Low; no panic is known; a notice needs a new Go event, which changes the bindings and the page |
 | A `razer.Device` from an older scan reopens a HID handle that nothing closes; the Razer hub has no `scanMu` | code survey, 2026-11-14 | Low to medium; a handle per stale round |
 | Music lighting spins at 100 Hz without frames after `AUDCLNT_E_DEVICE_INVALIDATED` (`winaudio/loopback_windows.go`) | code survey, 2026-11-14 | Low to medium; the invalidation is from the WASAPI docs, not seen on hardware |
 | Backup import accepts a binding on the left button and duplicate triggers; import forgets the bindings of a mouse that is asleep | code survey, 2026-11-14 | Low; needs a hand-made backup |

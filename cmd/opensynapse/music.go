@@ -56,9 +56,15 @@ func runMusic() {
 			<-musicKick
 			continue
 		}
-		playMusic()
+		if !guard("music lighting", playMusic) {
+			time.Sleep(captureRetry)
+		}
 	}
 }
+
+// captureRetry is how long music lighting waits before it listens again after
+// a failure: a playback device that went away does not come back sooner.
+const captureRetry = 2 * time.Second
 
 // playMusic draws the sound until no keyboard has a music effect.
 func playMusic() {
@@ -69,11 +75,14 @@ func playMusic() {
 	go func() {
 		defer close(done)
 		for {
-			err := winaudio.Loopback(stop, func(mono []float32, rate int) {
-				mu.Lock()
-				an.Add(mono, rate)
-				fresh = true
-				mu.Unlock()
+			var err error
+			ok := guard("music capture", func() {
+				err = winaudio.Loopback(stop, func(mono []float32, rate int) {
+					mu.Lock()
+					defer mu.Unlock() // a panic must not leave the painter waiting on mu
+					an.Add(mono, rate)
+					fresh = true
+				})
 			})
 			select {
 			case <-stop:
@@ -82,14 +91,26 @@ func playMusic() {
 			}
 			if err != nil {
 				log.Println("music lighting:", err)
+			}
+			if err != nil || !ok {
 				select { // no playback device, or it went away: try again
 				case <-stop:
 					return
-				case <-time.After(2 * time.Second):
+				case <-time.After(captureRetry):
 				}
 			}
 		}
 	}()
+	// levels takes what the capture analyzed since the last frame, if anything.
+	levels := func() (lightshow.Levels, bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		if !fresh {
+			return lightshow.Levels{}, false
+		}
+		fresh = false
+		return an.Levels(), true
+	}
 	defer func() { close(stop); <-done }()
 	t := time.NewTicker(frameEvery)
 	defer t.Stop()
@@ -105,15 +126,8 @@ func playMusic() {
 		if len(kbs) == 0 {
 			return
 		}
-		mu.Lock()
-		if !fresh {
-			mu.Unlock()
-			continue
-		}
-		fresh = false
-		l := an.Levels()
-		mu.Unlock()
-		if noticeShowing() {
+		l, ok := levels()
+		if !ok || noticeShowing() {
 			continue
 		}
 		if l.Loud > 0.02 || l.Bass > 0.02 {

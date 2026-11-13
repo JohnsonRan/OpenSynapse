@@ -108,7 +108,7 @@ var (
 // runBattery refreshes the tray every 2 minutes.
 func runBattery() {
 	for ; ; time.Sleep(2 * time.Minute) {
-		refreshTray()
+		guard("battery", refreshTray)
 	}
 }
 

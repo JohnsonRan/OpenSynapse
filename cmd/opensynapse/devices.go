@@ -89,10 +89,10 @@ func deviceUpdated(id string) {
 func watchDevices() {
 	var last, lastRazer string
 	started := false
-	for ; ; time.Sleep(2 * time.Second) {
+	round := func() {
 		paths, err := razer.PresentPaths()
 		if err != nil {
-			continue
+			return
 		}
 		slices.Sort(paths)
 		razerKey := strings.Join(paths, "\n")
@@ -104,20 +104,20 @@ func watchDevices() {
 		slices.Sort(paths)
 		key := strings.Join(paths, "\n")
 		if key == last {
-			continue
+			return
 		}
 		last = key
 		razerChanged := razerKey != lastRazer
 		lastRazer = razerKey
 		if !started {
 			started = true
-			continue // main already scanned at startup
+			return // main already scanned at startup
 		}
 		// A device re-enumerates in stages; let it settle before probing it.
 		time.Sleep(time.Second)
 		if err := devices.rescan(); err != nil {
 			log.Println("rescan:", err)
-			continue
+			return
 		}
 		if err := dongles.rescan(); err != nil {
 			log.Println("rescan audio:", err)
@@ -138,10 +138,13 @@ func watchDevices() {
 		}
 		kickBindings()
 		watchDPI()
-		go refreshTray()
+		go guard("battery", refreshTray)
 		if w := currentWindow(); w != nil {
 			_ = DevicesChanged.Emit(w, Devices{}.List())
 		}
+	}
+	for ; ; time.Sleep(2 * time.Second) {
+		guard("device watch", round)
 	}
 }
 

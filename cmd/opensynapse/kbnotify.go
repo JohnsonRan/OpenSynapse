@@ -56,7 +56,7 @@ func flashKeyboards(n notice) {
 	flashing.busy = true
 	flashing.until = time.Now().Add(time.Duration(2*n.times) * flashStep)
 	flashing.Unlock()
-	go func() {
+	go guard("keyboard notice", func() {
 		defer func() { flashing.Lock(); flashing.busy = false; flashing.Unlock() }()
 		var on, off leobog.KeyColors
 		for i := range on {
@@ -73,7 +73,7 @@ func flashKeyboards(n notice) {
 			}
 			time.Sleep(flashStep)
 		}
-	}()
+	})
 }
 
 // SetNotices turns keyboard notices on or off for a keyboard.

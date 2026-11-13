@@ -193,7 +193,7 @@ func onTriggerKey(vk int, down bool) bool {
 		stop = make(chan struct{})
 		playing[vk] = stop
 		go func() {
-			play(m, stop)
+			guard("macro "+m.Name, func() { play(m, stop) })
 			playMu.Lock()
 			if playing[vk] == stop {
 				delete(playing, vk)
@@ -459,7 +459,7 @@ func keepBindings() {
 	t := time.NewTicker(10 * time.Second)
 	defer t.Stop()
 	for {
-		applyBindings(false)
+		guard("macro bindings", func() { applyBindings(false) })
 		select {
 		case <-t.C:
 		case <-bindingsKick:

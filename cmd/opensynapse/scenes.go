@@ -238,95 +238,117 @@ func resetAuto() {
 	}
 }
 
+// auto is what runAuto keeps between its rounds.
+type auto struct {
+	gpu           gpuMeter
+	streak        gameStreak
+	scenes, rates switcher
+	// Processes recognized as games stay games while they run, so a loading
+	// screen or a windowed menu does not count as leaving the game.
+	games      map[uint32]string
+	shownScene int // the scene last applied, to notice a change but not the first one
+}
+
+func newAuto() *auto {
+	a := &auto{games: map[uint32]string{}, shownScene: noScene}
+	a.reset()
+	return a
+}
+
+// reset makes the next round re-evaluate from scratch, after a config change.
+// Recognized games stay: they name processes, not settings, and must not drop
+// to the desktop for a few seconds.
+func (a *auto) reset() {
+	a.scenes, a.rates = newSwitcher("scene"), newSwitcher("polling rate")
+}
+
 // runAuto drives smart polling and scenes from the foreground program.
 func runAuto() {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
-	var gpu gpuMeter
-	var streak gameStreak
-	scenes, rates := newSwitcher("scene"), newSwitcher("polling rate")
-	// Processes recognized as games stay games while they run, so a loading
-	// screen or a windowed menu does not count as leaving the game.
-	games := map[uint32]string{}
-	shownScene := noScene // the scene last applied, to notice a change but not the first one
+	a := newAuto()
 	for {
 		select {
 		case <-tick.C:
 		case <-autoReset:
-			// config changed: re-evaluate from scratch. Recognized games stay: they name
-			// processes, not settings, and must not drop to the desktop for a few seconds.
-			scenes, rates = newSwitcher("scene"), newSwitcher("polling rate")
+			a.reset()
 		}
-		cfgMu.Lock()
-		sc, sp := cfg.Scenes, cfg.Smart
-		cfgMu.Unlock()
-		if !sc.Enabled {
-			scenes = newSwitcher("scene")
-		}
-		if !sp.Enabled {
-			rates = newSwitcher("polling rate")
-		}
-		if !sc.Enabled {
-			applySceneAudio(nil)
-			applySceneKeyboards(nil)
-		}
-		if !sc.Enabled && !sp.Enabled {
-			gpu.close()
-			setTrayStatus(AutoStatus{Rate: -1})
-			continue
-		}
-		f := getForeground()
-		if f.exe == "" {
-			continue // lock screen, UAC prompt, protected process: keep the current settings
-		}
-		known := games[f.pid] == f.exe
-		needGame := sp.Enabled || sc.Enabled
-		load, decode := -1.0, -1.0
-		if needGame && f.fullscreen && !known && !notGames[f.exe] {
-			load, decode = gpu.usage(f.pid) // measured only for an unrecognized fullscreen app
-		} else {
-			gpu.close()
-		}
-		game := needGame && (known || streak.observe(f.pid, looksLikeGame(f.exe, f.fullscreen, load, decode)))
-		if game && !known {
-			if len(games) > 64 {
-				clear(games) // shortcut: forget old games wholesale; a pid reused by the same exe is the only cost
-			}
-			games[f.pid] = f.exe
-		}
-		devs := devices.list()
-		st := AutoStatus{Foreground: f.exe, Fullscreen: f.fullscreen, GPU: load, Game: game, Rate: -1}
-		if sc.Enabled {
-			idx, why := decideScene(sc, f.exe, game)
-			s := sc.scene(idx)
-			name := s.Name
-			switch idx {
-			case gameScene:
-				name = tr("scene.game")
-			case desktop:
-				name = tr("scene.desktop")
-			}
-			scenes.step(idx, devs, func(d *razer.Device) error { return applyScene(d, s) })
-			if scenes.deb.settled && scenes.deb.current == idx {
-				if shownScene != idx && shownScene != noScene {
-					flashKeyboards(noticeScene)
-				}
-				shownScene = idx
-				applySceneAudio(&s)
-				applySceneKeyboards(&s)
-			}
-			st.Scene, st.SceneWhy = name, why
-		}
-		if sp.Enabled {
-			hz, why := decideRate(sp, f.exe, game)
-			rates.step(hz, devs, func(d *razer.Device) error { return applyRate(d, hz) })
-			st.Rate, st.RateWhy = hz, why
-		}
-		autoMu.Lock()
-		autoStatus = st
-		autoMu.Unlock()
-		setTrayStatus(st)
+		guard("scenes and smart polling", a.round)
 	}
+}
+
+// round looks at the foreground program once and brings the devices to its
+// scene and polling rate.
+func (a *auto) round() {
+	cfgMu.Lock()
+	sc, sp := cfg.Scenes, cfg.Smart
+	cfgMu.Unlock()
+	if !sc.Enabled {
+		a.scenes = newSwitcher("scene")
+	}
+	if !sp.Enabled {
+		a.rates = newSwitcher("polling rate")
+	}
+	if !sc.Enabled {
+		applySceneAudio(nil)
+		applySceneKeyboards(nil)
+	}
+	if !sc.Enabled && !sp.Enabled {
+		a.gpu.close()
+		setTrayStatus(AutoStatus{Rate: -1})
+		return
+	}
+	f := getForeground()
+	if f.exe == "" {
+		return // lock screen, UAC prompt, protected process: keep the current settings
+	}
+	known := a.games[f.pid] == f.exe
+	needGame := sp.Enabled || sc.Enabled
+	load, decode := -1.0, -1.0
+	if needGame && f.fullscreen && !known && !notGames[f.exe] {
+		load, decode = a.gpu.usage(f.pid) // measured only for an unrecognized fullscreen app
+	} else {
+		a.gpu.close()
+	}
+	game := needGame && (known || a.streak.observe(f.pid, looksLikeGame(f.exe, f.fullscreen, load, decode)))
+	if game && !known {
+		if len(a.games) > 64 {
+			clear(a.games) // shortcut: forget old games wholesale; a pid reused by the same exe is the only cost
+		}
+		a.games[f.pid] = f.exe
+	}
+	devs := devices.list()
+	st := AutoStatus{Foreground: f.exe, Fullscreen: f.fullscreen, GPU: load, Game: game, Rate: -1}
+	if sc.Enabled {
+		idx, why := decideScene(sc, f.exe, game)
+		s := sc.scene(idx)
+		name := s.Name
+		switch idx {
+		case gameScene:
+			name = tr("scene.game")
+		case desktop:
+			name = tr("scene.desktop")
+		}
+		a.scenes.step(idx, devs, func(d *razer.Device) error { return applyScene(d, s) })
+		if a.scenes.deb.settled && a.scenes.deb.current == idx {
+			if a.shownScene != idx && a.shownScene != noScene {
+				flashKeyboards(noticeScene)
+			}
+			a.shownScene = idx
+			applySceneAudio(&s)
+			applySceneKeyboards(&s)
+		}
+		st.Scene, st.SceneWhy = name, why
+	}
+	if sp.Enabled {
+		hz, why := decideRate(sp, f.exe, game)
+		a.rates.step(hz, devs, func(d *razer.Device) error { return applyRate(d, hz) })
+		st.Rate, st.RateWhy = hz, why
+	}
+	autoMu.Lock()
+	autoStatus = st
+	autoMu.Unlock()
+	setTrayStatus(st)
 }
 
 // Scenes switches device settings by the foreground program.
