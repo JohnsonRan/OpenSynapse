@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"syscall"
 
 	"github.com/egoist/mygo"
 
@@ -121,8 +122,18 @@ func rotationError(id string, err error) error {
 	case errors.Is(err, razer.ErrNotKept):
 		log.Printf("rotation: %s read back another value than the one written", id)
 		return errors.New(tr("err.rotationKept"))
-	case !errors.Is(err, razer.ErrNoAnswer): // a sleeping mouse is expected
+	case !rotationExpected(err):
 		log.Printf("rotation: %s: %v", id, err)
 	}
 	return errors.New(tr("err.rotationSet"))
+}
+
+// rotationExpected reports a write that failed for a reason the log does not
+// record as an error: the mouse is asleep, has no rotation, was replaced by a
+// rescan, or was unplugged during the write (its HID call fails with a
+// Windows error).
+func rotationExpected(err error) bool {
+	var windowsError syscall.Errno
+	return errors.Is(err, razer.ErrNoAnswer) || errors.Is(err, razer.ErrUnsupported) ||
+		errors.Is(err, razer.ErrClosed) || errors.As(err, &windowsError)
 }

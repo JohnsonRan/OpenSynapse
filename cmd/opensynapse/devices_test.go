@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"syscall"
 	"testing"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
@@ -97,6 +101,31 @@ func TestRotationBinding(t *testing.T) {
 	}
 	if err := rotationError("v4", nil); err != nil {
 		t.Errorf("success: %v", err)
+	}
+}
+
+// A failed rotation write is logged only when it is not an expected case.
+func TestRotationErrorLog(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	for name, c := range map[string]struct {
+		err    error
+		logged bool
+	}{
+		"asleep":             {razer.ErrNoAnswer, false},
+		"no rotation":        {razer.ErrUnsupported, false},
+		"replaced by scan":   {razer.ErrClosed, false},
+		"unplugged":          {fmt.Errorf("HidD_SetFeature: %w", syscall.Errno(1167)), false}, // ERROR_DEVICE_NOT_CONNECTED
+		"failure status":     {errors.New("device status 0x03"), true},
+		"value not kept":     {razer.ErrNotKept, true},
+		"nothing went wrong": {nil, false},
+	} {
+		buf.Reset()
+		rotationError("v4", c.err)
+		if logged := buf.Len() > 0; logged != c.logged {
+			t.Errorf("%s: logged %v (%q), want %v", name, logged, buf.String(), c.logged)
+		}
 	}
 }
 
