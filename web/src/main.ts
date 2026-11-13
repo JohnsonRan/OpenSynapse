@@ -162,8 +162,12 @@ function showView(name: string) {
   stopCapture();
   disarm();
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
-  document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
-  $(`#view-${name} h1`).focus(); // keyboard and screen reader users start at the title
+  const view = $(`#view-${name}`);
+  const opening = view.hidden;
+  document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v !== view));
+  // Keyboard and screen reader users start at the title of a page that opens;
+  // a page redrawn in place (a mouse changing connection) keeps their focus.
+  if (opening) view.querySelector<HTMLElement>("h1")!.focus();
   const rail = name === "device" ? "devices" : name;
   document.querySelectorAll<HTMLElement>(".nav").forEach((x) => {
     x.classList.toggle("active", x.dataset.view === rail);
