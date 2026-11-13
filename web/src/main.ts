@@ -1684,7 +1684,6 @@ $("#macro-record").onclick = async () => {
 // go down first and come up last. Codes are Windows virtual-key codes.
 $("#add-key").onclick = () => {
   const b = $<HTMLButtonElement>("#add-key");
-  b.textContent = t("capture.hint");
   const reset = () => (b.textContent = t("macros.addKey"));
   captureKey((code, mods) => {
     reset();
@@ -1692,6 +1691,9 @@ $("#add-key").onclick = () => {
     if (code) keys.push(code);
     addSteps(...keys.map((k) => step("key", k, true)), ...keys.reverse().map((k) => step("key", k, false)));
   }, reset);
+  // After captureKey: it cancels a capture already running, whose reset
+  // would put the label back while this one waits.
+  b.textContent = t("capture.hint");
 };
 
 const addMouse = $<HTMLSelectElement>("#add-mouse");
