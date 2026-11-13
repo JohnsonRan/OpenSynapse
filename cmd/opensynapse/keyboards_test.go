@@ -267,21 +267,75 @@ func TestKeyboardResetFailureKeepsBindingsAndRewritesKeymap(t *testing.T) {
 	}
 }
 
+// fakeKeyboard installs one Hi75 with the given written cache and records
+// every keymap sent to it.
+func fakeKeyboard(t *testing.T, written map[string]*[leobog.Layers]leobog.Layer) (*leobog.Device, *[][leobog.Layers]leobog.Layer) {
+	t.Setenv("APPDATA", t.TempDir())
+	cfgMu.Lock()
+	savedCfg := cfg
+	cfg = defaultConfig()
+	cfgMu.Unlock()
+	d := &leobog.Device{Model: leobog.Models[0], ID: "k", Name: "LEOBOG Hi75"}
+	keyboards.mu.Lock()
+	savedDevs, savedWritten := keyboards.devs, keyboards.written
+	keyboards.devs, keyboards.written = []*leobog.Device{d}, written
+	keyboards.mu.Unlock()
+	origSetKeymap := deviceSetKeymap
+	var sent [][leobog.Layers]leobog.Layer
+	deviceSetKeymap = func(_ *leobog.Device, km [leobog.Layers]leobog.Layer) error {
+		sent = append(sent, km)
+		return nil
+	}
+	t.Cleanup(func() {
+		deviceSetKeymap = origSetKeymap
+		keyboards.mu.Lock()
+		keyboards.devs, keyboards.written = savedDevs, savedWritten
+		keyboards.mu.Unlock()
+		cfgMu.Lock()
+		cfg = savedCfg
+		cfgMu.Unlock()
+	})
+	return d, &sent
+}
+
+// Nothing written yet: the remap is saved first, and must still reach the keyboard.
+func TestSetKeyWritesBeforeAnySync(t *testing.T) {
+	d, sent := fakeKeyboard(t, map[string]*[leobog.Layers]leobog.Layer{})
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "key", Code: 0x41, Mods: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*sent) != 1 || (*sent)[0] != keymapOf(d, false) || (*sent)[0] == d.DefaultLayers() {
+		t.Fatalf("keymaps sent: %d, want the remapped one", len(*sent))
+	}
+}
+
+// The keyboard keeps its keymap across a reconnect, so after a rescan the
+// trigger keys it holds are still known and quitting restores the keys.
+func TestRescanKeepsWrittenKeymap(t *testing.T) {
+	d, sent := fakeKeyboard(t, map[string]*[leobog.Layers]leobog.Layer{})
+	cfgMu.Lock()
+	cfg.Macros = []Macro{{ID: "m"}}
+	cfgMu.Unlock()
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "macro", Macro: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	keyboards.mu.Lock()
+	keyboards.written = nextWritten(keyboards.written)
+	keyboards.mu.Unlock()
+	bindMu.Lock()
+	syncKeymaps(true)
+	bindMu.Unlock()
+	if len(*sent) != 2 || (*sent)[1] != keymapOf(d, true) {
+		t.Fatalf("keymaps sent: %d, want the trigger map then the restored one", len(*sent))
+	}
+}
+
 func TestRescanKeepsUnknownKeymapForRewrite(t *testing.T) {
 	d := &leobog.Device{Model: leobog.Models[0], ID: "k", Name: "LEOBOG Hi75"}
-	knownMap := keymapOf(d, false)
 
-	oldWritten := map[string]*[leobog.Layers]leobog.Layer{
-		"k":  &unknownKeymap,
-		"k2": &knownMap,
-	}
-
-	newWritten := nextWritten(oldWritten)
+	newWritten := nextWritten(map[string]*[leobog.Layers]leobog.Layer{"k": &unknownKeymap})
 	if newWritten["k"] != &unknownKeymap {
 		t.Fatalf("unknown keymap was not kept across rescan: %v", newWritten["k"])
-	}
-	if newWritten["k2"] != nil {
-		t.Fatalf("known keymap was not dropped: %v", newWritten["k2"])
 	}
 
 	// Verify syncKeymaps rewrites the keymap after rescan keeps &unknownKeymap.

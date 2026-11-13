@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -50,16 +51,13 @@ func (h *keyboardHub) rescan() error {
 	return nil
 }
 
-// nextWritten builds the keymap cache after a rescan: keymaps written before
-// are dropped (taken as the remembered map), but failed writes stay marked
-// unknown so a reconnecting keyboard has its keymap rewritten.
+// nextWritten builds the keymap cache after a rescan. The keyboard stores its
+// keymap, so a reconnect keeps what was written, trigger keys included, and a
+// failed write stays marked unknown. Taking it as the remembered map instead
+// skipped restoring the keys at quit.
 func nextWritten(old map[string]*[leobog.Layers]leobog.Layer) map[string]*[leobog.Layers]leobog.Layer {
 	next := map[string]*[leobog.Layers]leobog.Layer{}
-	for id, w := range old {
-		if w == &unknownKeymap {
-			next[id] = w
-		}
-	}
+	maps.Copy(next, old)
 	return next
 }
 

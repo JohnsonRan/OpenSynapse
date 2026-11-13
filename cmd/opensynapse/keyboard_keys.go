@@ -186,6 +186,14 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 		cfgMu.Unlock()
 		km := keymapOf(d, true)
+		// nil in written stands for the remembered keymap, which is about to
+		// change: pin what the keyboard holds so syncKeymaps sees the difference.
+		keyboards.mu.Lock()
+		if keyboards.written[d.ID] == nil {
+			held := km
+			keyboards.written[d.ID] = &held
+		}
+		keyboards.mu.Unlock()
 		km[layer][index] = a
 		if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) {
 			if km == d.DefaultLayers() {
