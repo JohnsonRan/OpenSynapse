@@ -194,13 +194,20 @@ function renderOverview() {
     return i < 0 ? CATEGORIES.length : i;
   };
   const cats = [...new Set(list.map((d) => d.category))].sort((a, b) => rank(a) - rank(b));
+  // Cards already shown are kept and refilled, so their values stay until the
+  // new ones arrive instead of blanking and the battery bar growing from zero.
+  const shown = new Map([...document.querySelectorAll<HTMLElement>(".device-card")].map((c) => [c.dataset.id!, c]));
+  const card = (d: DeviceInfo) => {
+    const c = shown.get(d.id);
+    return c ? (fillCard(c, d), c) : deviceCard(d);
+  };
   $("#device-grid").replaceChildren(
     ...cats.map((c) => {
       const group = document.createElement("section");
       const n = list.filter((d) => d.category === c).length;
       group.innerHTML = `<h2 class="group-title"><span></span><small>${n}</small></h2><div class="device-grid"></div>`;
       group.querySelector("h2 span")!.textContent = category(c);
-      group.querySelector(".device-grid")!.replaceChildren(...list.filter((d) => d.category === c).map(deviceCard));
+      group.querySelector(".device-grid")!.replaceChildren(...list.filter((d) => d.category === c).map(card));
       return group;
     }),
   );
@@ -216,6 +223,13 @@ function deviceCard(d: DeviceInfo) {
     <div class="dc-head"><svg viewBox="0 0 24 24">${ICONS[d.category] ?? ICONS.accessory}</svg><div class="dc-name"></div></div>
     <div class="dc-chips"></div>
     <div class="dc-battery" hidden><span class="muted small"></span><i><b></b></i></div>`;
+  fillCard(card, d);
+  return card;
+}
+
+// fillCard writes a card's values in place; until the device answers, the card
+// keeps what it showed.
+function fillCard(card: HTMLElement, d: DeviceInfo) {
   card.querySelector(".dc-name")!.textContent = d.name;
   card.onclick = () => openDevice(d);
   const chips = (...texts: string[]) =>
@@ -232,7 +246,7 @@ function deviceCard(d: DeviceInfo) {
         chips(...(st.format ? [`${st.format.bits} bit · ${st.format.rate / 1000} kHz`] : []), `${t("tab.eq")} ${ref ? presetLabel(ref) : t("eq.custom")}`);
       })
       .catch(() => chips(t("overview.noAnswer")));
-    return card;
+    return;
   }
   if (isKeyboard(d)) {
     kbApi(d)
@@ -242,23 +256,22 @@ function deviceCard(d: DeviceInfo) {
         chips(e ? kbEffectName(e.name) : t("kb.effect.other"));
       })
       .catch(() => chips(t("overview.noAnswer")));
-    return card;
+    return;
   }
   const f = d.features;
-  if (!f.dpi && !f.pollRate && !f.battery) return card;
+  if (!f.dpi && !f.pollRate && !f.battery) return;
   Devices.state(d.id)
     .then((s) => {
       chips(...(f.dpi ? [`${s.dpi.x} DPI`] : []), ...(f.pollRate && s.pollRate ? [hz(s.pollRate)] : []));
-      if (s.battery < 0) return;
       const bat = card.querySelector<HTMLElement>(".dc-battery")!;
-      bat.hidden = false;
+      bat.hidden = s.battery < 0;
+      if (bat.hidden) return;
       bat.querySelector("span")!.textContent = `${s.charging ? "⚡ " : ""}${t("overview.battery", { pct: s.battery })}`;
       const fill = bat.querySelector<HTMLElement>("b")!;
       fill.style.width = `${s.battery}%`;
       fill.classList.toggle("low", s.battery <= 20 && !s.charging);
     })
     .catch(() => chips(t("overview.noAnswer")));
-  return card;
 }
 $("#rescan").onclick = () => loadDevices(true);
 
@@ -291,7 +304,7 @@ events.deviceUpdated.on((id) => {
   if (!$("#view-devices").hidden) {
     const card = document.querySelector<HTMLElement>(`.device-card[data-id="${CSS.escape(id)}"]`);
     const d = list.find((x) => x.id === id);
-    if (card && d) card.replaceWith(deviceCard(d));
+    if (card && d) fillCard(card, d);
   }
   if (dev?.id === id) refreshState();
 });
