@@ -491,33 +491,49 @@ func applyBindingsLocked(restore bool) (missed []string) {
 		return missed
 	}
 	for _, d := range devices.list() {
-		ok := true
-		for _, b := range bs {
-			if b.Family != d.Family() {
+		err := applyDeviceBindings(d, bs, restore)
+		if errors.Is(err, razer.ErrClosed) {
+			// A rescan replaced the device under this round. Quitting must not
+			// leave its buttons on their trigger keys: go on with its successor.
+			// A device that is gone holds nothing to put back.
+			next, getErr := devices.get(d.ID)
+			if getErr != nil || next == d {
 				continue
 			}
-			want := triggerAssignment(b.Trigger)
-			if restore {
-				want = b.Original
-			}
-			cur, err := buttonAssignment(d, b.Button, b.Layer)
-			if err != nil {
-				ok = false
-				break // asleep or gone: skip the device
-			}
-			if cur.Fn == want.Fn && slices.Equal(cur.Data, want.Data) {
-				continue
-			}
-			if err := setButtonAssignment(d, b.Button, b.Layer, want); err != nil {
-				log.Println("button", b.Button, "of", d.ID, err)
-				ok = false
-			}
+			err = applyDeviceBindings(next, bs, restore)
 		}
-		if !ok {
+		if err != nil {
 			missed = append(missed, d.Name)
 		}
 	}
 	return missed
+}
+
+// applyDeviceBindings writes one mouse's bound buttons that differ. It
+// returns the read error that made it skip the mouse (asleep or gone), or the
+// last failed write.
+func applyDeviceBindings(d *razer.Device, bs []Binding, restore bool) (failed error) {
+	for _, b := range bs {
+		if b.Family != d.Family() {
+			continue
+		}
+		want := triggerAssignment(b.Trigger)
+		if restore {
+			want = b.Original
+		}
+		cur, err := buttonAssignment(d, b.Button, b.Layer)
+		if err != nil {
+			return err
+		}
+		if cur.Fn == want.Fn && slices.Equal(cur.Data, want.Data) {
+			continue
+		}
+		if err := setButtonAssignment(d, b.Button, b.Layer, want); err != nil {
+			log.Println("button", b.Button, "of", d.ID, err)
+			failed = err
+		}
+	}
+	return failed
 }
 
 // Tests replace the mouse.

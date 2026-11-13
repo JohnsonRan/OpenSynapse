@@ -160,6 +160,56 @@ func TestReplaceConfigWaitsForAViaKeyboard(t *testing.T) {
 	}
 }
 
+// Quitting restores the buttons while a rescan may be replacing the devices.
+// A device closed under the restore is looked up again, or its buttons would
+// keep their trigger keys after the app is gone.
+func TestRestoreBindingsFollowsARescan(t *testing.T) {
+	side := razer.Assignment{Fn: razer.FnMouse, Data: []byte{4}}
+	cfgMu.Lock()
+	savedCfg := cfg
+	cfg = defaultConfig()
+	cfg.Bindings = []Binding{{Family: "Razer Test", Button: 4, Macro: "m", Trigger: firstTrigger, Original: side}}
+	cfgMu.Unlock()
+	old, fresh := dev("BF", "Razer Test (Wireless)", true), dev("BF", "Razer Test (Wireless)", true)
+	devices.mu.Lock()
+	savedDevs := devices.devs
+	devices.devs = []*razer.Device{old}
+	devices.mu.Unlock()
+	origGet, origSet := buttonAssignment, setButtonAssignment
+	t.Cleanup(func() {
+		buttonAssignment, setButtonAssignment = origGet, origSet
+		devices.mu.Lock()
+		devices.devs = savedDevs
+		devices.mu.Unlock()
+		cfgMu.Lock()
+		cfg = savedCfg
+		cfgMu.Unlock()
+	})
+	buttonAssignment = func(d *razer.Device, _, _ int) (razer.Assignment, error) {
+		if d == old { // the rescan lands between the list and the request
+			devices.mu.Lock()
+			devices.devs = []*razer.Device{fresh}
+			devices.mu.Unlock()
+			return razer.Assignment{}, razer.ErrClosed
+		}
+		return triggerAssignment(firstTrigger), nil
+	}
+	var restored []*razer.Device
+	setButtonAssignment = func(d *razer.Device, _, _ int, a razer.Assignment) error {
+		if a.Fn == side.Fn && slices.Equal(a.Data, side.Data) {
+			restored = append(restored, d)
+		}
+		return nil
+	}
+
+	bindMu.Lock()
+	missed := applyBindingsLocked(true)
+	bindMu.Unlock()
+	if len(restored) != 1 || restored[0] != fresh || len(missed) != 0 {
+		t.Fatalf("restored %d buttons, missed %v; want the button restored on the rescanned device", len(restored), missed)
+	}
+}
+
 func TestImportConfig(t *testing.T) {
 	if _, err := importConfig([]byte(`{"foo":1}`)); err == nil {
 		t.Fatal("accepted a file that is not a settings file")
