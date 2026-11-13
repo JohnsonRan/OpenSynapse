@@ -252,8 +252,9 @@ func runAuto() {
 		select {
 		case <-tick.C:
 		case <-autoReset:
-			// config changed: re-evaluate from scratch
-			scenes, rates, games, streak = newSwitcher("scene"), newSwitcher("polling rate"), map[uint32]string{}, gameStreak{}
+			// config changed: re-evaluate from scratch. Recognized games stay: they name
+			// processes, not settings, and must not drop to the desktop for a few seconds.
+			scenes, rates = newSwitcher("scene"), newSwitcher("polling rate")
 		}
 		cfgMu.Lock()
 		sc, sp := cfg.Scenes, cfg.Smart

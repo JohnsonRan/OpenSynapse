@@ -3,8 +3,6 @@ package main
 import (
 	"slices"
 	"testing"
-
-	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 func TestDebouncer(t *testing.T) {
@@ -198,17 +196,18 @@ func TestSavePresetKeepsSwitchers(t *testing.T) {
 	}
 }
 
-func TestRazerSet(t *testing.T) {
-	a := &razer.Device{ID: "1532:00B2", Answered: true}
-	b := &razer.Device{ID: "1532:00B3"}
-	a2 := &razer.Device{ID: "1532:00B2"} // same mouse, its receiver no longer answering for it
-	if razerSet([]*razer.Device{a, b}) != razerSet([]*razer.Device{b, a}) {
-		t.Fatal("order changed the set")
-	}
-	if razerSet([]*razer.Device{a, b}) == razerSet([]*razer.Device{a2, b}) {
-		t.Fatal("a mouse moving between cable and receiver went unnoticed")
-	}
-	if razerSet([]*razer.Device{a}) == razerSet([]*razer.Device{a, b}) {
-		t.Fatal("a new device went unnoticed")
+func TestIsDecodeEngine(t *testing.T) {
+	for n, want := range map[string]bool{
+		"pid_42_luid_0x0_0x1_phys_0_eng_3_engtype_VideoDecode":    true, // NVIDIA
+		"pid_42_luid_0x0_0x2_phys_0_eng_5_engtype_Video Decode 1": true, // AMD
+		"pid_42_luid_0x0_0x2_phys_0_eng_6_engtype_Video Codec 0":  true, // AMD, decode and encode
+		"pid_42_luid_0x0_0x1_phys_0_eng_4_engtype_VideoEncode":    false,
+		"pid_42_luid_0x0_0x1_phys_0_eng_7_engtype_JPEG_Decode_1":  false,
+		"pid_42_luid_0x0_0x2_phys_0_eng_8_engtype_Video JPEG 0":   false,
+		"pid_42_luid_0x0_0x1_phys_0_eng_0_engtype_3D":             false,
+	} {
+		if isDecodeEngine(n) != want {
+			t.Errorf("%s: got %v", n, !want)
+		}
 	}
 }

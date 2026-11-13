@@ -151,9 +151,18 @@ func (g *gpuMeter) usage(pid uint32) (load3D, decode float64) {
 		switch {
 		case strings.HasSuffix(n, "engtype_3D"):
 			load3D += it.value
-		case strings.HasSuffix(n, "engtype_VideoDecode"):
+		case isDecodeEngine(n):
 			decode += it.value
 		}
 	}
 	return load3D, decode
+}
+
+// isDecodeEngine matches a GPU engine instance that decodes video. NVIDIA
+// names it "VideoDecode"; AMD "Video Decode 1", or "Video Codec 0" for an
+// engine that both decodes and encodes. JPEG engines are left out.
+func isDecodeEngine(instance string) bool {
+	_, t, ok := strings.Cut(instance, "engtype_")
+	t = strings.ToLower(strings.ReplaceAll(t, " ", ""))
+	return ok && (strings.HasPrefix(t, "videodecode") || strings.HasPrefix(t, "videocodec"))
 }
