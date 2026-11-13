@@ -98,12 +98,17 @@ func featureLen(path string) int {
 type conn struct {
 	mu   sync.Mutex
 	path string
-	h    windows.Handle
+	h    windows.Handle // 0 until the first request, and after a failed write
+	// closed: the Device was replaced by a newer scan. A round that still
+	// holds it must not open the collection again: nothing would close that
+	// handle, and its requests would interleave with the new Device's.
+	closed bool
 }
 
 func (c *conn) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.closed = true
 	if c.h != 0 {
 		windows.CloseHandle(c.h)
 		c.h = 0
@@ -114,6 +119,9 @@ func (c *conn) close() {
 func (c *conn) transact(req Report) (Report, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.closed {
+		return Report{}, ErrClosed
+	}
 	if c.h == 0 {
 		h, err := openPath(c.path)
 		if err != nil {

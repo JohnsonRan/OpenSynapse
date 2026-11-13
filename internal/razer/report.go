@@ -33,6 +33,8 @@ const (
 var (
 	ErrUnsupported = errors.New("device does not support this command")
 	ErrNoAnswer    = errors.New("device did not answer (asleep or out of range?)")
+	// ErrClosed: the Device was closed, by a newer scan that found the device again or without it.
+	ErrClosed = errors.New("device closed")
 )
 
 // Report is one request or response.

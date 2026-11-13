@@ -145,7 +145,11 @@ func (a *applier) run(target int, devs []*razer.Device, apply func(*razer.Device
 		if v, ok := a.done[d.ID]; (ok && v == target) || time.Now().Before(a.retryAt[d.ID]) {
 			continue
 		}
-		if err := apply(d); err != nil && !errors.Is(err, razer.ErrUnsupported) {
+		err := apply(d)
+		if errors.Is(err, razer.ErrClosed) {
+			continue // a rescan replaced the device during this round: the next one has the new list
+		}
+		if err != nil && !errors.Is(err, razer.ErrUnsupported) {
 			log.Printf("%s: %s: %v", a.name, d.ID, err)
 			a.retryAt[d.ID] = time.Now().Add(10 * time.Second)
 			continue

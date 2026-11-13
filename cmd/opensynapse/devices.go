@@ -21,11 +21,16 @@ import (
 type hub struct {
 	mu   sync.Mutex
 	devs []*razer.Device
+	// scanMu: one scan at a time. Two scans probe the same collections through
+	// separate handles, and each would read the other's answers.
+	scanMu sync.Mutex
 }
 
 var devices hub
 
 func (h *hub) rescan() error {
+	h.scanMu.Lock()
+	defer h.scanMu.Unlock()
 	found, err := razer.Scan()
 	if err != nil {
 		return err

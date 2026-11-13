@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // offConfig turns scenes and smart polling off, the state of a first run,
@@ -106,6 +108,23 @@ func TestSavePendingAudioUnchangedDoesNotEncode(t *testing.T) {
 	}
 	if b, err := os.ReadFile(pendingPath()); err != nil || !strings.Contains(string(b), `"speakers":55`) {
 		t.Fatalf("file after a change: %s, %v", b, err)
+	}
+}
+
+// A device a rescan closed during the round is neither done nor put on the
+// 10 s retry: the next round applies the target to the device that replaced it.
+func TestApplierLeavesAClosedDeviceToTheNextRound(t *testing.T) {
+	a := applier{name: "test"}
+	a.reset()
+	devs := []*razer.Device{dev("BF", "Razer Test", true)}
+	a.run(1, devs, func(*razer.Device) error { return razer.ErrClosed })
+	if len(a.done) != 0 || len(a.retryAt) != 0 {
+		t.Fatalf("after a closed device: done %v, retry %v; want neither", a.done, a.retryAt)
+	}
+	applied := 0
+	a.run(1, devs, func(*razer.Device) error { applied++; return nil })
+	if applied != 1 || a.done["BF"] != 1 {
+		t.Fatalf("applied %d times, done %v; want the next round to apply", applied, a.done)
 	}
 }
 
