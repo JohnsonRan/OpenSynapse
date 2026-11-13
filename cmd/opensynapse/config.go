@@ -239,7 +239,7 @@ func loadConfig() {
 			log.Printf("config %s: not valid: %s; backup failed: %v; saving disabled", p, keys, writeErr)
 			blocked = true
 		} else {
-			log.Printf("config %s: not valid: %s; defaults used for it; the file is kept as %s.bad", p, keys, p)
+			log.Printf("config %s: not valid: %s; repaired, or left at the default; the file is kept as %s.bad", p, keys, p)
 		}
 	}
 	cfgMu.Lock()
@@ -430,30 +430,76 @@ func (c *ScenesConfig) normalize() error {
 	return nil
 }
 
+// repair makes a loaded scene pass normalize without losing the scene: each
+// setting normalize refuses goes back to "leave alone", and highlight keys
+// the keyboard does not have are removed. It reports whether it changed one.
+func (s *Scene) repair() (changed bool) {
+	reset := func(bad bool, clear func()) {
+		if bad {
+			clear()
+			changed = true
+		}
+	}
+	reset(s.DPI != 0 && (s.DPI < 100 || s.DPI > 50000), func() { s.DPI = 0 })
+	reset(s.Lighting != nil && !slices.Contains(validEffects, s.Lighting.Effect), func() { s.Lighting = nil })
+	reset(s.Brightness != nil && (*s.Brightness < 0 || *s.Brightness > 100), func() { s.Brightness = nil })
+	reset(s.Volume != nil && (*s.Volume < 0 || *s.Volume > 100), func() { s.Volume = nil })
+	reset(s.EQ != nil && s.EQ.EQ.Check() != nil, func() { s.EQ = nil })
+	reset(s.Keyboard != nil && s.Keyboard.Check() != nil, func() { s.Keyboard = nil })
+	if h := s.Highlight; h != nil {
+		n := len(h.Keys)
+		h.Keys = slices.DeleteFunc(h.Keys, func(k int) bool { return k < 0 || k >= leobog.Keys })
+		reset(len(h.Keys) != n, func() {
+			if len(h.Keys) == 0 {
+				s.Highlight = nil // none of its keys exist
+			}
+		})
+	}
+	return changed
+}
+
 // repair is normalize for a loaded setup, which also fills the names and
-// lists an older save lacks. The scene switcher applies a scene as it is (a
-// highlight key out of range indexes past the keyboard's keys), so a custom
-// scene that is not valid is dropped, and Game or Desktop keeps its programs
-// only. It reports whether a scene was lost that way.
-func (c *ScenesConfig) repair() (lost bool) {
+// lists an older save lacks. A loaded file keeps its scenes: a blank name
+// becomes "Scene 2" (by its place, and not a name in use), and a setting that
+// is not valid is reset alone (Scene.repair). The scene switcher applies a
+// scene as it is, so one that still fails normalize after that is dropped.
+// It reports whether anything was changed.
+func (c *ScenesConfig) repair() (changed bool) {
 	c.Game.Name, c.Desktop.Name, c.Desktop.Apps = "game", "desktop", nil
 	for _, s := range []*Scene{&c.Game, &c.Desktop} {
+		changed = s.repair() || changed
 		if s.normalize() != nil {
-			*s = Scene{Name: s.Name, Apps: s.Apps}
+			*s = Scene{Name: s.Name}
 			_ = s.normalize()
-			lost = true
+			changed = true
 		}
 	}
 	kept := []Scene{}
-	for _, s := range c.Scenes {
+	for i := range c.Scenes {
+		s := &c.Scenes[i]
+		if strings.TrimSpace(s.Name) == "" {
+			s.Name = c.unusedName(i + 1)
+			changed = true
+		}
+		changed = s.repair() || changed
 		if s.normalize() != nil {
-			lost = true
+			changed = true
 			continue
 		}
-		kept = append(kept, s)
+		kept = append(kept, *s)
 	}
 	c.Scenes = kept
-	return lost
+	return changed
+}
+
+// unusedName is "Scene n", or with the next number no custom scene has.
+func (c *ScenesConfig) unusedName(n int) string {
+	for ; ; n++ {
+		name := tr("scene.unnamed", n)
+		if !slices.ContainsFunc(c.Scenes, func(s Scene) bool { return strings.TrimSpace(s.Name) == name }) {
+			return name
+		}
+	}
 }
 
 func (c ScenesConfig) clone() ScenesConfig {

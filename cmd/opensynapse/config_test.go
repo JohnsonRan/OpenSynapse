@@ -139,31 +139,91 @@ func TestLoadConfigUnreadKeyBackedUp(t *testing.T) {
 	}
 }
 
-// A scene that is not valid must not reach the scene switcher: a highlight key
-// past the keyboard's keys panicked it on every start. The other scenes and
-// settings load, and the file is kept.
-func TestLoadConfigDropsInvalidScenes(t *testing.T) {
-	const content = `{"notify":false,"scenes":{"enabled":true,
-		"game":{"apps":["cs2.exe"],"highlight":{"keys":[126]}},
-		"scenes":[{"name":"ok","apps":["a.exe"],"highlight":{"keys":[125]}},{"name":"bad","highlight":{"keys":[4,200]}}]}}`
+// loadScenes loads a settings file with these custom scenes, and checks that
+// the file was kept as it was before anything could be saved over it.
+func loadScenes(t *testing.T, scenes string) ScenesConfig {
+	content := `{"notify":false,"scenes":{"enabled":true,"scenes":[` + scenes + `]}}`
 	p := writeConfig(t, content)
-
 	loadConfig()
-
 	cfgMu.Lock()
 	sc, notify := cfg.Scenes, cfg.Notify
 	cfgMu.Unlock()
-	if notify || !sc.Enabled || len(sc.Scenes) != 1 || sc.Scenes[0].Name != "ok" {
-		t.Fatalf("loaded %+v, notify %v; want the valid scene and the other settings", sc, notify)
-	}
-	if sc.Game.Highlight != nil || len(sc.Game.Apps) != 1 || sc.Game.Apps[0] != "cs2.exe" {
-		t.Fatalf("game scene %+v; want its programs without the highlight", sc.Game)
-	}
-	for _, s := range append([]Scene{sc.Game, sc.Desktop}, sc.Scenes...) {
-		sceneShow(&s) // panics on a key out of range
+	if notify || !sc.Enabled {
+		t.Fatalf("notify %v, scenes enabled %v; want the other settings loaded", notify, sc.Enabled)
 	}
 	if got, err := os.ReadFile(p + ".bad"); err != nil || string(got) != content {
 		t.Fatalf("backup: %q, %v; want the file as it was", got, err)
+	}
+	return sc
+}
+
+// A scene without a name, with nothing set, as a settings file from before
+// 2026-10-30 holds it: loading keeps the scene and names it.
+func TestLoadConfigNamesAnUnnamedScene(t *testing.T) {
+	const unnamed = `{"name":"","apps":[],"dpi":0,"lighting":null,"brightness":null,"eq":null,
+		"output":"","input":"","volume":null,"keyboard":null,"highlight":null}`
+	sc := loadScenes(t, unnamed)
+	if len(sc.Scenes) != 1 || sc.Scenes[0].Name != tr("scene.unnamed", 1) {
+		t.Fatalf("scenes %+v; want the scene kept and named", sc.Scenes)
+	}
+	if err := sc.normalize(); err != nil {
+		t.Fatalf("the loaded scenes cannot be saved from the page: %v", err)
+	}
+
+	// The name is the scene's place, or the next number no scene has.
+	sc = loadScenes(t, `{"name":" ","apps":["a.exe"]},{"name":"`+tr("scene.unnamed", 1)+`"},{"name":""}`)
+	if len(sc.Scenes) != 3 || sc.Scenes[0].Name != tr("scene.unnamed", 2) || sc.Scenes[2].Name != tr("scene.unnamed", 3) {
+		t.Fatalf("scenes %+v; want names no other scene has", sc.Scenes)
+	}
+	if len(sc.Scenes[0].Apps) != 1 {
+		t.Fatalf("the named scene lost its programs: %+v", sc.Scenes[0])
+	}
+}
+
+// A setting that is not valid goes back to "leave alone"; the scene and its
+// other settings stay. A highlight key past the keyboard's keys panicked the
+// scene switcher on every start, so none may be left.
+func TestLoadConfigRepairsSceneSettings(t *testing.T) {
+	cases := map[string]struct {
+		scene    string
+		repaired func(Scene) bool
+	}{
+		"dpi":        {`"dpi":99999`, func(s Scene) bool { return s.DPI == 0 }},
+		"lighting":   {`"lighting":{"effect":"disco"}`, func(s Scene) bool { return s.Lighting == nil }},
+		"brightness": {`"brightness":150`, func(s Scene) bool { return s.Brightness == nil }},
+		"volume":     {`"volume":-3`, func(s Scene) bool { return s.Volume == nil }},
+		"eq":         {`"eq":{"preset":"u:x","eq":{"bands":[],"preamp":0}}`, func(s Scene) bool { return s.EQ == nil }},
+		"keyboard":   {`"keyboard":{"effect":-7}`, func(s Scene) bool { return s.Keyboard == nil }},
+		"some highlight keys": {`"highlight":{"keys":[4,126,-1,200]}`, func(s Scene) bool {
+			return s.Highlight != nil && len(s.Highlight.Keys) == 1 && s.Highlight.Keys[0] == 4
+		}},
+		"all highlight keys": {`"highlight":{"keys":[126]}`, func(s Scene) bool { return s.Highlight == nil }},
+	}
+	for name, c := range cases {
+		sc := loadScenes(t, `{"name":"work","apps":["a.exe"],"output":"speakers",`+c.scene+`}`)
+		if len(sc.Scenes) != 1 {
+			t.Fatalf("%s: the scene was dropped", name)
+		}
+		s := sc.Scenes[0]
+		if s.Name != "work" || len(s.Apps) != 1 || s.Output != "speakers" || !c.repaired(s) {
+			t.Errorf("%s: loaded %+v; want that setting reset and the rest kept", name, s)
+		}
+		if err := s.normalize(); err != nil {
+			t.Errorf("%s: still not valid: %v", name, err)
+		}
+		sceneShow(&s) // panics on a highlight key out of range
+	}
+	// The Game scene, which has no name to lose, is repaired the same way.
+	p := writeConfig(t, `{"scenes":{"game":{"apps":["cs2.exe"],"dpi":1600,"highlight":{"keys":[126]}}}}`)
+	loadConfig()
+	cfgMu.Lock()
+	game := cfg.Scenes.Game
+	cfgMu.Unlock()
+	if game.Highlight != nil || game.DPI != 1600 || len(game.Apps) != 1 {
+		t.Fatalf("game scene %+v; want only its highlight reset", game)
+	}
+	if _, err := os.Stat(p + ".bad"); err != nil {
+		t.Fatalf("no backup of the repaired file: %v", err)
 	}
 }
 
