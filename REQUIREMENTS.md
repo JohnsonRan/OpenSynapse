@@ -37,7 +37,7 @@ The CI host is GitHub's `windows-latest`.
 | Tier | Command | Runs (where, when) | Wall-time limit | Baseline (date, host, load) |
 | --- | --- | --- | --- | --- |
 | Pre-commit | `scripts/check.sh --fast` | locally, every commit, by `scripts/hooks/pre-commit` once `git config core.hooksPath scripts/hooks` is set | 1.5 s | 1.18 s, 1.14 s, 1.12 s (2026-11-14, local, CPU 1%) |
-| Merge gate | `scripts/check.sh` | CI (`ci.yml`), every push to master and every pull request; locally before a pull request | 5 s locally | 4.1 s, 3.0 s, 3.0 s (2026-11-14, local, CPU 1%, Go test cache warm) |
+| Merge gate | `scripts/check.sh` | CI (`ci.yml`), every push to master and every pull request, and on a `v*` tag, called by `release.yml` before it publishes; locally before a pull request | 5 s locally | 4.1 s, 3.0 s, 3.0 s (2026-11-14, local, CPU 1%, Go test cache warm) |
 | Release | `bun run build -- -platform windows/amd64 -upload` | CI (`release.yml`), on a `v*` tag the owner pushes | 4 min 10 s (whole workflow) | 3 min 26 s, 2 min 44 s, 2 min 45 s (2026-10-28 to 2026-10-30, CI, load not reported) |
 
 ## Numbers

@@ -12,6 +12,16 @@ permissions:
   contents: write # the release, and the uploads to it
 
 jobs:
+  # The merge gate on the tagged commit. It runs beside the build, and only
+  # publish waits for it: a red gate leaves the release a draft, which no
+  # installed copy updates from. It gets no secrets. Such a draft already holds
+  # the signed files of the failing commit: delete it or re-run, never publish
+  # it by hand.
+  gate:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   draft-release:
     runs-on: ubuntu-latest
     steps:
@@ -43,8 +53,6 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       - run: bun run build:web # the app embeds the built page
-      - run: go vet ./...
-      - run: go test ./...
       - name: Build and upload the installer and the update files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,7 +74,7 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" "$zip_name" LICENSES/GPL-3.0.txt --repo "$GITHUB_REPOSITORY" --clobber
 
   publish:
-    needs: build
+    needs: [gate, build]
     runs-on: ubuntu-latest
     steps:
       - name: Publish the release, which installed copies then update to

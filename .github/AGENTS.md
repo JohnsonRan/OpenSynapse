@@ -21,7 +21,10 @@ scheduled run; add one only when a suite becomes too slow for the merge gate.
     wired. The requirements check's self-test runs in every merge gate.
   - The release (`.github/workflows/release.yml`, on a `v*` tag) adds release-only steps: the
     version check against `package.json`, the signed installer and update files, the portable
-    zip. It runs only on the owner's go.
+    zip. It runs only on the owner's go. It also calls the merge gate (`ci.yml`) on the tagged
+    commit, beside the build; publishing waits for that gate, so a red gate leaves the release
+    a draft. This is the one deliberate second run of the merge gate: it ties the signed release
+    to the exact commit that passed.
 - **One job per concern, grouped by the area it guards.** Do not build one giant job, where one red
   step hides the rest and every rerun costs everything. Do not build one job per tiny check either.
 - **No CI nobody needs.**
