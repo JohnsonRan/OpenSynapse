@@ -115,14 +115,20 @@ function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number) {
   };
 }
 
+// setOn marks the chosen button of a group for the eye and for screen readers.
+function setOn(b: Element, on: boolean) {
+  b.classList.toggle("on", on);
+  b.setAttribute("aria-pressed", String(on));
+}
+
 function segmented<T>(el: HTMLElement, values: T[], current: T, label: (v: T) => string, onPick: (v: T) => void) {
   el.replaceChildren(
     ...values.map((v) => {
       const b = document.createElement("button");
       b.textContent = label(v);
-      b.classList.toggle("on", v === current);
+      setOn(b, v === current);
       b.onclick = () => {
-        el.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+        el.querySelectorAll("button").forEach((x) => setOn(x, x === b));
         onPick(v);
       };
       return b;
@@ -156,7 +162,11 @@ function showView(name: string) {
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
   const rail = name === "device" ? "devices" : name;
-  document.querySelectorAll<HTMLElement>(".nav").forEach((x) => x.classList.toggle("active", x.dataset.view === rail));
+  document.querySelectorAll<HTMLElement>(".nav").forEach((x) => {
+    x.classList.toggle("active", x.dataset.view === rail);
+    if (x.dataset.view === rail) x.setAttribute("aria-current", "page");
+    else x.removeAttribute("aria-current");
+  });
   if (name === "devices") loadDevices();
   if (name === "scenes") loadScenes();
   if (name === "macros") loadMacros();
@@ -187,7 +197,10 @@ $("#back").onclick = () => {
 function showTab(name: string) {
   stopCapture();
   disarm();
-  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll<HTMLElement>(".tab").forEach((x) => {
+    x.classList.toggle("active", x.dataset.tab === name);
+    x.setAttribute("aria-selected", String(x.dataset.tab === name));
+  });
   document.querySelectorAll<HTMLElement>(".tab-body").forEach((v) => (v.hidden = v.id !== `tab-${name}`));
 }
 document.querySelectorAll<HTMLButtonElement>(".tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab!)));
@@ -476,7 +489,7 @@ function renderStages() {
           <button class="x" title="${t("dpi.deleteStage")}" ${s.stages.length <= 1 ? "disabled" : ""}>✕</button></div>
         <label>X <input class="dx" type="number" min="100" max="${max}" step="50" value="${st.x}"></label>
         ${link ? "" : `<label>Y <input class="dy" type="number" min="100" max="${max}" step="50" value="${st.y}"></label>`}
-        <input class="slider" type="range" min="100" max="${max}" step="50" value="${st.x}">`;
+        <input class="slider" type="range" aria-label="${t("dpi.stage", { n: i + 1 })}" min="100" max="${max}" step="50" value="${st.x}">`;
       const dx = card.querySelector<HTMLInputElement>(".dx")!;
       const dy = card.querySelector<HTMLInputElement>(".dy");
       const slider = card.querySelector<HTMLInputElement>(".slider")!;
@@ -595,7 +608,7 @@ function renderColorRow() {
   const caps = dev!.features.lighting!;
   $("#color-row").hidden = !caps.color || !(l.effect === "static" || l.effect === "breathing");
   const cur = toHex(l.color);
-  document.querySelectorAll<HTMLElement>(".swatch").forEach((s) => s.classList.toggle("on", s.title === cur));
+  document.querySelectorAll<HTMLElement>(".swatch").forEach((s) => setOn(s, s.title === cur));
 }
 
 // The device cannot report its effect, so nothing is sent until one is picked.
@@ -969,7 +982,8 @@ function renderPaint() {
   $("#kb-paint-swatches").replaceChildren(
     ...["#000000", ...SWATCHES].map((hex) => {
       const s = document.createElement("button");
-      s.className = "swatch" + (hex === paintHex ? " on" : "");
+      s.className = "swatch";
+      setOn(s, hex === paintHex);
       s.style.background = hex;
       s.title = hex === "#000000" ? t("kb.paintOff") : hex;
       s.onclick = () => ((paintHex = hex), renderPaint());
@@ -1141,7 +1155,8 @@ function renderKeyboard() {
   $("#kb-swatches").replaceChildren(
     ...SWATCHES.map((hex) => {
       const b = document.createElement("button");
-      b.className = "swatch" + (!l.colorful && toHex(l.color) === hex ? " on" : "");
+      b.className = "swatch";
+      setOn(b, !l.colorful && toHex(l.color) === hex);
       b.style.background = hex;
       b.title = hex;
       b.disabled = !fx?.color;
@@ -1315,13 +1330,13 @@ $("#eq-preset-delete").onclick = async () => {
   renderPresets();
 };
 
-function bandRow(b: Band) {
+function bandRow(b: Band, i: number) {
   const row = document.createElement("div");
   row.className = "eq-band";
   row.innerHTML = `
     <select class="eq-type">${BAND_TYPES.map((x) => option(x, t(`eq.${x}`), x === b.type)).join("")}</select>
     <label><input class="eq-freq" type="number" min="20" max="20000" step="1" /> Hz</label>
-    <input class="eq-gain" type="range" min="-10" max="10" step="0.5" />
+    <input class="eq-gain" type="range" aria-label="${t("eq.bandGain", { n: i + 1 })}" min="-10" max="10" step="0.5" />
     <b class="eq-gain-val accent"></b>
     <label>Q <input class="eq-q" type="number" min="0.1" max="10" step="0.05" /></label>`;
   const q = <T extends HTMLElement>(sel: string) => row.querySelector<T>(sel)!;
@@ -1477,6 +1492,7 @@ function renderMacroList() {
     ...macros.map((m) => {
       const b = document.createElement("button");
       b.className = "macro-item" + (m === macro ? " on" : "");
+      if (m === macro) b.setAttribute("aria-current", "true");
       b.textContent = m.name;
       b.onclick = () => {
         if (recording) return;
@@ -1816,8 +1832,8 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   const light = s.lighting;
   const title = {
     custom: `<input class="scene-name" maxlength="24" />`,
-    game: `<h2>${t("scenes.game")}<span class="info" tabindex="0" title="${t("scenes.gameMore")}">i</span></h2>`,
-    desktop: `<h2>${t("scenes.desktop")}<span class="info" tabindex="0" title="${t("scenes.desktopMore")}">i</span></h2>`,
+    game: `<h2>${t("scenes.game")}<span class="info" tabindex="0" role="img" title="${t("scenes.gameMore")}">i</span></h2>`,
+    desktop: `<h2>${t("scenes.desktop")}<span class="info" tabindex="0" role="img" title="${t("scenes.desktopMore")}">i</span></h2>`,
   }[kind];
   const apps = { custom: t("scenes.appsCustom"), game: t("scenes.appsGame"), desktop: "" }[kind];
   card.innerHTML = `
@@ -1862,7 +1878,7 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
       <div class="kb-draw hl-draw"></div>
     </div>
     <div class="scene-grid scene-audio">
-      <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
+      <label class="scene-eq"><span class="muted small">${t("tab.eq")}<span class="info" tabindex="0" role="img" title="${t("scenes.audioMore")}">i</span></span><select class="eq"></select></label>
       <label><span class="muted small">${t("scenes.output")}</span><select class="output"></select></label>
       <label><span class="muted small">${t("scenes.input")}</span><select class="input"></select></label>
       <label><span class="muted small"><input class="vol-on" type="checkbox" title="${t("scenes.volumeToggle")}" /> ${t("scenes.volume")} <b class="vol-val"></b></span>
@@ -2143,7 +2159,7 @@ async function loadSound() {
   card.hidden = !devs?.length && !defaults.playback.length && !defaults.recording.length;
   const head = document.createElement("div");
   head.className = "list-row";
-  head.innerHTML = `<div><div class="row-title"><span>${t("sound.title")}</span><span class="info" tabindex="0" title="${t("audio.formatMore")}">i</span></div><div class="muted small">${t("sound.hint")}</div></div>`;
+  head.innerHTML = `<div><div class="row-title"><span>${t("sound.title")}</span><span class="info" tabindex="0" role="img" title="${t("audio.formatMore")}">i</span></div><div class="muted small">${t("sound.hint")}</div></div>`;
   // The default playback and recording devices, as the Windows volume flyout switches them.
   const defaultRow = (label: string, choices: { id: string; name: string }[], current: string) => {
     const row = document.createElement("div");

@@ -53,6 +53,7 @@ const zh = {
   "eq.saved": "已保存预设“{name}”",
   "eq.deleted": "已删除预设“{name}”",
   "eq.preamp": "预增益",
+  "eq.bandGain": "频段 {n} 增益",
   "eq.adjust": "调整各频段",
   "eq.lowShelf": "低架",
   "eq.peak": "峰值",
@@ -112,6 +113,7 @@ const zh = {
   "dpi.xyLink": "X/Y 同步",
   "dpi.deleteStage": "删除档位",
   "dpi.useStage": "使用档位 {n}",
+  "dpi.stage": "档位 {n} 的 DPI",
 
   "poll.title": "回报率",
   "poll.set": "回报率已设为 {hz} Hz",
@@ -461,6 +463,7 @@ const en: Record<Key, string> = {
   "eq.saved": "Preset \"{name}\" saved",
   "eq.deleted": "Preset \"{name}\" deleted",
   "eq.preamp": "Preamp",
+  "eq.bandGain": "Band {n} gain",
   "eq.adjust": "Adjust bands",
   "eq.lowShelf": "Low shelf",
   "eq.peak": "Peak",
@@ -520,6 +523,7 @@ const en: Record<Key, string> = {
   "dpi.xyLink": "Link X/Y",
   "dpi.deleteStage": "Delete stage",
   "dpi.useStage": "Use stage {n}",
+  "dpi.stage": "Stage {n} DPI",
 
   "poll.title": "Polling rate",
   "poll.set": "Polling rate set to {hz} Hz",
@@ -866,6 +870,7 @@ const ja: Record<Key, string> = {
   "eq.saved": "プリセット「{name}」を保存しました",
   "eq.deleted": "プリセット「{name}」を削除しました",
   "eq.preamp": "プリアンプ",
+  "eq.bandGain": "バンド {n} のゲイン",
   "eq.adjust": "各バンドを調整",
   "eq.lowShelf": "ローシェルフ",
   "eq.peak": "ピーク",
@@ -925,6 +930,7 @@ const ja: Record<Key, string> = {
   "dpi.xyLink": "X/Y を連動",
   "dpi.deleteStage": "ステージを削除",
   "dpi.useStage": "ステージ {n} を使用",
+  "dpi.stage": "ステージ {n} の DPI",
 
   "poll.title": "ポーリングレート",
   "poll.set": "ポーリングレートを {hz} Hz に設定しました",

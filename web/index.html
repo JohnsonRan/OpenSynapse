@@ -12,7 +12,7 @@
       <span class="wordmark">OPEN<b>SYNAPSE</b></span>
     </header>
     <nav class="rail">
-      <button class="nav active" data-view="devices" data-i18n-title="nav.devices">
+      <button class="nav active" aria-current="page" data-view="devices" data-i18n-title="nav.devices">
         <svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 0-6 6v8a6 6 0 0 0 12 0V8a6 6 0 0 0-6-6zm0 2v5M6 10h12" /></svg>
         <span data-i18n="nav.devices"></span>
       </button>
@@ -68,20 +68,20 @@
           </div>
         </header>
 
-        <div class="tabs">
-          <button class="tab" data-tab="perf" data-i18n="tab.perf"></button>
-          <button class="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
-          <button class="tab" data-tab="kblight" data-i18n="tab.lighting"></button>
-          <button class="tab" data-tab="kbkeys" data-i18n="tab.buttons"></button>
-          <button class="tab" data-tab="power" data-i18n="tab.power"></button>
-          <button class="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
-          <button class="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
-          <button class="tab" data-tab="info" data-i18n="tab.info"></button>
-          <button class="tab" data-tab="eq" data-i18n="tab.eq"></button>
-          <button class="tab" data-tab="audio" data-i18n="tab.audio"></button>
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" data-tab="perf" data-i18n="tab.perf"></button>
+          <button class="tab" role="tab" data-tab="lighting" data-i18n="tab.lighting"></button>
+          <button class="tab" role="tab" data-tab="kblight" data-i18n="tab.lighting"></button>
+          <button class="tab" role="tab" data-tab="kbkeys" data-i18n="tab.buttons"></button>
+          <button class="tab" role="tab" data-tab="power" data-i18n="tab.power"></button>
+          <button class="tab" role="tab" data-tab="receiver" data-i18n="tab.receiver"></button>
+          <button class="tab" role="tab" data-tab="buttons" data-i18n="tab.buttons"></button>
+          <button class="tab" role="tab" data-tab="info" data-i18n="tab.info"></button>
+          <button class="tab" role="tab" data-tab="eq" data-i18n="tab.eq"></button>
+          <button class="tab" role="tab" data-tab="audio" data-i18n="tab.audio"></button>
         </div>
 
-        <div id="tab-perf" class="tab-body">
+        <div id="tab-perf" class="tab-body" role="tabpanel">
           <div class="card" id="card-stages">
             <div class="card-head">
               <h2 data-i18n="dpi.title"></h2>
@@ -96,13 +96,13 @@
           </div>
 
           <div class="card" id="card-dpi">
-            <div class="card-head"><h2 data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> DPI</span></div>
-            <input id="dpi" type="range" min="100" step="50" />
+            <div class="card-head"><h2 id="dpi-title" data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> DPI</span></div>
+            <input id="dpi" type="range" aria-labelledby="dpi-title" min="100" step="50" />
           </div>
 
           <div class="card" id="card-lift" hidden>
             <div class="card-head">
-              <h2><span data-i18n="lift.title"></span><span class="info" tabindex="0" data-i18n-title="lift.more">i</span></h2>
+              <h2><span data-i18n="lift.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="lift.more">i</span></h2>
               <label class="check"><input id="lift-asym" type="checkbox" /> <span data-i18n="lift.asymmetric"></span></label>
             </div>
             <div id="lift-sym" class="seg"></div>
@@ -119,7 +119,7 @@
           </div>
         </div>
 
-        <div id="tab-lighting" class="tab-body" hidden>
+        <div id="tab-lighting" class="tab-body" role="tabpanel" hidden>
           <div class="card">
             <div class="card-head"><h2 data-i18n="light.effect"></h2></div>
             <div id="effects" class="seg"></div>
@@ -130,12 +130,12 @@
             </div>
           </div>
           <div class="card" id="card-brightness">
-            <div class="card-head"><h2 data-i18n="light.brightness"></h2><span class="accent"><b id="bright-val">—</b>%</span></div>
-            <input id="brightness" type="range" min="0" max="100" step="5" />
+            <div class="card-head"><h2 id="bright-title" data-i18n="light.brightness"></h2><span class="accent"><b id="bright-val">—</b>%</span></div>
+            <input id="brightness" type="range" aria-labelledby="bright-title" min="0" max="100" step="5" />
           </div>
         </div>
 
-        <div id="tab-kblight" class="tab-body" hidden>
+        <div id="tab-kblight" class="tab-body" role="tabpanel" hidden>
           <div class="card list">
             <div class="list-row">
               <div class="row-title" data-i18n="light.effect"></div>
@@ -153,18 +153,18 @@
               </div>
             </div>
             <div class="list-row" id="kb-bright-row">
-              <div class="row-title" data-i18n="light.brightness"></div>
-              <span class="eq-preamp"><input id="kb-bright" type="range" min="0" step="1" /><b class="accent" id="kb-bright-val"></b></span>
+              <div class="row-title" id="kb-bright-title" data-i18n="light.brightness"></div>
+              <span class="eq-preamp"><input id="kb-bright" type="range" aria-labelledby="kb-bright-title" min="0" step="1" /><b class="accent" id="kb-bright-val"></b></span>
             </div>
             <div class="list-row" id="kb-speed-row">
-              <div class="row-title" data-i18n="kb.speed"></div>
-              <span class="eq-preamp"><input id="kb-speed" type="range" min="0" step="1" /><b class="accent" id="kb-speed-val"></b></span>
+              <div class="row-title" id="kb-speed-title" data-i18n="kb.speed"></div>
+              <span class="eq-preamp"><input id="kb-speed" type="range" aria-labelledby="kb-speed-title" min="0" step="1" /><b class="accent" id="kb-speed-val"></b></span>
             </div>
           </div>
           <div class="card list" id="kb-music-card">
             <div class="list-row">
               <div>
-                <div class="row-title"><span data-i18n="kb.music"></span><span class="info" tabindex="0" data-i18n-title="kb.musicMore">i</span></div>
+                <div class="row-title"><span data-i18n="kb.music"></span><span class="info" tabindex="0" role="img" data-i18n-title="kb.musicMore">i</span></div>
                 <div class="muted small" data-i18n="kb.musicHint"></div>
               </div>
               <div class="color-row">
@@ -194,10 +194,10 @@
           </div>
         </div>
 
-        <div id="tab-kbkeys" class="tab-body" hidden>
+        <div id="tab-kbkeys" class="tab-body" role="tabpanel" hidden>
           <div class="card">
             <div class="card-head">
-              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="kb.keysMore">i</span></h2>
+              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="kb.keysMore">i</span></h2>
               <div id="kb-layer" class="seg seg-small"></div>
             </div>
             <p class="muted small" data-i18n="kb.keysHint"></p>
@@ -213,27 +213,27 @@
           </div>
         </div>
 
-        <div id="tab-power" class="tab-body" hidden>
+        <div id="tab-power" class="tab-body" role="tabpanel" hidden>
           <div class="card battery-card" id="card-battery">
             <div class="battery-big"><span id="bat-num">—</span><small>%</small></div>
             <div class="bat-bar"><i id="bat-fill"></i></div>
             <div class="muted" id="bat-state"></div>
           </div>
           <div class="card" id="card-idle">
-            <div class="card-head"><h2 data-i18n="power.sleep"></h2><span class="accent"><b id="idle-val">—</b> <span data-i18n="power.minutes"></span></span></div>
+            <div class="card-head"><h2 id="idle-title" data-i18n="power.sleep"></h2><span class="accent"><b id="idle-val">—</b> <span data-i18n="power.minutes"></span></span></div>
             <p class="muted small" data-i18n="power.sleepHint"></p>
-            <input id="idle" type="range" min="1" max="15" step="1" />
+            <input id="idle" type="range" aria-labelledby="idle-title" min="1" max="15" step="1" />
           </div>
           <div class="card" id="card-low">
-            <div class="card-head"><h2 data-i18n="power.low"></h2><span class="accent"><b id="low-val">—</b>%</span></div>
+            <div class="card-head"><h2 id="low-title" data-i18n="power.low"></h2><span class="accent"><b id="low-val">—</b>%</span></div>
             <p class="muted small" data-i18n="power.lowHint"></p>
-            <input id="low" type="range" min="5" max="30" step="5" />
+            <input id="low" type="range" aria-labelledby="low-title" min="5" max="30" step="5" />
           </div>
         </div>
 
-        <div id="tab-receiver" class="tab-body" hidden>
+        <div id="tab-receiver" class="tab-body" role="tabpanel" hidden>
           <div class="card">
-            <div class="card-head"><h2><span data-i18n="receiver.leds"></span><span class="info" tabindex="0" data-i18n-title="receiver.ledsMore">i</span></h2></div>
+            <div class="card-head"><h2><span data-i18n="receiver.leds"></span><span class="info" tabindex="0" role="img" data-i18n-title="receiver.ledsMore">i</span></h2></div>
             <p class="muted small" data-i18n="receiver.ledsHint"></p>
             <div class="leds">
               <label><span class="led-dot"></span><span data-i18n="receiver.left"></span><select data-led="0"></select></label>
@@ -243,7 +243,7 @@
           </div>
         </div>
 
-        <div id="tab-info" class="tab-body" hidden>
+        <div id="tab-info" class="tab-body" role="tabpanel" hidden>
           <div class="card list">
             <div class="list-row" id="info-model-row" hidden>
               <div>
@@ -276,10 +276,10 @@
           <p class="muted small" id="info-hint"></p>
         </div>
 
-        <div id="tab-eq" class="tab-body" hidden>
+        <div id="tab-eq" class="tab-body" role="tabpanel" hidden>
           <div class="card">
             <div class="card-head">
-              <h2><span data-i18n="eq.title"></span><span class="info" tabindex="0" data-i18n-title="eq.more">i</span></h2>
+              <h2><span data-i18n="eq.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="eq.more">i</span></h2>
               <div class="eq-presets">
                 <select id="eq-preset" class="lang-select"></select>
                 <input id="eq-preset-name" maxlength="40" data-i18n-placeholder="eq.presetName" hidden />
@@ -291,8 +291,8 @@
             <details id="eq-detail" class="eq-detail">
               <summary><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg><span data-i18n="eq.adjust"></span></summary>
               <div class="eq-preamp">
-                <span class="muted small" data-i18n="eq.preamp"></span>
-                <input id="eq-preamp" type="range" min="-10" max="10" step="1" />
+                <span class="muted small" id="eq-preamp-title" data-i18n="eq.preamp"></span>
+                <input id="eq-preamp" type="range" aria-labelledby="eq-preamp-title" min="-10" max="10" step="1" />
                 <b class="accent"><span id="eq-preamp-val"></span> dB</b>
               </div>
               <div id="eq-bands" class="eq-bands"></div>
@@ -300,11 +300,11 @@
           </div>
         </div>
 
-        <div id="tab-audio" class="tab-body" hidden>
+        <div id="tab-audio" class="tab-body" role="tabpanel" hidden>
           <div class="card list">
             <div class="list-row">
               <div>
-                <div class="row-title"><span data-i18n="audio.format"></span><span class="info" tabindex="0" data-i18n-title="audio.formatMore">i</span></div>
+                <div class="row-title"><span data-i18n="audio.format"></span><span class="info" tabindex="0" role="img" data-i18n-title="audio.formatMore">i</span></div>
                 <div class="muted small" id="audio-format-hint" data-i18n="audio.formatHint"></div>
               </div>
               <select id="audio-format" class="lang-select"></select>
@@ -332,18 +332,18 @@
             </div>
             <div class="list-row">
               <div>
-                <div class="row-title" data-i18n="audio.mic"></div>
+                <div class="row-title" id="audio-mic-title" data-i18n="audio.mic"></div>
                 <div class="muted small" data-i18n="audio.micHint"></div>
               </div>
-              <span class="eq-preamp"><input id="audio-mic" type="range" min="-15" max="15" step="1" /><b class="accent"><span id="audio-mic-val"></span> dB</b></span>
+              <span class="eq-preamp"><input id="audio-mic" type="range" aria-labelledby="audio-mic-title" min="-15" max="15" step="1" /><b class="accent"><span id="audio-mic-val"></span> dB</b></span>
             </div>
           </div>
         </div>
 
-        <div id="tab-buttons" class="tab-body" hidden>
+        <div id="tab-buttons" class="tab-body" role="tabpanel" hidden>
           <div class="card">
             <div class="card-head">
-              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" data-i18n-title="buttons.more">i</span></h2>
+              <h2><span data-i18n="buttons.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="buttons.more">i</span></h2>
               <div id="button-layer" class="seg seg-small"></div>
             </div>
             <p class="muted small" id="button-layer-hint"></p>
@@ -357,7 +357,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" data-i18n="macros.eyebrow"></div>
-            <h1><span data-i18n="macros.title"></span><span class="info" tabindex="0" data-i18n-title="macros.more">i</span></h1>
+            <h1><span data-i18n="macros.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="macros.more">i</span></h1>
           </div>
         </header>
         <p class="muted small" data-i18n="macros.intro"></p>
@@ -398,7 +398,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" data-i18n="auto.eyebrow"></div>
-            <h1><span data-i18n="auto.title"></span><span class="info" tabindex="0" data-i18n-title="auto.more">i</span></h1>
+            <h1><span data-i18n="auto.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="auto.more">i</span></h1>
           </div>
         </header>
         <p class="muted small" data-i18n="auto.intro"></p>
@@ -410,7 +410,7 @@
         <div class="card">
           <div class="card-head">
             <div>
-              <h2><span data-i18n="smart.title"></span><span class="info" tabindex="0" data-i18n-title="smart.more">i</span></h2>
+              <h2><span data-i18n="smart.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="smart.more">i</span></h2>
               <p class="muted small" data-i18n="smart.intro"></p>
             </div>
             <label class="switch"><input id="smart-on" type="checkbox" /><i></i></label>
@@ -421,7 +421,7 @@
               <label><span class="muted small" data-i18n="smart.normalRate"></span><select id="normal-rate"></select></label>
             </div>
             <div class="card-head sub-head">
-              <h3><span data-i18n="smart.exceptions"></span><span class="info" tabindex="0" data-i18n-title="smart.exceptionsHint">i</span></h3>
+              <h3><span data-i18n="smart.exceptions"></span><span class="info" tabindex="0" role="img" data-i18n-title="smart.exceptionsHint">i</span></h3>
               <button id="add-exception" class="ghost" data-i18n="smart.add"></button>
             </div>
             <div id="exceptions"></div>
@@ -430,7 +430,7 @@
 
         <div class="section-head">
           <div>
-            <h2><span data-i18n="scenes.title"></span><span class="info" tabindex="0" data-i18n-title="scenes.more">i</span></h2>
+            <h2><span data-i18n="scenes.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="scenes.more">i</span></h2>
             <p class="muted small" data-i18n="scenes.intro"></p>
           </div>
           <label class="switch"><input id="scenes-on" type="checkbox" /><i></i></label>
@@ -468,7 +468,7 @@
           </div>
           <div class="list-row">
             <div>
-              <div class="row-title"><span data-i18n="settings.notify"></span><span class="info" tabindex="0" data-i18n-title="settings.notifyMore">i</span></div>
+              <div class="row-title"><span data-i18n="settings.notify"></span><span class="info" tabindex="0" role="img" data-i18n-title="settings.notifyMore">i</span></div>
               <div class="muted small" data-i18n="settings.notifyHint"></div>
             </div>
             <label class="switch"><input id="notify" type="checkbox" /><i></i></label>

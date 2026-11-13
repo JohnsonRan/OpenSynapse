@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
-  font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  font-family: var(--font-ui);
   --bg: #0a0a0a;
   --rail: #050505;
   --panel: #141414;
@@ -54,7 +55,7 @@
 }
 
 :root:lang(ja) {
-  font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
 }
 
 * {
@@ -984,6 +985,7 @@ input[type="range"] {
   letter-spacing: 0;
   vertical-align: 2px;
   cursor: help;
+  position: relative;
 }
 
 .info:hover,
@@ -991,6 +993,24 @@ input[type="range"] {
   color: var(--accent);
   border-color: var(--accent);
   outline: none;
+}
+
+/* The tooltip only shows on hover; keyboard focus shows the same text here. */
+.info:focus-visible::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: 320px;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg);
+  font: normal 400 var(--text-small) / var(--leading-prose) var(--font-ui);
+  white-space: normal;
 }
 
 h1 .info {
@@ -1338,7 +1358,8 @@ button.inline-link:hover {
   background: rgb(0 0 0 / 0.3);
 }
 
-:root.glass #toast {
+:root.glass #toast,
+:root.glass .info:focus-visible::after {
   background: #1c1c1c;
 }
 
