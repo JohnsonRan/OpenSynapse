@@ -163,6 +163,7 @@ function showView(name: string) {
   disarm();
   if (recording && name !== "macros") $("#macro-record").click(); // leaving stops a recording
   document.querySelectorAll<HTMLElement>(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
+  $(`#view-${name} h1`).focus(); // keyboard and screen reader users start at the title
   const rail = name === "device" ? "devices" : name;
   document.querySelectorAll<HTMLElement>(".nav").forEach((x) => {
     x.classList.toggle("active", x.dataset.view === rail);

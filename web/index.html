@@ -40,7 +40,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" data-i18n="overview.eyebrow"></div>
-            <h1 data-i18n="overview.title"></h1>
+            <h1 tabindex="-1" data-i18n="overview.title"></h1>
           </div>
           <button id="rescan" class="ghost icon" data-i18n-title="overview.rescan">
             <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg>
@@ -59,7 +59,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" id="dev-cat"></div>
-            <h1 id="dev-name"></h1>
+            <h1 tabindex="-1" id="dev-name"></h1>
           </div>
           <div class="head-right">
             <select id="dev-model" class="lang-select" data-i18n-title="kb.modelHint" hidden></select>
@@ -357,7 +357,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" data-i18n="macros.eyebrow"></div>
-            <h1><span data-i18n="macros.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="macros.more">i</span></h1>
+            <h1 tabindex="-1"><span data-i18n="macros.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="macros.more">i</span></h1>
           </div>
         </header>
         <p class="muted small" data-i18n="macros.intro"></p>
@@ -398,7 +398,7 @@
         <header class="device-head">
           <div>
             <div class="eyebrow" data-i18n="auto.eyebrow"></div>
-            <h1><span data-i18n="auto.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="auto.more">i</span></h1>
+            <h1 tabindex="-1"><span data-i18n="auto.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="auto.more">i</span></h1>
           </div>
         </header>
         <p class="muted small" data-i18n="auto.intro"></p>
@@ -442,7 +442,7 @@
       <!-- Settings -->
       <section id="view-settings" class="view" hidden>
         <header class="device-head">
-          <div><div class="eyebrow">OpenSynapse</div><h1 data-i18n="settings.title"></h1></div>
+          <div><div class="eyebrow">OpenSynapse</div><h1 tabindex="-1" data-i18n="settings.title"></h1></div>
         </header>
         <div class="card list">
           <div class="list-row">
@@ -500,7 +500,7 @@
       <section id="view-about" class="view about" hidden>
         <header class="about-hero">
           <img class="about-logo" src="/logo.png" alt="" />
-          <h1>OpenSynapse</h1>
+          <h1 tabindex="-1">OpenSynapse</h1>
           <div class="about-version">
             <span id="about-version"></span>
             <span class="pill" id="about-edition"></span>
