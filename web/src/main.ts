@@ -593,8 +593,10 @@ let lift: Tracking | undefined;
 
 async function loadLift(d: DeviceInfo) {
   $("#card-lift").hidden = true;
-  lift = await Devices.tracking(d.id).catch(() => undefined);
-  if (!lift || dev?.id !== d.id) return;
+  lift = undefined;
+  const l = await Devices.tracking(d.id).catch(() => undefined);
+  if (!l || dev?.id !== d.id) return;
+  lift = l;
   $("#card-lift").hidden = false;
   renderLift();
 }
@@ -612,7 +614,10 @@ function renderLift() {
   $("#lift-land-val").textContent = `${l.landing}`;
 }
 
-const saveLift = debounce(() => dev && lift && attempt(() => Devices.setTracking(dev!.id, lift!), t("lift.saved")), 300);
+const sendLift = debounce((id: string, l: Tracking) => attempt(() => Devices.setTracking(id, l), t("lift.saved")), 300);
+// The device and its values are taken at the edit: when the debounce fires,
+// another device may be open.
+const saveLift = () => dev && lift && sendLift(dev.id, { ...lift });
 
 $<HTMLInputElement>("#lift-asym").onchange = (e) => {
   if (!lift) return;
