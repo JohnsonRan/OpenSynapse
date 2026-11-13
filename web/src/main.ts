@@ -793,18 +793,28 @@ function captureKey(done: (code: number, mods: number) => void, cancel: () => vo
   stopCapture = () => (end(), cancel());
 }
 
+// The Keyboard group of a remap menu: the key set now, Esc, and capture.
+// Esc cancels a capture (captureKey), so it is offered as an item of its own.
+const ESC = "key:27:0";
+function keyItems(act: ButtonAction, cur: string): [string, string][] {
+  return [
+    ...(act.kind === "key" ? [[cur, keyLabel(act.code, act.mods)] as [string, string]] : []),
+    ...(cur === ESC ? [] : [[ESC, keyLabel(27, 0)] as [string, string]]),
+    ["capture", t("buttons.pressKey")],
+  ];
+}
+
 function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
   const cur = actionValue(act);
   const group = (label: string, items: [string, string][]) =>
     items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
-  const keyItems: [string, string][] = act.kind === "key" ? [[cur, keyLabel(act.code, act.mods)]] : [];
   return (
     option("default", t("buttons.default"), cur === "default") +
     (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
     group(t("buttons.groupMouse"), MOUSE_TARGETS.map((n) => [`mouse:${n}`, buttonName(n)])) +
     group(t("buttons.groupDpi"), DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
     (layer === 0 ? group(t("buttons.groupHypershift"), [["hypershift", t("buttons.hypershift")]]) : "") +
-    group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
+    group(t("buttons.groupKey"), keyItems(act, cur)) +
     group(t("buttons.groupMacro"), macros.map((m) => [`macro:${m.id}`, esc(m.name)]))
   );
 }
@@ -1013,11 +1023,10 @@ function kbKeyOptions(act: ButtonAction) {
   const cur = actionValue(act);
   const group = (label: string, items: [string, string][]) =>
     items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
-  const keyItems: [string, string][] = act.kind === "key" ? [[cur, keyLabel(act.code, act.mods)]] : [];
   return (
     option("default", t("buttons.default"), cur === "default") +
     (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
-    group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
+    group(t("buttons.groupKey"), keyItems(act, cur)) +
     group(t("kb.media"), MEDIA_CODES.map((c) => [`media:${c}`, t(`kb.media.${c}` as "kb.media.233")])) +
     group(t("buttons.groupMacro"), kbMacros.map((m) => [`macro:${m.id}`, esc(m.name)]))
   );
