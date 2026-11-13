@@ -8,6 +8,7 @@ import (
 
 	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
+	"github.com/JohnsonRan/OpenSynapse/internal/via"
 )
 
 // An imported binding reaches the device as it is, so import keeps only what
@@ -117,6 +118,44 @@ func TestReplaceConfigWaitsForAnAsleepMouse(t *testing.T) {
 	cfgMu.Unlock()
 	if left != 0 || len(written) != 1 || written[0].Fn != side.Fn || !slices.Equal(written[0].Data, side.Data) {
 		t.Fatalf("%d bindings left, wrote %+v; want none left and the button's own function written", left, written)
+	}
+}
+
+// The same for a VIA keyboard that does not answer: its macro key keeps the
+// trigger, so the settings that say what the key did must stay.
+func TestReplaceConfigWaitsForAViaKeyboard(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	gone := make(chan []byte)
+	close(gone) // unplugged: every request ends at once
+	d := via.NewDevice(&via.Model{Name: "Test 60", Rows: 5, Cols: 15, Keys: []via.Key{{Row: 0, Col: 0}}}, &fakeViaPort{in: gone})
+	d.ID, d.Layers = "test:gone", 4
+	cfgMu.Lock()
+	savedCfg := cfg
+	cfg = defaultConfig()
+	cfg.Macros = []Macro{{ID: "m"}}
+	cfg.Bindings = []Binding{{Family: viaFamily(d), Button: 0, Macro: "m", Trigger: firstTrigger}}
+	cfg.ViaKeys = map[string]map[string]uint16{d.ID: {viaKeyOf(0, 0): 4}}
+	cfgMu.Unlock()
+	viaKeyboards.mu.Lock()
+	viaKeyboards.devs = []*via.Device{d}
+	viaKeyboards.mu.Unlock()
+	t.Cleanup(func() {
+		viaKeyboards.mu.Lock()
+		viaKeyboards.devs = nil
+		viaKeyboards.mu.Unlock()
+		cfgMu.Lock()
+		cfg = savedCfg
+		cfgMu.Unlock()
+	})
+
+	if err := replaceConfig(defaultConfig()); err == nil {
+		t.Fatal("replaced the settings while a VIA keyboard kept its macro key")
+	}
+	cfgMu.Lock()
+	kept := len(cfg.Bindings) == 1 && len(cfg.ViaKeys[d.ID]) == 1
+	cfgMu.Unlock()
+	if !kept {
+		t.Fatal("the binding or the key's remembered function was lost")
 	}
 }
 

@@ -559,26 +559,26 @@ func syncViaBindings(restore bool) (missed []string) {
 		if d.Unsure {
 			continue
 		}
-		ok := true
+		written := true
 		for _, b := range bs {
-			k, ok := viaKey(d, b.Button)
-			if b.Family != viaFamily(d) || !ok || b.Layer >= viaLayers(d) {
+			k, found := viaKey(d, b.Button)
+			if b.Family != viaFamily(d) || !found || b.Layer >= viaLayers(d) {
 				continue
 			}
 			want := triggerCode(b.Trigger)
 			if restore {
-				orig, ok := viaOriginal(d.ID, b.Layer, b.Button)
-				if !ok {
+				orig, changed := viaOriginal(d.ID, b.Layer, b.Button)
+				if !changed {
 					continue
 				}
 				want = orig
 			}
 			if err := setViaKey(d, b.Layer, k, want); err != nil {
 				log.Println("key", b.Button, "of", d.ID, err)
-				ok = false
+				written = false
 			}
 		}
-		if !ok {
+		if !written {
 			missed = append(missed, d.Name)
 		}
 	}
