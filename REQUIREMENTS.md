@@ -123,11 +123,12 @@ applying needs the owner's approval, quoted in the commit body.
 
 ## Exceptions
 
-Bound Go methods and events the page does not call. Not audited yet; the first change that audits
-the bindings fills this table.
+Bound Go methods and events the page does not call. Audited 2026-11-14 (every method and event in
+`web/src/mygo.ts` has a caller in `web/src/main.ts`; `Via` and `Lights` are called through `kbApi`).
 
 | Binding | Caller | Reason |
 | --- | --- | --- |
+| none | | |
 
 Intentional designs that look like defects:
 
