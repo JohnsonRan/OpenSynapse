@@ -2,8 +2,123 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"slices"
 	"testing"
+
+	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
+
+// An imported binding reaches the device as it is, so import keeps only what
+// SetButton and SetKey would have made.
+func TestImportBindings(t *testing.T) {
+	macros := []Macro{{ID: "m"}}
+	kb := leobog.Models[0]
+	key := slices.IndexFunc(kb.Layout, func(k leobog.Key) bool { return k.Index != kb.FnIndex })
+	noKey := 0
+	for slices.ContainsFunc(kb.Layout, func(k leobog.Key) bool { return k.Index == noKey }) {
+		noKey++
+	}
+	side := razer.Assignment{Fn: razer.FnMouse, Data: []byte{4}}
+	trig := func(i int) int { return firstTrigger + i }
+	in := []Binding{
+		{Family: "Mouse", Button: 4, Macro: "m", Trigger: trig(0), Original: side},
+		{Family: "Mouse", Button: leftButton, Layer: razer.LayerNormal, Macro: "m", Trigger: trig(1)},     // no way left to click
+		{Family: "Mouse", Button: 0x100 + leftButton, Macro: "m", Trigger: trig(1)},                       // the left button once cut to a byte
+		{Family: "Mouse", Button: 5, Layer: 0x100, Macro: "m", Trigger: trig(1)},                          // no such layer
+		{Family: "Mouse", Button: 5, Macro: "m", Trigger: trig(0)},                                        // trigger taken
+		{Family: "Mouse", Button: 4, Macro: "m", Trigger: trig(1)},                                        // button taken
+		{Family: "Mouse", Button: 5, Macro: "gone", Trigger: trig(1)},                                     // no such macro
+		{Family: "Mouse", Button: leftButton, Layer: razer.LayerHypershift, Macro: "m", Trigger: trig(2)}, // allowed, as in SetButton
+		{Family: "Mouse", Button: 5, Macro: "m", Trigger: trig(3), Original: razer.Assignment{Fn: 0x99, Data: []byte{1, 2}}},
+		{Family: "Mouse", Button: 3, Macro: "m", Trigger: trig(4), Original: triggerAssignment(trig(7))},
+		{Family: kb.Name, Button: kb.Layout[key].Index, Macro: "m", Trigger: trig(5)},
+		{Family: kb.Name, Button: kb.FnIndex, Macro: "m", Trigger: trig(6)}, // the Fn key cannot be remapped
+		{Family: kb.Name, Button: noKey, Macro: "m", Trigger: trig(6)},      // not a key of this model
+		{Family: viaFamilyPrefix + "1234:5678", Button: leftButton, Macro: "m", Trigger: trig(6)},
+	}
+	want := []Binding{
+		in[0],
+		in[7],
+		{Family: "Mouse", Button: 5, Macro: "m", Trigger: trig(3), Original: defaultAssignment(5)},
+		{Family: "Mouse", Button: 3, Macro: "m", Trigger: trig(4), Original: defaultAssignment(3)},
+		in[10],
+		in[13],
+	}
+	want[1].Original = defaultAssignment(leftButton) // it had none
+	got := importBindings(in, macros)
+	if len(got) != len(want) {
+		t.Fatalf("kept %d bindings, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		g, w := got[i], want[i]
+		if g.Family != w.Family || g.Button != w.Button || g.Layer != w.Layer || g.Trigger != w.Trigger {
+			t.Errorf("binding %d: %+v, want %+v", i, g, w)
+		}
+		if mouse := g.Family == "Mouse"; mouse && (g.Original.Fn != w.Original.Fn || !slices.Equal(g.Original.Data, w.Original.Data)) {
+			t.Errorf("binding %d: original %+v, want %+v", i, g.Original, w.Original)
+		}
+	}
+}
+
+// A mouse that is asleep keeps sending its trigger keys. Replacing the
+// settings then would forget what its buttons did, so the import waits.
+func TestReplaceConfigWaitsForAnAsleepMouse(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	side := razer.Assignment{Fn: razer.FnMouse, Data: []byte{4}}
+	bound := Binding{Family: "Razer Test", Button: 4, Macro: "m", Trigger: firstTrigger, Original: side}
+	cfgMu.Lock()
+	savedCfg := cfg
+	cfg = defaultConfig()
+	cfg.Macros, cfg.Bindings = []Macro{{ID: "m"}}, []Binding{bound}
+	cfgMu.Unlock()
+	devices.mu.Lock()
+	savedDevs := devices.devs
+	devices.devs = []*razer.Device{dev("BF", "Razer Test (Wireless)", false)}
+	devices.mu.Unlock()
+	origGet, origSet := buttonAssignment, setButtonAssignment
+	t.Cleanup(func() {
+		buttonAssignment, setButtonAssignment = origGet, origSet
+		devices.mu.Lock()
+		devices.devs = savedDevs
+		devices.mu.Unlock()
+		cfgMu.Lock()
+		cfg = savedCfg
+		cfgMu.Unlock()
+	})
+	var written []razer.Assignment
+	setButtonAssignment = func(_ *razer.Device, _, _ int, a razer.Assignment) error {
+		written = append(written, a)
+		return nil
+	}
+
+	buttonAssignment = func(*razer.Device, int, int) (razer.Assignment, error) {
+		return razer.Assignment{}, errors.New("no answer")
+	}
+	if err := replaceConfig(defaultConfig()); err == nil {
+		t.Fatal("replaced the settings while a bound mouse was asleep")
+	}
+	cfgMu.Lock()
+	kept := len(cfg.Bindings) == 1 && cfg.Bindings[0].Trigger == bound.Trigger
+	cfgMu.Unlock()
+	if !kept || len(written) != 0 {
+		t.Fatalf("binding kept: %v, writes: %d; want the binding kept and no write", kept, len(written))
+	}
+
+	buttonAssignment = func(*razer.Device, int, int) (razer.Assignment, error) {
+		return triggerAssignment(bound.Trigger), nil
+	}
+	if err := replaceConfig(defaultConfig()); err != nil {
+		t.Fatal(err)
+	}
+	cfgMu.Lock()
+	left := len(cfg.Bindings)
+	cfgMu.Unlock()
+	if left != 0 || len(written) != 1 || written[0].Fn != side.Fn || !slices.Equal(written[0].Data, side.Data) {
+		t.Fatalf("%d bindings left, wrote %+v; want none left and the button's own function written", left, written)
+	}
+}
 
 func TestImportConfig(t *testing.T) {
 	if _, err := importConfig([]byte(`{"foo":1}`)); err == nil {

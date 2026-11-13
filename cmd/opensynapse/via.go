@@ -95,7 +95,9 @@ func (h *viaHub) infos() []DeviceInfo {
 
 // viaFamily keys a keyboard's macro bindings: by USB IDs, which stay when
 // the user picks another of the models sharing them.
-func viaFamily(d *via.Device) string { return "via:" + d.ID }
+func viaFamily(d *via.Device) string { return viaFamilyPrefix + d.ID }
+
+const viaFamilyPrefix = "via:"
 
 // Via controls QMK keyboards with VIA.
 type Via struct{}
@@ -515,8 +517,9 @@ func (Via) ResetKeys(id string) error {
 }
 
 // syncViaBindings makes macro keys send their trigger, or with restore what
-// they did before; bindMu is held.
-func syncViaBindings(restore bool) {
+// they did before; bindMu is held. It returns the names of the keyboards
+// with a key that was not written.
+func syncViaBindings(restore bool) (missed []string) {
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
@@ -524,6 +527,7 @@ func syncViaBindings(restore bool) {
 		if d.Unsure {
 			continue
 		}
+		ok := true
 		for _, b := range bs {
 			k, ok := viaKey(d, b.Button)
 			if b.Family != viaFamily(d) || !ok || b.Layer >= viaLayers(d) {
@@ -539,7 +543,12 @@ func syncViaBindings(restore bool) {
 			}
 			if err := setViaKey(d, b.Layer, k, want); err != nil {
 				log.Println("key", b.Button, "of", d.ID, err)
+				ok = false
 			}
 		}
+		if !ok {
+			missed = append(missed, d.Name)
+		}
 	}
+	return missed
 }

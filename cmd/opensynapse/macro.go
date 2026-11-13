@@ -479,16 +479,19 @@ func applyBindings(restore bool) {
 	applyBindingsLocked(restore)
 }
 
-func applyBindingsLocked(restore bool) {
+// applyBindingsLocked returns the names of the mice and VIA keyboards that
+// did not take a button or key: they still hold what they held before.
+func applyBindingsLocked(restore bool) (missed []string) {
 	syncKeymaps(restore)
-	syncViaBindings(restore)
+	missed = syncViaBindings(restore)
 	cfgMu.Lock()
 	bs := slices.Clone(cfg.Bindings)
 	cfgMu.Unlock()
 	if len(bs) == 0 {
-		return
+		return missed
 	}
 	for _, d := range devices.list() {
+		ok := true
 		for _, b := range bs {
 			if b.Family != d.Family() {
 				continue
@@ -497,19 +500,31 @@ func applyBindingsLocked(restore bool) {
 			if restore {
 				want = b.Original
 			}
-			cur, err := d.ButtonAssignment(b.Button, b.Layer)
+			cur, err := buttonAssignment(d, b.Button, b.Layer)
 			if err != nil {
+				ok = false
 				break // asleep or gone: skip the device
 			}
 			if cur.Fn == want.Fn && slices.Equal(cur.Data, want.Data) {
 				continue
 			}
-			if err := d.SetButtonAssignment(b.Button, b.Layer, want); err != nil {
+			if err := setButtonAssignment(d, b.Button, b.Layer, want); err != nil {
 				log.Println("button", b.Button, "of", d.ID, err)
+				ok = false
 			}
 		}
+		if !ok {
+			missed = append(missed, d.Name)
+		}
 	}
+	return missed
 }
+
+// Tests replace the mouse.
+var (
+	buttonAssignment    = (*razer.Device).ButtonAssignment
+	setButtonAssignment = (*razer.Device).SetButtonAssignment
+)
 
 // restoreBindingsOnQuit disables future periodic checks and restores button functions.
 func restoreBindingsOnQuit() {

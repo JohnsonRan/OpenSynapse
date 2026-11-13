@@ -5,8 +5,12 @@ import (
 	"errors"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/egoist/mygo"
+
+	"github.com/JohnsonRan/OpenSynapse/internal/leobog"
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 // Settings can be saved to a file and loaded on another PC: scenes, smart
@@ -48,15 +52,7 @@ func (Settings) Import() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	bindMu.Lock()
-	applyBindingsLocked(true)
-	cfgMu.Lock()
-	next.Keyboards = cfg.Keyboards // what the keyboards here hold, not the other PC's
-	next.ViaKeys, next.ViaModels = cfg.ViaKeys, cfg.ViaModels
-	cfg = next
-	cfgMu.Unlock()
-	bindMu.Unlock()
-	if err := saveConfig(); err != nil {
+	if err := replaceConfig(next); err != nil {
 		return false, err
 	}
 	resetAuto()
@@ -66,6 +62,70 @@ func (Settings) Import() (bool, error) {
 		w.SetVibrancy(glassVibrancy(glassOn()))
 	}
 	return true, nil
+}
+
+// replaceConfig makes imported settings the current ones and saves them. The
+// bound buttons get their own function back first. A mouse that is asleep
+// cannot take it, and the import would forget what its buttons did while they
+// still send their trigger keys, so the import is refused until it answers.
+func replaceConfig(next config) error {
+	bindMu.Lock()
+	if missed := applyBindingsLocked(true); len(missed) > 0 {
+		bindMu.Unlock()
+		kickBindings() // the buttons that were restored play their macros again
+		return errors.New(tr("err.importAsleep", strings.Join(missed, ", ")))
+	}
+	cfgMu.Lock()
+	next.Keyboards = cfg.Keyboards // what the keyboards here hold, not the other PC's
+	next.ViaKeys, next.ViaModels = cfg.ViaKeys, cfg.ViaModels
+	cfg = next
+	cfgMu.Unlock()
+	bindMu.Unlock()
+	return saveConfig()
+}
+
+// importBindings keeps the bindings the app could have made itself. The
+// rest would reach a device as they are: a macro on the left button leaves no
+// way to click, two bindings with one trigger key play the wrong macro, and
+// Original is written to the mouse when the app quits. A mouse button and
+// layer are sent as one byte each, so a larger number would land on another
+// button.
+func importBindings(in []Binding, macros []Macro) []Binding {
+	out := []Binding{}
+	for _, b := range in {
+		taken := slices.ContainsFunc(out, func(o Binding) bool {
+			return o.Trigger == b.Trigger || o.Family == b.Family && o.Button == b.Button && o.Layer == b.Layer
+		})
+		if taken || !isTriggerVK(b.Trigger) || !slices.ContainsFunc(macros, func(m Macro) bool { return m.ID == b.Macro }) {
+			continue
+		}
+		if b.Layer != razer.LayerNormal && b.Layer != razer.LayerHypershift {
+			continue
+		}
+		if kb := keyboardFamily(b.Family); kb != nil {
+			if !slices.ContainsFunc(kb.Layout, func(k leobog.Key) bool { return k.Index == b.Button }) || b.Button == kb.FnIndex {
+				continue
+			}
+		} else if !strings.HasPrefix(b.Family, viaFamilyPrefix) { // a mouse
+			if b.Button < 0 || b.Button > 0xFF || b.Button == leftButton && b.Layer == razer.LayerNormal {
+				continue
+			}
+			// An original the app cannot name, or a trigger key, gives way to the button's own function.
+			if _, err := assignmentOf(b.Button, b.Layer, actionOf(b.Button, b.Original)); err != nil || isTriggerAssignment(b.Original) {
+				b.Original = defaultAssignment(b.Button)
+			}
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+// keyboardFamily is the LEOBOG model a binding's family names, nil for none.
+func keyboardFamily(family string) *leobog.Model {
+	if i := slices.IndexFunc(leobog.Models, func(m *leobog.Model) bool { return m.Name == family }); i >= 0 {
+		return leobog.Models[i]
+	}
+	return nil
 }
 
 // importConfig reads a settings file; one that is not OpenSynapse's fails.
@@ -83,8 +143,6 @@ func importConfig(b []byte) (config, error) {
 	}
 	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.normalize() != nil })
 	c.EQPresets = slices.DeleteFunc(c.EQPresets, func(p EQPreset) bool { return p.normalize() != nil })
-	c.Bindings = slices.DeleteFunc(c.Bindings, func(bd Binding) bool {
-		return !isTriggerVK(bd.Trigger) || !slices.ContainsFunc(c.Macros, func(m Macro) bool { return m.ID == bd.Macro })
-	})
+	c.Bindings = importBindings(c.Bindings, c.Macros)
 	return c, nil
 }
