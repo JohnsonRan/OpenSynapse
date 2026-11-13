@@ -142,6 +142,19 @@ after a release.
 
 | Option or finding | Source | Why it waits |
 | --- | --- | --- |
+| LEOBOG Reset keys removes the macro bindings and saves before the keymap write, and a failed write is not marked for rewrite (`keyboard_keys.go`, `ResetKeys`); `SetKey` reports success when the keymap write fails | code survey, 2026-11-14 | Medium; needs a busy or unplugged keyboard mid-reset; the owner chose the first four findings |
+| A settings section that fails to decode is replaced by its default without a log line or a `.bad` copy, and lost at the next save (`config.go`, `parseConfig`) | code survey, 2026-11-14 | Medium; needs a hand-edited file or a downgrade |
+| No background job recovers from a panic; a hand-edited scene with a highlight key of 126 or more panics `runAuto` on every start | code survey, 2026-11-14 | Medium; needs a hand-edited file; the wrapper touches every job |
+| A `razer.Device` from an older scan reopens a HID handle that nothing closes; the Razer hub has no `scanMu` | code survey, 2026-11-14 | Low to medium; a handle per stale round |
+| Music lighting spins at 100 Hz without frames after `AUDCLNT_E_DEVICE_INVALIDATED` (`winaudio/loopback_windows.go`) | code survey, 2026-11-14 | Low to medium; the invalidation is from the WASAPI docs, not seen on hardware |
+| Backup import accepts a binding on the left button and duplicate triggers; import forgets the bindings of a mouse that is asleep | code survey, 2026-11-14 | Low; needs a hand-made backup |
+| Switching a VIA keyboard between models with a different matrix width (GMMK Numpad and WOBKEY Rainy 75 2.4G) moves its bindings to other keys | code survey, 2026-11-14 | Low; one pair in the catalog |
+| Plugging in a Razer device still re-applies the scene to every Razer device, not only the new one | a950475 | the smaller fix covered unrelated devices; per-device reset needs the receiver's answering state per ID |
+| `runAuto` keeps its 1 s ticker, a JSON marshal and a language lookup while scenes and smart polling are off; music lighting wakes about 120 times a second while silent | code survey, 2026-11-14 | an optimization, measure against the memory and CPU baseline first |
+| The page: the macro Add key button stacks listeners; key capture has no Esc cancel; deleting a macro, scene or EQ preset and importing a backup have no confirmation; some Go calls have no `.catch` | page survey, 2026-11-14 | Low; the owner chose the first four findings |
+| The page: scene card heads and DPI stage cards cannot be used with the keyboard; sliders have no accessible name; the toast has no live region; no `prefers-reduced-motion` | page survey, 2026-11-14 | accessibility pass, one change |
+| The three HID port readers (`via`, `walkplay`, `evision`) and the five device hubs repeat the same code | code survey, 2026-11-14 | a refactor without a behaviour change |
+| Feature ideas: per-key colors, music lighting and scene lighting for Razer keyboards; scenes matched by window title, and a scene locked from the tray; text and launch steps in macros | survey, 2026-11-14 | features; the owner decides after release |
 
 ## Not yet enforced
 
