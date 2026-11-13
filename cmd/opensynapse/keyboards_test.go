@@ -408,27 +408,59 @@ func TestResetKeysFailureKeepsBindingsAndRewritesKeymap(t *testing.T) {
 	}
 }
 
-// A remap the keyboard did not take is an error for the page; it stays saved
-// and the next round writes it, even when the user picks the old key again
-// meanwhile (the keyboard may hold one layer of the failed write).
-func TestSetKeyReportsFailedWriteAndRetries(t *testing.T) {
+// A change the keyboard did not take is an error for the page, which goes on
+// showing what the key did. The settings go back to that as well, and the
+// next round writes the old keymap over what the failed write may have left.
+func TestSetKeyFailedWriteRollsBack(t *testing.T) {
 	d, sent := fakeKeyboard(t, map[string]*[leobog.Layers]leobog.Layer{})
+	cfgMu.Lock()
+	cfg.Macros = []Macro{{ID: "m"}}
+	cfgMu.Unlock()
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "key", Code: 0x41}); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Keyboards{}).SetKey("k", 0, 4, ButtonAction{Kind: "macro", Macro: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	held, remapped := keymapOf(d, false), keymapOf(d, true)
 	record := deviceSetKeymap
 	deviceSetKeymap = func(*leobog.Device, [leobog.Layers]leobog.Layer) error { return errors.New("busy") }
-	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "key", Code: 0x41}); err == nil || err.Error() != "busy" {
-		t.Fatalf("SetKey: %v, want the write error", err)
+	for name, change := range map[string]struct {
+		index int
+		act   ButtonAction
+	}{
+		"a remap":              {5, ButtonAction{Kind: "key", Code: 0x42}},
+		"a remap undone":       {3, ButtonAction{Kind: "default"}},
+		"a new macro key":      {9, ButtonAction{Kind: "macro", Macro: "m"}},
+		"a macro key remapped": {4, ButtonAction{Kind: "key", Code: 0x43}},
+	} {
+		err := (Keyboards{}).SetKey("k", 0, change.index, change.act)
+		if err == nil || err.Error() != tr("err.keyWrite") {
+			t.Fatalf("%s: %v, want the message for a failed write", name, err)
+		}
+		cfgMu.Lock()
+		bindings := slices.Clone(cfg.Bindings)
+		cfgMu.Unlock()
+		if keymapOf(d, true) != remapped || len(bindings) != 1 || bindings[0].Button != 4 || keymapOf(d, false) != held {
+			t.Fatalf("%s: the keys and bindings changed though the keyboard refused: %+v", name, bindings)
+		}
 	}
-	if keymapOf(d, true) == d.DefaultLayers() {
-		t.Fatal("the remap was not kept for the retry")
-	}
-	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "default"}); err == nil {
-		t.Fatal("SetKey reported success for a second failed write")
+	saved, _, err := func() (config, []string, error) {
+		b, err := os.ReadFile(configPath())
+		if err != nil {
+			return config{}, nil, err
+		}
+		return parseConfig(b, defaultConfig())
+	}()
+	if err != nil || len(saved.Bindings) != 1 || saved.Keyboards["k"].Keymap == nil || *saved.Keyboards["k"].Keymap != remapped {
+		t.Fatalf("saved settings after the refused changes: %+v, %v; want them as before", saved.Bindings, err)
 	}
 	deviceSetKeymap = record
+	*sent = nil
 	bindMu.Lock()
 	syncKeymaps(false)
 	bindMu.Unlock()
-	if len(*sent) != 1 || (*sent)[0] != d.DefaultLayers() {
-		t.Fatalf("keymaps sent after the failed writes: %d, want the factory keymap once", len(*sent))
+	if len(*sent) != 1 || (*sent)[0] != held {
+		t.Fatalf("keymaps sent after the refused changes: %d, want the old keymap once", len(*sent))
 	}
 }

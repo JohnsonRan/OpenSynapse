@@ -168,6 +168,11 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 	find := func() int {
 		return slices.IndexFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name && b.Button == index && b.Layer == layer })
 	}
+	// What a failed write goes back to.
+	cfgMu.Lock()
+	bindingsBefore := slices.Clone(cfg.Bindings)
+	cfgMu.Unlock()
+	keymapBefore := keyboardMemory(d.ID).Keymap
 	if act.Kind == "macro" {
 		cfgMu.Lock()
 		if !slices.ContainsFunc(cfg.Macros, func(m Macro) bool { return m.ID == act.Macro }) {
@@ -214,12 +219,23 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 	}
 	refreshHooks()
-	failed := syncKeymaps(false)
+	if syncKeymaps(false)[d.ID] == nil {
+		return saveConfig()
+	}
+	// The keyboard did not take the keymap, and the page goes on showing what
+	// the key did: the settings go back to that too. The keyboard stays marked
+	// unknown, so keepBindings writes the old keymap over a half-written one.
+	cfgMu.Lock()
+	cfg.Bindings = bindingsBefore
+	cfgMu.Unlock()
+	refreshHooks()
+	if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Keymap = keymapBefore }); err != nil {
+		return err
+	}
 	if err := saveConfig(); err != nil {
 		return err
 	}
-	// The change stays saved: keepBindings writes it once the keyboard answers.
-	return failed[d.ID]
+	return errors.New(tr("err.keyWrite"))
 }
 
 // ResetKeys gives every key its factory action and unbinds its macros.
