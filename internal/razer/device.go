@@ -51,7 +51,10 @@ func (m *Model) Wired() bool { return strings.HasSuffix(m.Name, " (Wired)") }
 // in case the driver's default branch hid the real one: 0x1F (current
 // devices), 0xFF (older ones), 0x3F and 0x9F (some keyboards and receivers).
 func (d *Device) txCandidates(name string) []byte {
-	if t, ok := d.txOK[name]; ok {
+	d.mu.Lock()
+	t, ok := d.txOK[name]
+	d.mu.Unlock()
+	if ok {
 		return []byte{t}
 	}
 	var out []byte
