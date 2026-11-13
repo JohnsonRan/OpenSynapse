@@ -1463,6 +1463,7 @@ function renderMacroList() {
 }
 
 function renderMacro() {
+  stopCapture(); // a key being added belongs to the macro shown before
   $("#macro-edit").hidden = !macro;
   if (!macro) return;
   const m = macro;
@@ -1631,17 +1632,18 @@ $("#macro-record").onclick = async () => {
   renderMacro();
 };
 
-// The next key pressed in the window is added.
+// The next key or combination pressed in the window is added: the modifiers
+// go down first and come up last. Codes are Windows virtual-key codes.
 $("#add-key").onclick = () => {
   const b = $<HTMLButtonElement>("#add-key");
-  b.textContent = t("macros.pressKey");
-  const onKey = (e: KeyboardEvent) => {
-    e.preventDefault();
-    window.removeEventListener("keydown", onKey, true);
-    b.textContent = t("macros.addKey");
-    addPress("key", e.keyCode); // Windows virtual-key code
-  };
-  window.addEventListener("keydown", onKey, true);
+  b.textContent = t("capture.hint");
+  const reset = () => (b.textContent = t("macros.addKey"));
+  captureKey((code, mods) => {
+    reset();
+    const keys = [[1, 17], [2, 16], [4, 18], [8, 91]].filter(([bit]) => mods & bit!).map(([, vk]) => vk!);
+    if (code) keys.push(code);
+    addSteps(...keys.map((k) => step("key", k, true)), ...keys.reverse().map((k) => step("key", k, false)));
+  }, reset);
 };
 
 const addMouse = $<HTMLSelectElement>("#add-mouse");
