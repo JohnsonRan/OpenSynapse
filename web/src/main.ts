@@ -71,13 +71,16 @@ function toast(msg: string, error = false) {
   toastTimer = window.setTimeout(() => (t.hidden = true), 2600);
 }
 
+// failed shows a call's error; Go errors carry the sentence for the user.
+const failed = (e: unknown) => toast(isCallError(e) ? e.message : String(e), true);
+
 async function attempt(fn: () => Promise<unknown>, ok?: string) {
   try {
     await fn();
     if (ok) toast(ok);
     return true;
   } catch (e) {
-    toast(isCallError(e) ? e.message : String(e), true);
+    failed(e);
     return false;
   }
 }
@@ -204,7 +207,7 @@ async function loadDevices(rescan = false) {
   try {
     list = rescan ? await Devices.rescan() : await Devices.list();
   } catch (e) {
-    toast(isCallError(e) ? e.message : String(e), true);
+    failed(e);
     list = [];
   }
   renderOverview();
@@ -898,7 +901,7 @@ async function loadKeyboard(id: string) {
   try {
     [st, kbKeys, kbColors, kbMacros] = await Promise.all([kbApi().state(id), kbApi().keys(id), kbApi().keyColors(id), Macros.list()]);
   } catch (e) {
-    toast(isCallError(e) ? e.message : String(e), true);
+    failed(e);
     return;
   }
   if (dev?.id !== id) return; // switched device meanwhile
@@ -1213,7 +1216,7 @@ async function loadAudio(id: string) {
     userPresets = (await Audio.presets()) ?? [];
     st = await Audio.state(id);
   } catch (e) {
-    toast(isCallError(e) ? e.message : String(e), true);
+    failed(e);
     return;
   }
   if (dev?.id !== id) return; // switched device meanwhile
@@ -1453,7 +1456,11 @@ function saveMacro(m: Macro) {
 }
 
 async function loadMacros() {
-  macros = (await Macros.list().catch(() => [])) ?? [];
+  try {
+    macros = (await Macros.list()) ?? [];
+  } catch (e) {
+    return failed(e); // not "no macros": the list keeps what it showed
+  }
   if (macro && !macros.some((m) => m.id === macro!.id)) macro = undefined;
   macro = macros.find((m) => m.id === macro?.id) ?? macros[0];
   renderMacroList();
@@ -1643,7 +1650,7 @@ $("#macro-record").onclick = async () => {
       toast(t("macros.recorded", { n: ev.length }));
       saveMacro(m);
     } catch (e) {
-      toast(isCallError(e) ? e.message : String(e), true);
+      failed(e);
     }
   }
   renderMacro();
@@ -1701,13 +1708,17 @@ function rateSelect(sel: HTMLSelectElement, value: number, onChange: (v: number)
 async function loadScenes() {
   let presets: EQPreset[] | null;
   let kbs: KeyboardState | undefined;
-  [scenes, smart, soundDevs, presets, kbs] = await Promise.all([
-    Scenes.config(),
-    Scenes.smart(),
-    Settings.audioDevices().catch(() => soundDevs),
-    Audio.presets().catch(() => userPresets),
-    Keyboards.effects().catch(() => undefined),
-  ]);
+  try {
+    [scenes, smart, soundDevs, presets, kbs] = await Promise.all([
+      Scenes.config(),
+      Scenes.smart(),
+      Settings.audioDevices().catch(() => soundDevs),
+      Audio.presets().catch(() => userPresets),
+      Keyboards.effects().catch(() => undefined),
+    ]);
+  } catch (e) {
+    return failed(e); // the page keeps what it showed
+  }
   userPresets = presets ?? [];
   if (kbs) [kbEffects, kbMax, kbLayout] = [kbs.effects, kbs.maxLevel, kbs.keys?.length ? { keys: kbs.keys, width: kbs.width!, height: kbs.height! } : undefined];
   scenes.scenes ??= [];
@@ -2103,12 +2114,12 @@ async function autoStatus() {
 
 // ---------- settings ----------
 
-Settings.autostart().then((on) => ($<HTMLInputElement>("#autostart").checked = on));
+Settings.autostart().then((on) => ($<HTMLInputElement>("#autostart").checked = on)).catch(failed);
 $<HTMLInputElement>("#autostart").onchange = (e) => {
   const on = (e.target as HTMLInputElement).checked;
   attempt(() => Settings.setAutostart(on), t(on ? "settings.autostartOn" : "settings.autostartOff"));
 };
-Settings.notify().then((on) => ($<HTMLInputElement>("#notify").checked = on));
+Settings.notify().then((on) => ($<HTMLInputElement>("#notify").checked = on)).catch(failed);
 $<HTMLInputElement>("#notify").onchange = (e) => {
   const on = (e.target as HTMLInputElement).checked;
   attempt(() => Settings.setNotify(on), t(on ? "settings.notifyOn" : "settings.notifyOff"));
@@ -2193,7 +2204,7 @@ $("#update-check").onclick = () => attempt(() => Settings.checkForUpdates()); //
 }
 document.querySelectorAll<HTMLButtonElement>("[data-link]").forEach((b) => (b.onclick = () => attempt(() => Settings.openLink(b.dataset.link!))));
 
-Settings.dpiDisplay().then((on) => ($<HTMLInputElement>("#dpi-display").checked = on));
+Settings.dpiDisplay().then((on) => ($<HTMLInputElement>("#dpi-display").checked = on)).catch(failed);
 $<HTMLInputElement>("#dpi-display").onchange = (e) => {
   const on = (e.target as HTMLInputElement).checked;
   attempt(() => Settings.setDPIDisplay(on), t(on ? "settings.dpiDisplayOn" : "settings.dpiDisplayOff"));
