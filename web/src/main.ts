@@ -2106,9 +2106,11 @@ function renderAbout(a: AppInfo) {
   $("#update-title").textContent = t("about.updates");
   $("#update-status").textContent = !a.canUpdate
     ? t("about.cantUpdate")
-    : a.lastCheck
-      ? t("about.lastCheck", { time: dateTime.format(a.lastCheck) })
-      : t("about.neverChecked");
+    : a.available
+      ? t("about.available", { version: a.available })
+      : a.lastCheck
+        ? t("about.lastCheck", { time: dateTime.format(a.lastCheck) })
+        : t("about.neverChecked");
   $<HTMLButtonElement>("#update-check").disabled = !a.canUpdate;
   const auto = $<HTMLInputElement>("#auto-update");
   auto.checked = a.canUpdate && a.autoCheck;

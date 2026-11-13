@@ -14,6 +14,8 @@ export interface AppInfo {
   autoCheck: boolean;
   /** Unix ms of the last successful check, 0 if none */
   lastCheck: number;
+  /** the newer version the last check found; "" if none or skipped */
+  available: string;
 }
 
 /** AudioDevices are the playback and recording devices and the defaults. */

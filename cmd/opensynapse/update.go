@@ -19,6 +19,7 @@ type AppInfo struct {
 	CanUpdate bool   `json:"canUpdate"` // false for development builds and read-only folders
 	AutoCheck bool   `json:"autoCheck"` // background update checks
 	LastCheck int64  `json:"lastCheck"` // Unix ms of the last successful check, 0 if none
+	Available string `json:"available"` // the newer version the last check found; "" if none or skipped
 }
 
 // AboutChanged tells the window that a check ran or an update preference changed.
@@ -40,6 +41,7 @@ func (Settings) App() AppInfo {
 		Portable:  portableDir != "",
 		CanUpdate: mygo.Updater.Enabled(),
 		AutoCheck: updater.AutomaticChecks(),
+		Available: updater.AvailableVersion(),
 	}
 	if t := updater.LastCheck(); !t.IsZero() {
 		info.LastCheck = t.UnixMilli()
