@@ -2,6 +2,8 @@
 
 [English](../README.md) · **简体中文** · [日本語](README.ja.md)
 
+[![已收录于 Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/opensynapse)
+
 一款适用于 Windows 的轻量开源 Razer 鼠标及其他 Razer 设备设置工具。无需运行 Razer Synapse，即可设置 DPI、灯光、回报率和电源选项，为鼠标按键绑定宏，还能让设备根据当前使用的游戏或程序自动调整。
 
 OpenSynapse 与 Razer Inc. 无关联。

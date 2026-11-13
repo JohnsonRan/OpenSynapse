@@ -2,6 +2,8 @@
 
 [English](../README.md) · [简体中文](README.zh-CN.md) · **日本語**
 
+[![Awesome MyGo に掲載](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/opensynapse)
+
 Windows 用の軽量でオープンソースな Razer マウス・Razer デバイス設定アプリです。Razer Synapse を使わずに DPI、ライティング、ポーリングレート、電源設定を変更したり、マウスのボタンにマクロを割り当てたりできます。使用中のゲームやプログラムに合わせてデバイスを自動で切り替えることもできます。
 
 OpenSynapse は Razer Inc. とは関係ありません。
