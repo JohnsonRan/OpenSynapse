@@ -480,7 +480,8 @@ export const Devices = {
   },
   /**
    * Rotation reads the sensor rotation. It is nil for a device without it, and
-   * fails while the device does not answer: a sleeping mouse cannot say.
+   * fails only while the device does not answer: a sleeping mouse cannot say,
+   * and the page asks again when it wakes.
    */
   rotation(id: string): Promise<Rotation | null> {
     return call("Devices.Rotation", id);

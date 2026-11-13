@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/JohnsonRan/OpenSynapse/internal/razer"
@@ -45,8 +47,8 @@ func TestConnectedPairsWiredAndWireless(t *testing.T) {
 }
 
 // The page hides the rotation card for "this device has none" (nil) and asks
-// again later after "no answer" (an error). Neither device here has a HID
-// collection, so nothing is sent.
+// again later only after "no answer" (an error). Neither device here has a
+// HID collection, so nothing is sent.
 func TestRotationBinding(t *testing.T) {
 	other := &razer.Device{Model: &razer.Model{Name: "Razer Viper V3 Pro (Wired)", Category: "mouse"}, ID: "other"}
 	v4 := &razer.Device{Model: &razer.Model{Name: "Razer DeathAdder V4 Pro (Wireless)", Category: "mouse"}, ID: "v4"}
@@ -63,8 +65,23 @@ func TestRotationBinding(t *testing.T) {
 	if r, err := (Devices{}).Rotation("other"); r != nil || err != nil {
 		t.Errorf("a mouse without rotation: %+v %v, want nil and no error", r, err)
 	}
-	if r, err := (Devices{}).Rotation("v4"); r != nil || err == nil {
-		t.Errorf("a DeathAdder V4 Pro that cannot be reached: %+v %v, want an error", r, err)
+	// Without a HID collection the read fails, but not with "no answer".
+	if r, err := (Devices{}).Rotation("v4"); r != nil || err != nil {
+		t.Errorf("a DeathAdder V4 Pro whose read fails: %+v %v, want nil and no error", r, err)
+	}
+	on := razer.Rotation{Enabled: true, Angle: -20}
+	if r, err := rotationRead(on, nil); err != nil || r == nil || *r != on {
+		t.Errorf("a read that worked: %+v %v, want %+v", r, err, on)
+	}
+	for _, asleep := range []error{razer.ErrNoAnswer, fmt.Errorf("receiver: %w", razer.ErrNoAnswer)} {
+		if r, err := rotationRead(razer.Rotation{}, asleep); r != nil || !errors.Is(err, razer.ErrNoAnswer) {
+			t.Errorf("%v: %+v %v, want the error, so that the page asks again", asleep, r, err)
+		}
+	}
+	for _, without := range []error{razer.ErrUnsupported, razer.ErrClosed, errors.New("device status 0x03")} {
+		if r, err := rotationRead(on, without); r != nil || err != nil {
+			t.Errorf("%v: %+v %v, want nil and no error", without, r, err)
+		}
 	}
 	set := razer.Rotation{Enabled: true, Angle: 20}
 	for _, id := range []string{"other", "v4"} {

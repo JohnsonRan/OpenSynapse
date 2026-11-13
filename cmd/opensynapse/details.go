@@ -78,20 +78,28 @@ func (Devices) SetTracking(id string, t razer.Tracking) error {
 }
 
 // Rotation reads the sensor rotation. It is nil for a device without it, and
-// fails while the device does not answer: a sleeping mouse cannot say.
+// fails only while the device does not answer: a sleeping mouse cannot say,
+// and the page asks again when it wakes.
 func (Devices) Rotation(id string) (*razer.Rotation, error) {
 	d, err := devices.get(id)
 	if err != nil {
 		return nil, err
 	}
-	r, err := d.Rotation()
-	if errors.Is(err, razer.ErrUnsupported) {
-		return nil, nil
-	}
-	if err != nil {
+	return rotationRead(d.Rotation())
+}
+
+// rotationRead is what a read of the rotation means to the page. Every
+// failure but "no answer" counts as a device without rotation: a firmware
+// that answers the command with a failure would otherwise be asked again on
+// each refresh.
+func rotationRead(r razer.Rotation, err error) (*razer.Rotation, error) {
+	switch {
+	case err == nil:
+		return &r, nil
+	case errors.Is(err, razer.ErrNoAnswer):
 		return nil, err
 	}
-	return &r, nil
+	return nil, nil
 }
 
 // SetRotation turns the sensor by -44 to 44 degrees, or turns rotation off.
