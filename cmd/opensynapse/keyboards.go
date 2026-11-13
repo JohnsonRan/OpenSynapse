@@ -48,6 +48,7 @@ func (h *keyboardHub) rescan() error {
 	for _, d := range old {
 		d.Close()
 	}
+	kickMusic() // the painter sleeps in silence: it stops listening now if its keyboards are gone
 	return nil
 }
 
