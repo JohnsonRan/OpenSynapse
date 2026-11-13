@@ -4,6 +4,23 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.9.0
+
+### 简体中文
+
+- 关于页面: 检查到新版本后，“软件更新”下会显示可用的版本号，关闭更新窗口后也能看到
+- 其他: 基于 MyGo 0.9.0，托盘菜单采用 Windows 11 样式；检查更新时会重试短暂失败的连接，更新后会删除新版本不再包含的文件
+
+### English
+
+- About page: once a check finds a new version, Software update shows its number, even after the update window is closed
+- Also: built on MyGo 0.9.0, the tray menu takes the Windows 11 look, update checks retry a connection that fails briefly, and an update removes the files the new version no longer ships
+
+### 日本語
+
+- バージョン情報ページ: 新しいバージョンが見つかると、更新ウィンドウを閉じた後も「ソフトウェア更新」にそのバージョン番号が表示されます
+- そのほか: MyGo 0.9.0 を採用し、トレイ メニューが Windows 11 のデザインになりました。更新の確認で一時的に失敗した接続を再試行し、更新時には新しいバージョンに含まれないファイルを削除します
+
 ## 0.8.0
 
 ### 简体中文
