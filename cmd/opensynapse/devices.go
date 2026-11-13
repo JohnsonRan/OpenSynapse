@@ -101,6 +101,7 @@ func watchDevices() {
 		}
 		// A device re-enumerates in stages; let it settle before probing it.
 		time.Sleep(time.Second)
+		before := razerSet(devices.list())
 		if err := devices.rescan(); err != nil {
 			log.Println("rescan:", err)
 			continue
@@ -115,7 +116,12 @@ func watchDevices() {
 			log.Println("rescan VIA keyboards:", err)
 		}
 		_ = lightKeyboards.rescan()
-		resetAuto() // a new or switched device gets the current scene and polling rate
+		// A new or switched mouse gets the current scene and polling rate. The
+		// reset re-applies them to every Razer device, so it waits for a change
+		// among them: plugging in a headset leaves a DPI set by hand alone.
+		if razerSet(devices.list()) != before {
+			resetAuto()
+		}
 		kickBindings()
 		watchDPI()
 		go refreshTray()
@@ -123,6 +129,20 @@ func watchDevices() {
 			_ = DevicesChanged.Emit(w, Devices{}.List())
 		}
 	}
+}
+
+// razerSet names the connected Razer devices and whether each answers, so a
+// mouse moving between cable and receiver counts as a change.
+func razerSet(devs []*razer.Device) string {
+	ids := make([]string, len(devs))
+	for i, d := range devs {
+		ids[i] = d.ID
+		if d.Answered {
+			ids[i] += "+"
+		}
+	}
+	slices.Sort(ids)
+	return strings.Join(ids, ",")
 }
 
 func (h *hub) list() []*razer.Device {

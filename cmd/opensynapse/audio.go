@@ -281,8 +281,7 @@ func (Audio) SavePreset(p EQPreset) error {
 	}
 	cfg.Scenes = sc
 	cfgMu.Unlock()
-	resetAuto()
-	return saveConfig()
+	return saveConfig() // the scene's audio compares the EQ and picks the change up on the next tick
 }
 
 // DeletePreset removes a preset.

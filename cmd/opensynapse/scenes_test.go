@@ -3,6 +3,8 @@ package main
 import (
 	"slices"
 	"testing"
+
+	"github.com/JohnsonRan/OpenSynapse/internal/razer"
 )
 
 func TestDebouncer(t *testing.T) {
@@ -168,5 +170,45 @@ func TestLegacySmartMigration(t *testing.T) {
 	}
 	if c.Scenes.Enabled {
 		t.Fatal("scenes must stay off after migration")
+	}
+}
+
+func drainAutoReset() bool {
+	select {
+	case <-autoReset:
+		return true
+	default:
+		return false
+	}
+}
+
+// Saving a preset must not re-apply the scene's DPI, lighting and polling
+// rate; the scene's audio picks the new EQ up on its own.
+func TestSavePresetKeepsSwitchers(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	saved := cfg
+	defer func() { cfg = saved }()
+	cfg = defaultConfig()
+	drainAutoReset()
+	if err := (Audio{}).SavePreset(EQPreset{Name: "Music", EQ: flatEQ()}); err != nil {
+		t.Fatal(err)
+	}
+	if drainAutoReset() {
+		t.Fatal("saving a preset reset the scene switchers")
+	}
+}
+
+func TestRazerSet(t *testing.T) {
+	a := &razer.Device{ID: "1532:00B2", Answered: true}
+	b := &razer.Device{ID: "1532:00B3"}
+	a2 := &razer.Device{ID: "1532:00B2"} // same mouse, its receiver no longer answering for it
+	if razerSet([]*razer.Device{a, b}) != razerSet([]*razer.Device{b, a}) {
+		t.Fatal("order changed the set")
+	}
+	if razerSet([]*razer.Device{a, b}) == razerSet([]*razer.Device{a2, b}) {
+		t.Fatal("a mouse moving between cable and receiver went unnoticed")
+	}
+	if razerSet([]*razer.Device{a}) == razerSet([]*razer.Device{a, b}) {
+		t.Fatal("a new device went unnoticed")
 	}
 }
