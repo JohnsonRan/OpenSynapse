@@ -98,12 +98,15 @@ func Loopback(stop <-chan struct{}, fn func(mono []float32, rate int)) error {
 			fn(mono, f.format.Rate)
 			return nil
 		}
+		// Shared mode hands out a packet per device period, 10 ms.
+		poll := time.NewTicker(10 * time.Millisecond)
+		defer poll.Stop()
 		check := time.Now().Add(time.Second)
 		for {
 			select {
 			case <-stop:
 				return nil
-			case <-time.After(10 * time.Millisecond):
+			case <-poll.C:
 			}
 			if time.Now().After(check) {
 				check = time.Now().Add(time.Second)

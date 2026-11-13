@@ -269,7 +269,7 @@ func TestKeyboardResetFailureKeepsBindingsAndRewritesKeymap(t *testing.T) {
 
 // fakeKeyboard installs one Hi75 with the given written cache and records
 // every keymap sent to it.
-func fakeKeyboard(t *testing.T, written map[string]*[leobog.Layers]leobog.Layer) (*leobog.Device, *[][leobog.Layers]leobog.Layer) {
+func fakeKeyboard(t testing.TB, written map[string]*[leobog.Layers]leobog.Layer) (*leobog.Device, *[][leobog.Layers]leobog.Layer) {
 	t.Setenv("APPDATA", t.TempDir())
 	cfgMu.Lock()
 	savedCfg := cfg

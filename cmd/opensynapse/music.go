@@ -29,15 +29,22 @@ func kickMusic() {
 	}
 }
 
-// musicKeyboards are the connected keyboards with a music effect, and the effect.
-func musicKeyboards() map[*leobog.Device]KeyboardMemory {
-	out := map[*leobog.Device]KeyboardMemory{}
+// musicKeyboard is a connected keyboard with a music effect.
+type musicKeyboard struct {
+	d      *leobog.Device
+	effect string
+	color  razer.RGB
+}
+
+// musicKeyboards appends the connected keyboards with a music effect to buf.
+// The painter asks before every frame and passes its last answer's storage.
+func musicKeyboards(buf []musicKeyboard) []musicKeyboard {
 	for _, d := range keyboards.list() {
 		if m := keyboardMemory(d.ID); m.Music != "" {
-			out[d] = m
+			buf = append(buf, musicKeyboard{d, m.Music, m.MusicColor})
 		}
 	}
-	return out
+	return buf
 }
 
 // keyPlaces are a model's key centres for the painter.
@@ -52,7 +59,7 @@ func keyPlaces(m *leobog.Model) []lightshow.Key {
 // runMusic listens to the PC only while a keyboard wants it.
 func runMusic() {
 	for {
-		if len(musicKeyboards()) == 0 {
+		if len(musicKeyboards(nil)) == 0 {
 			<-musicKick
 			continue
 		}
@@ -61,6 +68,12 @@ func runMusic() {
 		}
 	}
 }
+
+// Tests replace the sound and the keyboard.
+var (
+	loopback    = winaudio.Loopback
+	deviceFrame = (*leobog.Device).Frame
+)
 
 // captureRetry is how long music lighting waits before it listens again after
 // a failure: a playback device that went away does not come back sooner.
@@ -71,17 +84,22 @@ func playMusic() {
 	var mu sync.Mutex
 	var an lightshow.Analyzer
 	fresh := false
+	heard := make(chan struct{}, 1) // wakes the painter when sound arrives
 	stop, done := make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(done)
 		for {
 			var err error
 			ok := guard("music capture", func() {
-				err = winaudio.Loopback(stop, func(mono []float32, rate int) {
+				err = loopback(stop, func(mono []float32, rate int) {
 					mu.Lock()
 					defer mu.Unlock() // a panic must not leave the painter waiting on mu
 					an.Add(mono, rate)
 					fresh = true
+					select {
+					case heard <- struct{}{}:
+					default:
+					}
 				})
 			})
 			select {
@@ -105,6 +123,10 @@ func playMusic() {
 	levels := func() (lightshow.Levels, bool) {
 		mu.Lock()
 		defer mu.Unlock()
+		select {
+		case <-heard: // taken with the sound it announced
+		default:
+		}
 		if !fresh {
 			return lightshow.Levels{}, false
 		}
@@ -115,44 +137,60 @@ func playMusic() {
 	t := time.NewTicker(frameEvery)
 	defer t.Stop()
 	painters := map[string]*lightshow.Painter{}
+	places := map[*leobog.Model][]lightshow.Key{}
 	colors := map[int]razer.RGB{}
+	var kbs []musicKeyboard
 	var quietSince time.Time
 	for {
-		select {
-		case <-t.C:
-		case <-musicKick:
-		}
-		kbs := musicKeyboards()
-		if len(kbs) == 0 {
+		if kbs = musicKeyboards(kbs[:0]); len(kbs) == 0 {
 			return
 		}
 		l, ok := levels()
-		if !ok || noticeShowing() {
+		if !ok {
+			// Nothing plays, and Windows sends nothing: there is no frame to
+			// draw until sound arrives or a keyboard's effect changes.
+			select {
+			case <-heard:
+			case <-musicKick:
+			}
 			continue
 		}
-		if l.Loud > 0.02 || l.Bass > 0.02 {
-			quietSince = time.Time{}
-		} else if quietSince.IsZero() {
-			quietSince = time.Now()
-		} else if time.Since(quietSince) > time.Second {
-			continue // a pause, not a quiet passage
+		draw := !noticeShowing()
+		if draw {
+			if l.Loud > 0.02 || l.Bass > 0.02 {
+				quietSince = time.Time{}
+			} else if quietSince.IsZero() {
+				quietSince = time.Now()
+			} else if time.Since(quietSince) > time.Second {
+				draw = false // a pause, not a quiet passage
+			}
 		}
-		for d, m := range kbs {
-			p := painters[d.ID]
+		for _, kb := range kbs {
+			if !draw {
+				break // the frames stop, and the keyboard shows its own effect
+			}
+			p := painters[kb.d.ID]
 			if p == nil {
 				p = &lightshow.Painter{}
-				painters[d.ID] = p
+				painters[kb.d.ID] = p
 			}
-			p.Effect, p.Color = m.Music, m.MusicColor
+			if places[kb.d.Model] == nil {
+				places[kb.d.Model] = keyPlaces(kb.d.Model)
+			}
+			p.Effect, p.Color = kb.effect, kb.color
 			clear(colors)
-			p.Paint(l, keyPlaces(d.Model), colors)
+			p.Paint(l, places[kb.d.Model], colors)
 			var frame leobog.KeyColors
 			for i, c := range colors {
 				frame[i] = c
 			}
-			if err := d.Frame(&frame); err != nil {
+			if err := deviceFrame(kb.d, &frame); err != nil {
 				log.Println("music frame:", err)
 			}
+		}
+		select { // the next frame's time
+		case <-t.C:
+		case <-musicKick:
 		}
 	}
 }
