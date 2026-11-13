@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"golang.org/x/sys/windows"
 )
@@ -152,21 +154,46 @@ func language() string {
 	if _, ok := messages[l]; ok {
 		return l
 	}
-	// The Windows display languages directly: mygo.App.PreferredLanguages
-	// needs the running app, and validation also runs before it (and in tests).
+	return systemLanguage()
+}
+
+// systemLanguageAge is how long the Windows display language is taken as
+// read. The scene switcher translates the tray status every second, and each
+// lookup asks Windows; a display language changed while the app runs is
+// picked up within this time.
+const systemLanguageAge = time.Minute
+
+var systemLang struct {
+	sync.Mutex
+	lang string
+	at   time.Time
+}
+
+// preferredLanguages are the Windows display languages, read directly:
+// mygo.App.PreferredLanguages needs the running app, and validation also runs
+// before it (and in tests, which replace this).
+var preferredLanguages = func() []string {
 	langs, _ := windows.GetUserPreferredUILanguages(windows.MUI_LANGUAGE_NAME)
-	for _, p := range langs {
-		if strings.HasPrefix(strings.ToLower(p), "zh") {
-			return "zh-CN"
-		}
-		if strings.HasPrefix(strings.ToLower(p), "ja") {
-			return "ja"
-		}
-		if strings.HasPrefix(strings.ToLower(p), "en") {
-			return "en"
+	return langs
+}
+
+func systemLanguage() string {
+	systemLang.Lock()
+	defer systemLang.Unlock()
+	if systemLang.lang != "" && time.Since(systemLang.at) < systemLanguageAge {
+		return systemLang.lang
+	}
+	systemLang.lang, systemLang.at = "en", time.Now()
+	for _, p := range preferredLanguages() {
+		p = strings.ToLower(p)
+		for prefix, lang := range map[string]string{"zh": "zh-CN", "ja": "ja", "en": "en"} {
+			if strings.HasPrefix(p, prefix) {
+				systemLang.lang = lang
+				return lang
+			}
 		}
 	}
-	return "en"
+	return systemLang.lang
 }
 
 func tr(key string, args ...any) string {

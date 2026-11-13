@@ -204,6 +204,13 @@ type sceneLights struct {
 	base, on map[string]kbShow // keyboard ID → before scenes / set by the scene
 }
 
+// pending reports whether a keyboard still waits for its lighting from before scenes.
+func (sl *sceneLights) pending() bool {
+	sl.Lock()
+	defer sl.Unlock()
+	return len(sl.base) > 0
+}
+
 // step brings one keyboard to want, or with want nil back to its baseline.
 func (sl *sceneLights) step(id string, want *kbShow, read func() (kbShow, error), write func(kbShow) error) {
 	if want == nil {

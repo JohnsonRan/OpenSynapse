@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -463,6 +464,14 @@ func (v *sceneVolume) apply(want *int) {
 	}
 }
 
+// sceneAudioPending reports whether an EQ, a default device or a volume from
+// before scenes still waits to be put back.
+func sceneAudioPending() bool {
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	return len(sceneAudio.eqBase) > 0 || sceneAudio.out.base != "" || sceneAudio.in.base != "" || len(sceneAudio.volume.base) > 0
+}
+
 // restoreAudioOnQuit restores the baseline EQ and sound devices on shutdown,
 // retrying until nothing is pending or the retry limit is reached.
 func restoreAudioOnQuit() {
@@ -471,10 +480,7 @@ func restoreAudioOnQuit() {
 	sceneAudio.Unlock()
 	for range 5 {
 		applySceneAudio(nil)
-		sceneAudio.Lock()
-		pending := len(sceneAudio.eqBase) > 0 || sceneAudio.out.base != "" || sceneAudio.in.base != "" || len(sceneAudio.volume.base) > 0
-		sceneAudio.Unlock()
-		if !pending {
+		if !sceneAudioPending() {
 			return
 		}
 		time.Sleep(300 * time.Millisecond)
@@ -546,20 +552,28 @@ type pendingAudio struct {
 }
 
 var (
-	lastPending    []byte // what the file holds, so it is written only on a change
+	// lastPending is what the file holds, so it is written only on a change;
+	// nil when that is not known.
+	lastPending    *pendingAudio
 	lastPendingErr string
 )
+
+func (p pendingAudio) same(q pendingAudio) bool {
+	return p.Output == q.Output && p.Input == q.Input && maps.Equal(p.Volume, q.Volume) &&
+		maps.EqualFunc(p.EQ, q.EQ, func(a, b walkplay.EQ) bool { return a.Preamp == b.Preamp && slices.Equal(a.Bands, b.Bands) })
+}
 
 func pendingPath() string { return filepath.Join(filepath.Dir(configPath()), "scene-audio.json") }
 
 // savePendingAudio writes the baselines, or removes the file when none are
-// left; sceneAudio is locked.
+// left; sceneAudio is locked. It runs every tick, so it compares before it
+// encodes anything.
 func savePendingAudio() error {
 	p := pendingAudio{EQ: sceneAudio.eqBase, Output: sceneAudio.out.base, Input: sceneAudio.in.base, Volume: sceneAudio.volume.base}
-	b, _ := json.Marshal(p)
-	if string(b) == string(lastPending) {
+	if lastPending != nil && p.same(*lastPending) {
 		return nil
 	}
+	b, _ := json.Marshal(p)
 	var err error
 	if len(p.EQ) == 0 && p.Output == "" && p.Input == "" && len(p.Volume) == 0 {
 		if err = os.Remove(pendingPath()); errors.Is(err, os.ErrNotExist) {
@@ -577,7 +591,8 @@ func savePendingAudio() error {
 		return err
 	}
 	lastPendingErr = ""
-	lastPending = b
+	// A baseline is replaced whole, never changed in place, so its bands can be shared.
+	lastPending = &pendingAudio{EQ: maps.Clone(p.EQ), Output: p.Output, Input: p.Input, Volume: maps.Clone(p.Volume)}
 	return nil
 }
 
@@ -604,5 +619,5 @@ func loadPendingAudio() {
 	for dev, v := range p.Volume {
 		sceneAudio.volume.base[dev] = v
 	}
-	lastPending = b
+	lastPending = &p
 }

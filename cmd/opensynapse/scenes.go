@@ -262,24 +262,41 @@ func (a *auto) reset() {
 	a.scenes, a.rates = newSwitcher("scene"), newSwitcher("polling rate")
 }
 
-// runAuto drives smart polling and scenes from the foreground program.
+// autoEvery is how often runAuto looks at the foreground program: a scene
+// follows a program switch within two looks (see debouncer), and a game is
+// recognized from gameSeconds looks in a row.
+const autoEvery = time.Second
+
+// runAuto drives smart polling and scenes from the foreground program. With
+// both off and nothing left to put back it sleeps until the config changes:
+// resetAuto wakes it.
 func runAuto() {
-	tick := time.NewTicker(time.Second)
+	tick := time.NewTicker(autoEvery)
 	defer tick.Stop()
 	a := newAuto()
+	idle := false
 	for {
 		select {
 		case <-tick.C:
 		case <-autoReset:
 			a.reset()
 		}
-		guard("scenes and smart polling", a.round)
+		was := idle
+		idle = false // a round that panics is tried again
+		guard("scenes and smart polling", func() { idle = a.round() })
+		switch {
+		case idle && !was:
+			tick.Stop()
+		case was && !idle:
+			tick.Reset(autoEvery)
+		}
 	}
 }
 
 // round looks at the foreground program once and brings the devices to its
-// scene and polling rate.
-func (a *auto) round() {
+// scene and polling rate. It reports whether there is nothing to do until the
+// config changes.
+func (a *auto) round() (idle bool) {
 	cfgMu.Lock()
 	sc, sp := cfg.Scenes, cfg.Smart
 	cfgMu.Unlock()
@@ -296,11 +313,13 @@ func (a *auto) round() {
 	if !sc.Enabled && !sp.Enabled {
 		a.gpu.close()
 		setTrayStatus(AutoStatus{Rate: -1})
-		return
+		// A device that was busy or unplugged still has a scene's sound or
+		// lighting: the next rounds try it again.
+		return !sceneAudioPending() && !sceneKeyboards.pending()
 	}
 	f := getForeground()
 	if f.exe == "" {
-		return // lock screen, UAC prompt, protected process: keep the current settings
+		return false // lock screen, UAC prompt, protected process: keep the current settings
 	}
 	known := a.games[f.pid] == f.exe
 	needGame := sp.Enabled || sc.Enabled
@@ -349,6 +368,7 @@ func (a *auto) round() {
 	autoStatus = st
 	autoMu.Unlock()
 	setTrayStatus(st)
+	return false
 }
 
 // Scenes switches device settings by the foreground program.

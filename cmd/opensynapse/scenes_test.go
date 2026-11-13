@@ -1,9 +1,113 @@
 package main
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
+
+// offConfig turns scenes and smart polling off, the state of a first run,
+// with nothing left to put back.
+func offConfig(t testing.TB) {
+	t.Setenv("APPDATA", t.TempDir())
+	cfgMu.Lock()
+	saved := cfg
+	cfg = defaultConfig()
+	cfgMu.Unlock()
+	lastPending = nil
+	t.Cleanup(func() {
+		cfgMu.Lock()
+		cfg = saved
+		cfgMu.Unlock()
+		lastPending = nil
+	})
+}
+
+// A round of the scene switcher with scenes and smart polling off: what the
+// background process pays while the user uses neither.
+func BenchmarkAutoRoundOff(b *testing.B) {
+	offConfig(b)
+	a := newAuto()
+	a.round()
+	b.ReportAllocs()
+	for b.Loop() {
+		a.round()
+	}
+}
+
+// With scenes and smart polling off the switcher sleeps, but not while a
+// device still waits for what it showed or played before a scene.
+func TestAutoRoundIdleOnlyWithNothingToPutBack(t *testing.T) {
+	offConfig(t)
+	a := newAuto()
+	if !a.round() {
+		t.Fatal("not idle with both off and nothing to put back")
+	}
+
+	sceneKeyboards.Lock()
+	sceneKeyboards.base["gone"] = kbShow{} // unplugged during a scene
+	sceneKeyboards.Unlock()
+	idle := a.round()
+	sceneKeyboards.Lock()
+	delete(sceneKeyboards.base, "gone")
+	sceneKeyboards.Unlock()
+	if idle {
+		t.Fatal("idle while a keyboard waits for its lighting")
+	}
+
+	origSet := setSoundVolume
+	setSoundVolume = func(string, int) error { return errors.New("busy") }
+	sceneAudio.Lock()
+	sceneAudio.volume.base["speakers"] = 40
+	sceneAudio.Unlock()
+	idle = a.round()
+	sceneAudio.Lock()
+	delete(sceneAudio.volume.base, "speakers")
+	sceneAudio.Unlock()
+	setSoundVolume = origSet
+	if idle {
+		t.Fatal("idle while a sound device waits for its volume")
+	}
+
+	cfgMu.Lock()
+	cfg.Smart.Enabled = true
+	cfgMu.Unlock()
+	if a.round() {
+		t.Fatal("idle with smart polling on")
+	}
+}
+
+// The scene switcher saves the baselines every round; an unchanged one must
+// cost nothing.
+func TestSavePendingAudioUnchangedDoesNotEncode(t *testing.T) {
+	offConfig(t)
+	sceneAudio.Lock()
+	defer sceneAudio.Unlock()
+	sceneAudio.volume.base["speakers"] = 40
+	defer func() {
+		delete(sceneAudio.volume.base, "speakers")
+		_ = savePendingAudio()
+	}()
+	if err := os.MkdirAll(filepath.Dir(pendingPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := savePendingAudio(); err != nil {
+		t.Fatal(err)
+	}
+	if n := testing.AllocsPerRun(100, func() { _ = savePendingAudio() }); n != 0 {
+		t.Fatalf("an unchanged save allocates %v times", n)
+	}
+	sceneAudio.volume.base["speakers"] = 55
+	if err := savePendingAudio(); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(pendingPath()); err != nil || !strings.Contains(string(b), `"speakers":55`) {
+		t.Fatalf("file after a change: %s, %v", b, err)
+	}
+}
 
 func TestDebouncer(t *testing.T) {
 	d := newDebouncer()
