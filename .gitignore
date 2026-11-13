@@ -4,3 +4,4 @@ node_modules/
 /.mygo/
 mygo_windows_*.syso
 /.pi/
+__pycache__/
