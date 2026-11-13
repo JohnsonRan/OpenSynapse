@@ -4,6 +4,32 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.9.1
+
+### 简体中文
+
+- 游戏识别: 全屏看电影或视频时不再被当成游戏；程序需要连续 5 秒像游戏一样占用 GPU 才会被识别
+- 场景: 插拔耳机、切换语言或保存 EQ 预设时，不再把你手动调整的 DPI 改回场景的设置
+- 设备页: 场景、智能回报率或 DPI 键改变设置后，设备卡片和设备页会立即更新；刷新时不再闪烁
+- 键盘: LEOBOG Hi75 的改键会可靠写入键盘，退出时绑定了宏的按键会恢复原有功能
+- 稳定性: 修复后台同时读取 Razer 鼠标时程序可能意外退出的问题；调整抬升距离后立即切换设备，设置不会再写到另一只鼠标
+
+### English
+
+- Game detection: fullscreen movies and videos are no longer taken for games; a program must load the GPU like a game for 5 seconds in a row to be detected
+- Scenes: plugging in a headset, changing the language or saving an EQ preset no longer puts a DPI you set by hand back to the scene's
+- Devices page: the device cards and the device page update as soon as a scene, smart polling rate or the DPI button changes a setting, and no longer flicker when they refresh
+- Keyboards: remapped keys on the LEOBOG Hi75 are always written to the keyboard, and keys bound to macros get their own function back when you quit
+- Reliability: OpenSynapse no longer quits unexpectedly when several background tasks read a Razer mouse at once, and a lift-off change made just before switching devices no longer goes to the other mouse
+
+### 日本語
+
+- ゲームの検出: フルスクリーンの映画や動画がゲームとして扱われなくなりました。プログラムが 5 秒続けてゲームのように GPU を使っている場合にゲームと判断します
+- シーン: ヘッドセットの抜き差し、言語の切り替え、EQ プリセットの保存で、手動で変更した DPI がシーンの値に戻らなくなりました
+- デバイス ページ: シーン、スマート ポーリング レート、DPI ボタンで設定が変わると、デバイス カードとデバイス ページにすぐ反映され、更新時にちらつかなくなりました
+- キーボード: LEOBOG Hi75 のキー割り当てが確実にキーボードに書き込まれ、終了時にはマクロを割り当てたキーが本来の機能に戻ります
+- 安定性: バックグラウンドの複数の処理が同時に Razer マウスを読み取ると OpenSynapse が予期せず終了する問題を修正しました。リフトオフ距離を変更した直後にデバイスを切り替えても、設定が別のマウスに書き込まれなくなりました
+
 ## 0.9.0
 
 ### 简体中文
