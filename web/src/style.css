@@ -32,7 +32,10 @@
   --page-padding: 28px 40px 48px;
   --content-width: 1240px;
   --readable-width: 640px;
+  --title-gap: 20px; /* from the title row or the tabs to the content */
+  --section-gap: 24px; /* between sections of a page */
   --card-padding: 18px 20px;
+  --row-padding: 16px 20px; /* a row in a list card */
   --card-gap: 14px; /* between cards */
   --field-gap: 12px; /* between fields inside a card */
   --label-gap: 6px; /* between a label and its control */
@@ -222,7 +225,7 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 18px;
+  margin-bottom: var(--title-gap);
 }
 
 .eyebrow {
@@ -299,7 +302,7 @@ h2 {
   display: flex;
   gap: 28px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 20px;
+  margin-bottom: var(--title-gap);
 }
 
 .tab {
@@ -380,7 +383,7 @@ button:disabled {
 /* ---------- device overview ---------- */
 
 .device-groups section + section {
-  margin-top: 22px;
+  margin-top: var(--section-gap);
 }
 
 .group-title {
@@ -823,7 +826,7 @@ input[type="range"] {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 8px 10px;
+  gap: var(--label-gap);
   color: var(--muted);
   font-size: var(--text-small);
 }
@@ -927,7 +930,7 @@ input[type="range"] {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin: 26px 0 12px;
+  margin: var(--section-gap) 0 12px;
 }
 
 .section-head p {
@@ -1014,7 +1017,7 @@ h3 {
   grid-template-columns: 16px minmax(120px, 200px) 1fr auto;
   align-items: center;
   gap: 14px;
-  padding: 14px 18px;
+  padding: var(--row-padding);
   cursor: pointer;
 }
 
@@ -1061,7 +1064,7 @@ h3 {
 
 .scene-body {
   display: none;
-  padding: 4px 18px 18px 48px;
+  padding: 4px 20px 20px 50px;
   border-top: 1px solid var(--line);
 }
 
@@ -1087,7 +1090,7 @@ h3 {
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  padding: 16px 20px;
+  padding: var(--row-padding);
   border-top: 1px solid var(--line);
 }
 
@@ -1165,7 +1168,7 @@ h3 {
 
 .macro-opts label {
   display: grid;
-  gap: 4px;
+  gap: var(--label-gap);
 }
 
 .step {
@@ -1288,7 +1291,7 @@ button.link svg {
 
 .about-foot {
   text-align: center;
-  line-height: 1.7;
+  line-height: var(--leading-prose);
   text-wrap: balance;
   word-break: auto-phrase; /* Japanese wraps between phrases, not inside words */
 }
@@ -1326,7 +1329,7 @@ button.inline-link:hover {
 .lift-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: var(--field-gap);
 }
 
 .lift-grid label {
@@ -1371,7 +1374,7 @@ option {
 .step-what.amount label {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--label-gap);
   color: var(--muted);
   font-size: var(--text-small);
 }
