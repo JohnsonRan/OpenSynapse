@@ -708,8 +708,9 @@ function parseAction(v: string): ButtonAction {
 // captureKey takes a key with the modifiers held, or modifiers alone (code
 // 0), once every key pressed is released: a remap written while its key is
 // down would leave that key stuck. Only one capture runs: picking anything
-// else or starting another cancels it.
-function captureKey(done: (code: number, mods: number) => void) {
+// else or starting another cancels it, and so does Esc pressed first (Esc
+// with a modifier is still taken). cancel restores the control that started it.
+function captureKey(done: (code: number, mods: number) => void, cancel: () => void) {
   stopCapture();
   const MOD_BITS: Record<number, number> = { 17: 1, 16: 2, 18: 4, 91: 8, 92: 8 };
   let mods = 0;
@@ -719,6 +720,7 @@ function captureKey(done: (code: number, mods: number) => void) {
     e.preventDefault();
     e.stopPropagation();
     if (e.repeat) return;
+    if (e.key === "Escape" && down.size === 0) return stopCapture();
     down.add(e.keyCode);
     if (MOD_BITS[e.keyCode]) mods |= MOD_BITS[e.keyCode]!;
     else code ||= e.keyCode;
@@ -727,15 +729,20 @@ function captureKey(done: (code: number, mods: number) => void) {
     e.preventDefault();
     e.stopPropagation();
     down.delete(e.keyCode);
-    if (down.size === 0 && (code || mods)) (stopCapture(), done(code, mods));
+    if (down.size === 0 && (code || mods)) (end(), done(code, mods));
   };
+  // Keys released in another window never send keyup here: start over.
+  const onBlur = () => (down.clear(), (mods = code = 0));
   window.addEventListener("keydown", onDown, true);
   window.addEventListener("keyup", onUp, true);
-  stopCapture = () => {
+  window.addEventListener("blur", onBlur);
+  const end = () => {
     window.removeEventListener("keydown", onDown, true);
     window.removeEventListener("keyup", onUp, true);
+    window.removeEventListener("blur", onBlur);
     stopCapture = () => {};
   };
+  stopCapture = () => (end(), cancel());
 }
 
 function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
@@ -793,10 +800,11 @@ async function loadButtons(d: DeviceInfo) {
             else render();
           });
         sel.onchange = () => {
+          const v = sel.value; // a cancelled capture redraws the menu
           stopCapture();
-          if (sel.value !== "capture") return void apply(parseAction(sel.value));
-          sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
-          captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }));
+          if (v !== "capture") return void apply(parseAction(v));
+          sel.options[sel.selectedIndex]!.textContent = t("capture.hint");
+          captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }), render);
         };
         const name = document.createElement("span");
         name.textContent = buttonName(b.id);
@@ -999,10 +1007,11 @@ function renderKbKeys() {
       renderKbKeys();
     });
   sel.onchange = () => {
+    const v = sel.value; // a cancelled capture redraws the keys
     stopCapture();
-    if (sel.value !== "capture") return void apply(parseAction(sel.value));
-    sel.options[sel.selectedIndex]!.textContent = t("macros.pressKey");
-    captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }));
+    if (v !== "capture") return void apply(parseAction(v));
+    sel.options[sel.selectedIndex]!.textContent = t("capture.hint");
+    captureKey((code, mods) => apply({ kind: "key", macro: "", code, mods }), renderKbKeys);
   };
 }
 
