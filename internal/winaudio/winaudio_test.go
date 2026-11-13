@@ -2,6 +2,7 @@ package winaudio
 
 import (
 	"encoding/binary"
+	"errors"
 	"math"
 	"slices"
 	"testing"
@@ -57,5 +58,24 @@ func TestMixDown(t *testing.T) {
 	}
 	if got := mixDown(nil, []byte{0xff, 0xff, 0x7f, 0, 0, 0}, 2, 6, false); math.Abs(float64(got[0])-0.5) > 1e-6 {
 		t.Fatalf("24-bit: %v", got)
+	}
+}
+
+// A stream that fails must end the capture: taking the failure for "no
+// packet waits" left Loopback polling a dead stream.
+func TestDrainEndsOnAStreamError(t *testing.T) {
+	invalidated := hrErr("GetNextPacketSize", 0x88890004) // AUDCLNT_E_DEVICE_INVALIDATED
+	sizes := []uint32{480, 480, 0}
+	reads := 0
+	next := func() (uint32, error) { n := sizes[0]; sizes = sizes[1:]; return n, nil }
+	if err := drain(next, func() error { reads++; return nil }); err != nil || reads != 2 {
+		t.Fatalf("%d packets read, %v; want the two that waited", reads, err)
+	}
+	if err := drain(func() (uint32, error) { return 0, invalidated }, func() error { reads++; return nil }); err != invalidated || reads != 2 {
+		t.Fatalf("after a failed stream: %v, %d reads; want its error and no read", err, reads)
+	}
+	failed := errors.New("GetBuffer")
+	if err := drain(func() (uint32, error) { return 480, nil }, func() error { return failed }); err != failed {
+		t.Fatalf("after a failed read: %v", err)
 	}
 }

@@ -78,6 +78,26 @@ func Loopback(stop <-chan struct{}, fn func(mono []float32, rate int)) error {
 		defer call(client, slotStop)
 		frameBytes := int(binary.LittleEndian.Uint16(raw[12:])) // nBlockAlign: every channel's container
 		var mono []float32
+		waiting := func() (n uint32, err error) {
+			err = hrErr("GetNextPacketSize", call(capture, slotGetNextPacketSize, uintptr(unsafe.Pointer(&n))))
+			return n, err
+		}
+		read := func() error {
+			var data unsafe.Pointer
+			var frames, flags uint32
+			if err := hrErr("GetBuffer", call(capture, slotGetBuffer, uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&frames)), uintptr(unsafe.Pointer(&flags)), 0, 0)); err != nil {
+				return err
+			}
+			mono = mono[:0]
+			if flags&bufferSilent != 0 || data == nil {
+				mono = append(mono, make([]float32, frames)...)
+			} else {
+				mono = mixDown(mono, unsafe.Slice((*byte)(data), int(frames)*frameBytes), f.channels, frameBytes, float)
+			}
+			call(capture, slotReleaseBuffer, uintptr(frames))
+			fn(mono, f.format.Rate)
+			return nil
+		}
 		check := time.Now().Add(time.Second)
 		for {
 			select {
@@ -91,27 +111,28 @@ func Loopback(stop <-chan struct{}, fn func(mono []float32, rate int)) error {
 					return err // another device plays now: start over on it
 				}
 			}
-			for {
-				var n uint32
-				if hrErr("GetNextPacketSize", call(capture, slotGetNextPacketSize, uintptr(unsafe.Pointer(&n)))) != nil || n == 0 {
-					break
-				}
-				var data unsafe.Pointer
-				var frames, flags uint32
-				if err := hrErr("GetBuffer", call(capture, slotGetBuffer, uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&frames)), uintptr(unsafe.Pointer(&flags)), 0, 0)); err != nil {
-					return err
-				}
-				mono = mono[:0]
-				if flags&bufferSilent != 0 || data == nil {
-					mono = append(mono, make([]float32, frames)...)
-				} else {
-					mono = mixDown(mono, unsafe.Slice((*byte)(data), int(frames)*frameBytes), f.channels, frameBytes, float)
-				}
-				call(capture, slotReleaseBuffer, uintptr(frames))
-				fn(mono, f.format.Rate)
+			if err := drain(waiting, read); err != nil {
+				return err
 			}
 		}
 	})
+}
+
+// drain reads every packet that waits. waiting is the next packet's size in
+// frames, 0 for none. Its error ends the capture: after
+// AUDCLNT_E_DEVICE_INVALIDATED (the device was unplugged or its format
+// changed) every call fails, and a loop that took the error for "no packet"
+// went on polling a dead stream.
+func drain(waiting func() (uint32, error), read func() error) error {
+	for {
+		n, err := waiting()
+		if err != nil || n == 0 {
+			return err
+		}
+		if err := read(); err != nil {
+			return err
+		}
+	}
 }
 
 // isFloat tells a 32-bit float mix format (what Windows uses) from integer PCM.
