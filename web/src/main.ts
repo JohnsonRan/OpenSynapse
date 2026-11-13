@@ -211,6 +211,7 @@ function renderOverview() {
 function deviceCard(d: DeviceInfo) {
   const card = document.createElement("button");
   card.className = "device-card";
+  card.dataset.id = d.id;
   card.innerHTML = `
     <div class="dc-head"><svg viewBox="0 0 24 24">${ICONS[d.category] ?? ICONS.accessory}</svg><div class="dc-name"></div></div>
     <div class="dc-chips"></div>
@@ -282,6 +283,17 @@ events.devicesChanged.on((next) => {
     dev = undefined;
     showView("devices");
   }
+});
+
+// A scene, smart polling or the DPI button changed a device: show its new
+// DPI and polling rate. A hidden overview is rebuilt when it is shown.
+events.deviceUpdated.on((id) => {
+  if (!$("#view-devices").hidden) {
+    const card = document.querySelector<HTMLElement>(`.device-card[data-id="${CSS.escape(id)}"]`);
+    const d = list.find((x) => x.id === id);
+    if (card && d) card.replaceWith(deviceCard(d));
+  }
+  if (dev?.id === id) refreshState();
 });
 
 // ---------- one device ----------

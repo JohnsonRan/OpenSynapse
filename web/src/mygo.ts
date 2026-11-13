@@ -884,6 +884,11 @@ export const Settings = {
 export const events = {
   /** DevicesChanged tells the window that devices were plugged or unplugged. */
   devicesChanged: event<DeviceInfo[]>("devicesChanged"),
+  /**
+   * DeviceUpdated tells the window that a device's settings changed outside the
+   * page (a scene, smart polling, the DPI button), with the device's ID.
+   */
+  deviceUpdated: event<string>("deviceUpdated"),
   /** OpenTarget tells an open window to show a device (its ID) or "scenes". */
   openTarget: event<string>("openTarget"),
   /** AboutChanged tells the window that a check ran or an update preference changed. */

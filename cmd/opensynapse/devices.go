@@ -73,6 +73,16 @@ func connected(devs []*razer.Device) []*razer.Device {
 // DevicesChanged tells the window that devices were plugged or unplugged.
 var DevicesChanged = mygo.NewEvent[[]DeviceInfo]("devicesChanged")
 
+// DeviceUpdated tells the window that a device's settings changed outside the
+// page (a scene, smart polling, the DPI button), with the device's ID.
+var DeviceUpdated = mygo.NewEvent[string]("deviceUpdated")
+
+func deviceUpdated(id string) {
+	if w := currentWindow(); w != nil {
+		_ = DeviceUpdated.Emit(w, id)
+	}
+}
+
 // watchDevices rescans when the set of attached Razer HID interfaces changes
 // (plugging a cable, a receiver, a keyboard). Listing interface paths opens
 // nothing, so checking every 2 s is cheap.

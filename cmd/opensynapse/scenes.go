@@ -150,6 +150,7 @@ func (a *applier) run(target int, devs []*razer.Device, apply func(*razer.Device
 			a.retryAt[d.ID] = time.Now().Add(10 * time.Second)
 			continue
 		}
+		deviceUpdated(d.ID)
 		a.done[d.ID] = target
 	}
 }

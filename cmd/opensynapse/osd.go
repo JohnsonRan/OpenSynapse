@@ -104,6 +104,7 @@ func watchDPI() {
 				if osdOn() {
 					showDPI(s)
 				}
+				deviceUpdated(d.ID)
 			})
 		}
 	}
