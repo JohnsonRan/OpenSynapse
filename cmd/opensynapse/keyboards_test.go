@@ -372,3 +372,63 @@ func TestRescanKeepsUnknownKeymapForRewrite(t *testing.T) {
 		t.Fatal("syncKeymaps wrote unexpected keymap")
 	}
 }
+
+// A keyboard that does not take the factory keymap keeps its macro bindings
+// and remaps, and is marked for the rewrite that makes it match them again.
+func TestResetKeysFailureKeepsBindingsAndRewritesKeymap(t *testing.T) {
+	d, sent := fakeKeyboard(t, map[string]*[leobog.Layers]leobog.Layer{})
+	cfgMu.Lock()
+	cfg.Macros = []Macro{{ID: "m"}}
+	cfgMu.Unlock()
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "key", Code: 0x41}); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Keyboards{}).SetKey("k", 0, 4, ButtonAction{Kind: "macro", Macro: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	want := keymapOf(d, false)
+	record := deviceSetKeymap
+	deviceSetKeymap = func(*leobog.Device, [leobog.Layers]leobog.Layer) error { return errors.New("busy") }
+	if err := (Keyboards{}).ResetKeys("k"); err == nil || err.Error() != "busy" {
+		t.Fatalf("ResetKeys: %v, want the write error", err)
+	}
+	deviceSetKeymap = record
+	cfgMu.Lock()
+	bound, remapped := len(cfg.Bindings), cfg.Keyboards["k"].Keymap != nil
+	cfgMu.Unlock()
+	if bound != 1 || !remapped {
+		t.Fatalf("after a failed reset: %d bindings, remap kept %v; want both kept", bound, remapped)
+	}
+	*sent = nil
+	bindMu.Lock()
+	syncKeymaps(false)
+	bindMu.Unlock()
+	if len(*sent) != 1 || (*sent)[0] != want {
+		t.Fatalf("keymaps sent after the failed reset: %d, want the bound keymap again", len(*sent))
+	}
+}
+
+// A remap the keyboard did not take is an error for the page; it stays saved
+// and the next round writes it, even when the user picks the old key again
+// meanwhile (the keyboard may hold one layer of the failed write).
+func TestSetKeyReportsFailedWriteAndRetries(t *testing.T) {
+	d, sent := fakeKeyboard(t, map[string]*[leobog.Layers]leobog.Layer{})
+	record := deviceSetKeymap
+	deviceSetKeymap = func(*leobog.Device, [leobog.Layers]leobog.Layer) error { return errors.New("busy") }
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "key", Code: 0x41}); err == nil || err.Error() != "busy" {
+		t.Fatalf("SetKey: %v, want the write error", err)
+	}
+	if keymapOf(d, true) == d.DefaultLayers() {
+		t.Fatal("the remap was not kept for the retry")
+	}
+	if err := (Keyboards{}).SetKey("k", 0, 3, ButtonAction{Kind: "default"}); err == nil {
+		t.Fatal("SetKey reported success for a second failed write")
+	}
+	deviceSetKeymap = record
+	bindMu.Lock()
+	syncKeymaps(false)
+	bindMu.Unlock()
+	if len(*sent) != 1 || (*sent)[0] != d.DefaultLayers() {
+		t.Fatalf("keymaps sent after the failed writes: %d, want the factory keymap once", len(*sent))
+	}
+}

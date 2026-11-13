@@ -143,7 +143,6 @@ after a release.
 
 | Option or finding | Source | Why it waits |
 | --- | --- | --- |
-| LEOBOG Reset keys removes the macro bindings and saves before the keymap write, and a failed write is not marked for rewrite (`keyboard_keys.go`, `ResetKeys`); `SetKey` reports success when the keymap write fails | code survey, 2026-11-14 | Medium; needs a busy or unplugged keyboard mid-reset; the owner chose the first four findings |
 | A settings section that fails to decode is replaced by its default without a log line or a `.bad` copy, and lost at the next save (`config.go`, `parseConfig`) | code survey, 2026-11-14 | Medium; needs a hand-edited file or a downgrade |
 | No background job recovers from a panic; a hand-edited scene with a highlight key of 126 or more panics `runAuto` on every start | code survey, 2026-11-14 | Medium; needs a hand-edited file; the wrapper touches every job |
 | A `razer.Device` from an older scan reopens a HID handle that nothing closes; the Razer hub has no `scanMu` | code survey, 2026-11-14 | Low to medium; a handle per stale round |

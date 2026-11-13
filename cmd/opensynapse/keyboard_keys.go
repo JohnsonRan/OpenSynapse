@@ -59,7 +59,10 @@ var (
 )
 
 // syncKeymaps writes the keymap to keyboards that hold another; bindMu is held.
-func syncKeymaps(restore bool) {
+// It returns the failed writes by keyboard ID. A failed write may have stored
+// one layer only, so the keyboard is marked for a rewrite on the next round.
+func syncKeymaps(restore bool) map[string]error {
+	failed := map[string]error{}
 	for _, d := range keyboards.list() {
 		if !d.CanRemap() {
 			continue
@@ -77,12 +80,17 @@ func syncKeymaps(restore bool) {
 		}
 		if err := deviceSetKeymap(d, want); err != nil {
 			log.Println("keymap of", d.ID, err)
+			failed[d.ID] = err
+			keyboards.mu.Lock()
+			keyboards.written[d.ID] = &unknownKeymap
+			keyboards.mu.Unlock()
 			continue
 		}
 		keyboards.mu.Lock()
 		keyboards.written[d.ID] = &want
 		keyboards.mu.Unlock()
 	}
+	return failed
 }
 
 func layoutIndex(d *leobog.Device, idx int) bool {
@@ -206,8 +214,12 @@ func (Keyboards) SetKey(id string, layer, index int, act ButtonAction) error {
 		}
 	}
 	refreshHooks()
-	syncKeymaps(false)
-	return saveConfig()
+	failed := syncKeymaps(false)
+	if err := saveConfig(); err != nil {
+		return err
+	}
+	// The change stays saved: keepBindings writes it once the keyboard answers.
+	return failed[d.ID]
 }
 
 // ResetKeys gives every key its factory action and unbinds its macros.
@@ -218,20 +230,25 @@ func (Keyboards) ResetKeys(id string) error {
 	if err != nil {
 		return err
 	}
+	// Written even if the app thinks it is there: the official driver may have changed it.
+	// The keyboard comes first: after a failed write the bindings and the remembered
+	// keymap are still there, and keepBindings writes them back.
+	if err := deviceSetKeymap(d, d.DefaultLayers()); err != nil {
+		keyboards.mu.Lock()
+		keyboards.written[d.ID] = &unknownKeymap
+		keyboards.mu.Unlock()
+		return err
+	}
 	cfgMu.Lock()
 	cfg.Bindings = slices.DeleteFunc(cfg.Bindings, func(b Binding) bool { return b.Family == d.Name })
 	cfgMu.Unlock()
-	if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Keymap = nil }); err != nil {
-		return err
-	}
 	refreshHooks()
-	// Written even if the app thinks it is there: the official driver may have changed it.
-	if err := deviceSetKeymap(d, d.DefaultLayers()); err != nil {
-		return err
-	}
 	keyboards.mu.Lock()
 	keyboards.written[d.ID] = nil
 	keyboards.mu.Unlock()
+	if err := rememberKeyboard(d.ID, func(m *KeyboardMemory) { m.Keymap = nil }); err != nil {
+		return err
+	}
 	return saveConfig()
 }
 
