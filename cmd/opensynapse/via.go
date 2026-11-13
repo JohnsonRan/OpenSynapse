@@ -241,10 +241,15 @@ func (Via) SetLighting(id string, l leobog.Lighting) error {
 
 // SetModel makes the keyboard another of the models sharing its USB IDs.
 func (Via) SetModel(id, name string) error {
+	bindMu.Lock() // the changed keys stay as they are until the model is replaced
+	defer bindMu.Unlock()
 	err := viaKeyboards.replace(id, func(d *via.Device) (*via.Device, error) {
 		next, ok := d.WithModel(name)
 		if !ok {
 			return nil, errors.New("unknown model")
+		}
+		if !changedKeysFit(d, next) {
+			return nil, errors.New(tr("err.modelKeys"))
 		}
 		return next, nil
 	})
@@ -258,6 +263,33 @@ func (Via) SetModel(id, name string) error {
 	cfg.ViaModels[id] = name
 	cfgMu.Unlock()
 	return saveConfig()
+}
+
+// changedKeysFit reports whether the keys the app changed on d, its macro
+// keys and the keys with a remembered original, are the same keys on next.
+// They are kept by matrix index, row*Cols+col: on a model with another matrix
+// width an index is another key, or none, and the key the app changed would
+// keep its trigger with nothing left to restore it.
+func changedKeysFit(d, next *via.Device) bool {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	var changed []int
+	for _, b := range cfg.Bindings {
+		if b.Family == viaFamily(d) {
+			changed = append(changed, b.Button)
+		}
+	}
+	for k := range cfg.ViaKeys[d.ID] {
+		var layer, index int
+		if _, err := fmt.Sscanf(k, "%d:%d", &layer, &index); err != nil {
+			return false
+		}
+		changed = append(changed, index)
+	}
+	if len(changed) > 0 && next.Cols != d.Cols {
+		return false
+	}
+	return !slices.ContainsFunc(changed, func(i int) bool { _, ok := viaKey(next, i); return !ok })
 }
 
 // KeyColors: VIA keyboards have no per-key colors.

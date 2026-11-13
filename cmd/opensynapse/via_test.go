@@ -122,6 +122,72 @@ func TestViaModelsAndUnsure(t *testing.T) {
 	}
 }
 
+// Changed keys are kept by row*Cols+col. A model with another matrix width
+// reads the index as another key, and one that lacks the key cannot restore it.
+func TestViaSetModelKeepsChangedKeysInPlace(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	cfgMu.Lock()
+	saved := cfg
+	cfg = defaultConfig()
+	cfgMu.Unlock()
+	numpad := &via.Model{Name: "Numpad", Rows: 5, Cols: 4, Keys: []via.Key{{Row: 1, Col: 1}}}
+	wide := &via.Model{Name: "Wide", Rows: 8, Cols: 16, Keys: []via.Key{{Row: 0, Col: 5}}} // index 5 too, another key
+	bare := &via.Model{Name: "Bare", Rows: 5, Cols: 4, Keys: []via.Key{{Row: 0, Col: 0}}}
+	same := &via.Model{Name: "Same", Rows: 5, Cols: 4, Keys: []via.Key{{Row: 1, Col: 1}, {Row: 0, Col: 0}}}
+	d := via.NewDevice(numpad, &fakeViaPort{in: make(chan []byte)})
+	d.ID = "1234:5678"
+	d.Variants = []*via.Model{numpad, wide, bare, same}
+	viaKeyboards.mu.Lock()
+	viaKeyboards.devs = []*via.Device{d}
+	viaKeyboards.mu.Unlock()
+	t.Cleanup(func() {
+		viaKeyboards.mu.Lock()
+		viaKeyboards.devs = nil
+		viaKeyboards.mu.Unlock()
+		cfgMu.Lock()
+		cfg = saved
+		cfgMu.Unlock()
+	})
+	model := func() string {
+		vm, err := (Via{}).Models(d.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return vm.Model
+	}
+	index := numpad.Index(1, 1)
+	set := func(bindings []Binding, originals map[string]uint16) {
+		cfgMu.Lock()
+		cfg.Bindings, cfg.ViaKeys = bindings, map[string]map[string]uint16{d.ID: originals}
+		cfgMu.Unlock()
+	}
+
+	for name, state := range map[string]func(){
+		"a macro key":           func() { set([]Binding{{Family: viaFamily(d), Button: index, Trigger: firstTrigger}}, nil) },
+		"a remembered original": func() { set(nil, map[string]uint16{viaKeyOf(1, index): 4}) },
+	} {
+		state()
+		for _, other := range []string{"Wide", "Bare"} {
+			if err := (Via{}).SetModel(d.ID, other); err == nil || err.Error() != tr("err.modelKeys") || model() != "Numpad" {
+				t.Fatalf("with %s, SetModel(%s): %v, model %s; want it refused", name, other, err, model())
+			}
+		}
+		cfgMu.Lock()
+		picked := cfg.ViaModels[d.ID]
+		cfgMu.Unlock()
+		if picked != "" {
+			t.Fatalf("with %s, a refused model %q was saved", name, picked)
+		}
+	}
+	if err := (Via{}).SetModel(d.ID, "Same"); err != nil || model() != "Same" {
+		t.Fatalf("a model with the changed key in place: %v, model %s", err, model())
+	}
+	set(nil, nil)
+	if err := (Via{}).SetModel(d.ID, "Wide"); err != nil || model() != "Wide" {
+		t.Fatalf("without changed keys: %v, model %s", err, model())
+	}
+}
+
 func TestRememberOriginal(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 	saved := cfg

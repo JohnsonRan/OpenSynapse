@@ -51,6 +51,7 @@ var messages = map[string]map[string]string{
 		"err.noSoundDevice": "Windows 中没有这个设备的播放设备",
 		"err.presetName":    "请为预设命名",
 		"err.pickModel":     "请先在名称旁选择键盘型号",
+		"err.modelKeys":     "你在此键盘上更改过的按键在该型号上位置不同。请先对按键使用“全部恢复默认”，然后再选择型号。",
 		"err.saveBlocked":   "设置未保存：无法读取 %s。为避免覆盖其中的设置，已暂停保存。请修复或移走该文件，然后重启 OpenSynapse。",
 	},
 	"en": {
@@ -93,6 +94,7 @@ var messages = map[string]map[string]string{
 		"err.noSoundDevice": "Windows has no playback device for this device",
 		"err.presetName":    "Give the preset a name",
 		"err.pickModel":     "Pick this keyboard's model next to its name first",
+		"err.modelKeys":     "The keys you changed on this keyboard are in other places on that model. Use \"Restore all defaults\" for the keys first, and then pick the model.",
 		"err.saveBlocked":   "Settings weren't saved: OpenSynapse can't read %s. To avoid overwriting the settings in it, saving is paused. Fix or move the file, and then restart OpenSynapse.",
 	},
 	// Japanese per the Microsoft Japanese style guide; see src/i18n.ts.
@@ -136,6 +138,7 @@ var messages = map[string]map[string]string{
 		"err.noSoundDevice": "このデバイスの再生デバイスが Windows にありません",
 		"err.presetName":    "プリセットに名前を付けてください",
 		"err.pickModel":     "先に名前の横でキーボードのモデルを選択してください",
+		"err.modelKeys":     "このキーボードで変更したキーは、そのモデルでは位置が異なります。先にキーで [すべて既定に戻す] を実行してから、モデルを選択してください。",
 		"err.saveBlocked":   "設定は保存されませんでした。%s を読み取れません。その中の設定を上書きしないよう、保存を一時停止しています。ファイルを修正するか移動してから、OpenSynapse を再起動してください。",
 	},
 }
