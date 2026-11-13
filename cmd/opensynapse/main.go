@@ -172,7 +172,38 @@ func trayMenu() *mygo.Menu {
 	))
 }
 
+// generating reports whether this run only writes the page's TypeScript
+// client: `mygo generate` (bun run generate) starts the app with
+// MYGO_GENERATE set, and App.Run then writes the client and returns.
+func generating() bool { return os.Getenv("MYGO_GENERATE") != "" }
+
+// bindServices registers what the page can call, which is all a generating
+// run needs.
+func bindServices() {
+	// The update window in the app's language; it keeps it until a restart.
+	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))
+	mygo.Bind(Devices{})
+	mygo.Bind(Audio{})
+	mygo.Bind(Keyboards{})
+	mygo.Bind(Via{})
+	mygo.Bind(Lights{})
+	mygo.Bind(Macros{})
+	mygo.Bind(Scenes{})
+	mygo.Bind(Settings{})
+}
+
 func main() {
+	// A generating run is a build step, not the app, and it runs past the
+	// single-instance lock beside the installed app. It must not load or back
+	// up the user's settings, open a device or start a background job: it did
+	// all three before, and wrote config.json.bad into the user's settings.
+	if generating() {
+		bindServices()
+		if err := mygo.App.Run(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if !mygo.App.RequestSingleInstanceLock() {
 		return // the running instance opens its window
 	}
@@ -202,16 +233,7 @@ func main() {
 		applySceneKeyboards(nil) // and keyboards light as they did
 	})
 
-	// The update window in the app's language; it keeps it until a restart.
-	mygo.Use(updater.New(updater.Options{Language: language(), Icon: appIcon}))
-	mygo.Bind(Devices{})
-	mygo.Bind(Audio{})
-	mygo.Bind(Keyboards{})
-	mygo.Bind(Via{})
-	mygo.Bind(Lights{})
-	mygo.Bind(Macros{})
-	mygo.Bind(Scenes{})
-	mygo.Bind(Settings{})
+	bindServices()
 
 	mygo.App.OnSecondInstance(func([]string, string) { openWindow() })
 	mygo.App.OnWindowAllClosed(func() {}) // keep running in the tray
