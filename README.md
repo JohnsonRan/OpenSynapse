@@ -157,7 +157,7 @@ In `%APPDATA%\OpenSynapse\config.json`, or for the portable version in `config.j
 
 ## Build from source
 
-Requirements: Go 1.27.3 or later, and [Bun](https://bun.sh).
+Requirements: Go 1.27.4 or later, and [Bun](https://bun.sh).
 
 ```sh
 bun install

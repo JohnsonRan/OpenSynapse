@@ -157,7 +157,7 @@ Razer 设备无法报告当前灯效，因此 OpenSynapse 显示的是你最后�
 
 ## 从源代码构建
 
-要求: Go 1.27.3 或更高版本，以及 [Bun](https://bun.sh)。
+要求: Go 1.27.4 或更高版本，以及 [Bun](https://bun.sh)。
 
 ```sh
 bun install

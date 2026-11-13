@@ -157,7 +157,7 @@ OpenSynapse がクラッシュしたり、タスク マネージャーで終了�
 
 ## ソースからビルド
 
-必要なもの：Go 1.27.3 以降、[Bun](https://bun.sh)
+必要なもの：Go 1.27.4 以降、[Bun](https://bun.sh)
 
 ```sh
 bun install
