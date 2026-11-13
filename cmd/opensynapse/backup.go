@@ -89,8 +89,9 @@ func replaceConfig(next config) error {
 // way to click, two bindings with one trigger key play the wrong macro, and
 // Original is written to the mouse when the app quits. A mouse button and
 // layer are sent as one byte each, so a larger number would land on another
-// button.
-func importBindings(in []Binding, macros []Macro) []Binding {
+// button. current are the bindings in use: a button bound here already keeps
+// the function it had here, when the file's cannot be used.
+func importBindings(in []Binding, macros []Macro, current []Binding) []Binding {
 	out := []Binding{}
 	for _, b := range in {
 		taken := slices.ContainsFunc(out, func(o Binding) bool {
@@ -110,9 +111,16 @@ func importBindings(in []Binding, macros []Macro) []Binding {
 			if b.Button < 0 || b.Button > 0xFF || b.Button == leftButton && b.Layer == razer.LayerNormal {
 				continue
 			}
-			// An original the app cannot name, or a trigger key, gives way to the button's own function.
+			// An original the app cannot name, or a trigger key, is not written to
+			// a mouse from a file: the button gets what it did here before it was
+			// bound, or else its own function.
 			if _, err := assignmentOf(b.Button, b.Layer, actionOf(b.Button, b.Original)); err != nil || isTriggerAssignment(b.Original) {
 				b.Original = defaultAssignment(b.Button)
+				if i := slices.IndexFunc(current, func(c Binding) bool {
+					return c.Family == b.Family && c.Button == b.Button && c.Layer == b.Layer
+				}); i >= 0 {
+					b.Original = current[i].Original
+				}
 			}
 		}
 		out = append(out, b)
@@ -143,6 +151,9 @@ func importConfig(b []byte) (config, error) {
 	}
 	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.normalize() != nil })
 	c.EQPresets = slices.DeleteFunc(c.EQPresets, func(p EQPreset) bool { return p.normalize() != nil })
-	c.Bindings = importBindings(c.Bindings, c.Macros)
+	cfgMu.Lock()
+	current := slices.Clone(cfg.Bindings)
+	cfgMu.Unlock()
+	c.Bindings = importBindings(c.Bindings, c.Macros, current)
 	return c, nil
 }

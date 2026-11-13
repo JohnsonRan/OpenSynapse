@@ -42,13 +42,14 @@ func TestImportBindings(t *testing.T) {
 	want := []Binding{
 		in[0],
 		in[7],
-		{Family: "Mouse", Button: 5, Macro: "m", Trigger: trig(3), Original: defaultAssignment(5)},
+		{Family: "Mouse", Button: 5, Macro: "m", Trigger: trig(3), Original: razer.Assignment{Fn: 0x77, Data: []byte{9}}},
 		{Family: "Mouse", Button: 3, Macro: "m", Trigger: trig(4), Original: defaultAssignment(3)},
 		in[10],
 		in[13],
 	}
-	want[1].Original = defaultAssignment(leftButton) // it had none
-	got := importBindings(in, macros)
+	want[1].Original = defaultAssignment(leftButton)    // it had none
+	kept := razer.Assignment{Fn: 0x77, Data: []byte{9}} // what button 5 did here before it was bound
+	got := importBindings(in, macros, []Binding{{Family: "Mouse", Button: 5, Original: kept}})
 	if len(got) != len(want) {
 		t.Fatalf("kept %d bindings, want %d: %+v", len(got), len(want), got)
 	}
