@@ -92,7 +92,7 @@ Go to the **Scenes** page, or right-click the tray icon, to turn these on.
 
 A program needs to stay in front for about 2 seconds before OpenSynapse switches. Settings you change by hand are replaced at the next switch.
 
-**How games are detected:** a fullscreen or borderless-fullscreen window whose program uses at least 15% of the GPU's 3D engine. Browsers and video players are never treated as games.
+**How games are detected:** a fullscreen or borderless-fullscreen window whose program keeps at least 15% of the GPU's 3D engine busy for 5 seconds in a row without decoding video. Browsers and video players are never treated as games.
 
 ### Notifications and tray
 

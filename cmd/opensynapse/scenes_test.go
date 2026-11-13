@@ -18,25 +18,52 @@ func TestDebouncer(t *testing.T) {
 	}
 }
 
-func TestIsGame(t *testing.T) {
+func TestLooksLikeGame(t *testing.T) {
 	cases := []struct {
 		exe        string
 		fullscreen bool
 		gpu        float64
-		known      bool
+		decode     float64
 		want       bool
 	}{
-		{"elden.exe", true, 60, false, true},   // fullscreen + GPU
-		{"elden.exe", false, -1, true, true},   // remembered game, windowed menu
-		{"elden.exe", true, 3, false, false},   // fullscreen video-like load
-		{"elden.exe", true, -1, false, false},  // not measured yet
-		{"code.exe", false, 80, false, false},  // windowed GPU load is not a game
-		{"chrome.exe", true, 80, false, false}, // browsers are excluded
+		{"elden.exe", true, 60, 0, true},      // fullscreen + GPU
+		{"elden.exe", true, 3, 0, false},      // light load
+		{"elden.exe", true, -1, -1, false},    // not measured yet
+		{"tvplayer.exe", true, 40, 4, false},  // unlisted player decoding video
+		{"code.exe", false, 80, 0, false},     // windowed GPU load is not a game
+		{"chrome.exe", true, 80, 0, false},    // browsers are excluded
+		{"potplayer.exe", true, 80, 0, false}, // players are excluded
 	}
 	for _, k := range cases {
-		if got := isGame(k.exe, k.fullscreen, k.gpu, k.known); got != k.want {
+		if got := looksLikeGame(k.exe, k.fullscreen, k.gpu, k.decode); got != k.want {
 			t.Errorf("%+v: got %v", k, got)
 		}
+	}
+}
+
+func TestGameStreak(t *testing.T) {
+	var s gameStreak
+	// A spike shorter than gameSeconds, broken by one quiet sample, is not a game.
+	for range gameSeconds - 1 {
+		if s.observe(1, true) {
+			t.Fatal("game before gameSeconds samples")
+		}
+	}
+	if s.observe(1, false) {
+		t.Fatal("game on a quiet sample")
+	}
+	// A new foreground process starts its own count.
+	for range gameSeconds - 1 {
+		s.observe(1, true)
+	}
+	if s.observe(2, true) {
+		t.Fatal("count carried over to another process")
+	}
+	for range gameSeconds - 2 {
+		s.observe(2, true)
+	}
+	if !s.observe(2, true) {
+		t.Fatal("not a game after gameSeconds samples")
 	}
 }
 

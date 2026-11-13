@@ -14,12 +14,19 @@ import (
 // window as a game. Fullscreen video and slides stay well below it.
 const gpuGameThreshold = 15
 
+// gameSeconds is how many consecutive one-second samples a fullscreen app must
+// look like a game before it counts as one. A player's start-up, a seek or a
+// transition loads the GPU for a moment; a game keeps it loaded.
+const gameSeconds = 5
+
 // notGames are fullscreen regulars that can still load the GPU (browser
 // video, WebGL, players). Listing one by name still works.
 var notGames = map[string]bool{
 	"chrome.exe": true, "msedge.exe": true, "firefox.exe": true, "vivaldi.exe": true,
 	"opera.exe": true, "brave.exe": true, "vlc.exe": true, "potplayermini64.exe": true,
-	"mpv.exe": true, "mpc-hc64.exe": true, "powerpnt.exe": true, "explorer.exe": true,
+	"potplayermini.exe": true, "potplayer.exe": true, "potplayer64.exe": true,
+	"mpv.exe": true, "mpc-hc64.exe": true, "mpc-hc.exe": true, "mpc-be64.exe": true,
+	"mpc-be.exe": true, "wmplayer.exe": true, "powerpnt.exe": true, "explorer.exe": true,
 }
 
 const (
@@ -35,9 +42,29 @@ const (
 	noScene   = -3
 )
 
-// isGame: fullscreen/borderless with GPU load, or a process already recognized.
-func isGame(exe string, fullscreen bool, gpu float64, knownGame bool) bool {
-	return !notGames[exe] && (knownGame || fullscreen && gpu >= gpuGameThreshold)
+// looksLikeGame: one sample of a fullscreen/borderless app with 3D load that
+// is not decoding video. Players render through the 3D engine too, but only
+// they keep the video-decode engine busy.
+func looksLikeGame(exe string, fullscreen bool, load3D, decode float64) bool {
+	return !notGames[exe] && fullscreen && load3D >= gpuGameThreshold && decode <= 0
+}
+
+// gameStreak counts consecutive game-like samples of one process.
+type gameStreak struct {
+	pid uint32
+	n   int
+}
+
+// observe records a sample and reports whether the process has looked like a
+// game for gameSeconds in a row.
+func (s *gameStreak) observe(pid uint32, like bool) bool {
+	if pid != s.pid || !like {
+		*s = gameStreak{pid: pid}
+	}
+	if like {
+		s.n++
+	}
+	return s.n >= gameSeconds
 }
 
 // decideScene: a custom scene listing the program, then the game scene
@@ -215,6 +242,7 @@ func runAuto() {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	var gpu gpuMeter
+	var streak gameStreak
 	scenes, rates := newSwitcher("scene"), newSwitcher("polling rate")
 	// Processes recognized as games stay games while they run, so a loading
 	// screen or a windowed menu does not count as leaving the game.
@@ -225,7 +253,7 @@ func runAuto() {
 		case <-tick.C:
 		case <-autoReset:
 			// config changed: re-evaluate from scratch
-			scenes, rates, games = newSwitcher("scene"), newSwitcher("polling rate"), map[uint32]string{}
+			scenes, rates, games, streak = newSwitcher("scene"), newSwitcher("polling rate"), map[uint32]string{}, gameStreak{}
 		}
 		cfgMu.Lock()
 		sc, sp := cfg.Scenes, cfg.Smart
@@ -251,13 +279,13 @@ func runAuto() {
 		}
 		known := games[f.pid] == f.exe
 		needGame := sp.Enabled || sc.Enabled
-		load := -1.0
+		load, decode := -1.0, -1.0
 		if needGame && f.fullscreen && !known && !notGames[f.exe] {
-			load = gpu.usage(f.pid) // measured only for an unrecognized fullscreen app
+			load, decode = gpu.usage(f.pid) // measured only for an unrecognized fullscreen app
 		} else {
 			gpu.close()
 		}
-		game := needGame && isGame(f.exe, f.fullscreen, load, known)
+		game := needGame && (known || streak.observe(f.pid, looksLikeGame(f.exe, f.fullscreen, load, decode)))
 		if game && !known {
 			if len(games) > 64 {
 				clear(games) // shortcut: forget old games wholesale; a pid reused by the same exe is the only cost

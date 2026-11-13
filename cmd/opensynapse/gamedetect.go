@@ -104,32 +104,33 @@ func (g *gpuMeter) close() {
 	*g = gpuMeter{}
 }
 
-// usage returns the summed 3D-engine utilization of pid in percent, or -1
-// until two samples exist (PDH rates need a previous sample).
-func (g *gpuMeter) usage(pid uint32) float64 {
+// usage returns the summed 3D-engine and video-decode utilization of pid in
+// percent, or -1 for both until two samples exist (PDH rates need a previous
+// sample).
+func (g *gpuMeter) usage(pid uint32) (load3D, decode float64) {
 	if g.query == 0 {
 		if r, _, _ := procPdhOpenQuery.Call(0, 0, uintptr(unsafe.Pointer(&g.query))); r != 0 {
-			return -1
+			return -1, -1
 		}
 		path, _ := windows.UTF16PtrFromString(`\GPU Engine(*)\Utilization Percentage`)
 		if r, _, _ := procPdhAddCounter.Call(g.query, uintptr(unsafe.Pointer(path)), 0, uintptr(unsafe.Pointer(&g.counter))); r != 0 {
 			g.close()
-			return -1
+			return -1, -1
 		}
 	}
 	procPdhCollect.Call(g.query)
 	if !g.primed {
 		g.primed = true
-		return -1
+		return -1, -1
 	}
 	const fmtDouble, moreData = 0x00000200 | 0x00008000, 0x800007D2 // PDH_FMT_DOUBLE|NOCAP100
 	var size, count uint32
 	if r, _, _ := procPdhGetArray.Call(g.counter, fmtDouble, uintptr(unsafe.Pointer(&size)), uintptr(unsafe.Pointer(&count)), 0); r != moreData || size == 0 {
-		return -1
+		return -1, -1
 	}
 	buf := make([]byte, size)
 	if r, _, _ := procPdhGetArray.Call(g.counter, fmtDouble, uintptr(unsafe.Pointer(&size)), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&buf[0]))); r != 0 {
-		return -1
+		return -1, -1
 	}
 	type item struct {
 		name   *uint16
@@ -139,15 +140,20 @@ func (g *gpuMeter) usage(pid uint32) float64 {
 	}
 	items := unsafe.Slice((*item)(unsafe.Pointer(&buf[0])), count)
 	prefix := fmt.Sprintf("pid_%d_", pid)
-	var sum float64
 	for _, it := range items {
 		if it.status > 1 { // PDH_CSTATUS_VALID_DATA / NEW_DATA
 			continue
 		}
 		n := windows.UTF16PtrToString(it.name)
-		if strings.HasPrefix(n, prefix) && strings.HasSuffix(n, "engtype_3D") {
-			sum += it.value
+		if !strings.HasPrefix(n, prefix) {
+			continue
+		}
+		switch {
+		case strings.HasSuffix(n, "engtype_3D"):
+			load3D += it.value
+		case strings.HasSuffix(n, "engtype_VideoDecode"):
+			decode += it.value
 		}
 	}
-	return sum
+	return load3D, decode
 }
