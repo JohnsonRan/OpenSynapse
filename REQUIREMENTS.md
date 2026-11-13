@@ -153,7 +153,7 @@ after a release.
 | Plugging in a Razer device still re-applies the scene to every Razer device, not only the new one | a950475, cddd50b | the smaller fix covered unrelated devices; a per-device reset needs to know which ID a receiver answers for |
 | Game detection may miss a fullscreen game that hovers around 15% 3D load (it needs five samples in a row) or one that keeps decoding video (menus, cutscenes); counting N of the last M samples and a small decode threshold would loosen it | review of 53b2a54, 2026-11-14 | no game was measured; a game it misses can be listed under Programs |
 | `runAuto` keeps its 1 s ticker, a JSON marshal and a language lookup while scenes and smart polling are off; music lighting wakes about 120 times a second while silent | code survey, 2026-11-14 | an optimization, measure against the memory and CPU baseline first |
-| The page: the toast has no live region; no `prefers-reduced-motion` | page survey, 2026-11-14 | accessibility pass, one change |
+| The page: no `prefers-reduced-motion` | page survey, 2026-11-14 | accessibility pass, one change |
 | The three HID port readers (`via`, `walkplay`, `evision`) and the five device hubs repeat the same code | code survey, 2026-11-14 | a refactor without a behaviour change |
 | Feature ideas: per-key colors, music lighting and scene lighting for Razer keyboards; scenes matched by window title, and a scene locked from the tray; text and launch steps in macros | survey, 2026-11-14 | features; the owner decides after release |
 

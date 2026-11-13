@@ -61,14 +61,16 @@ let state: DeviceState | undefined;
 
 // ---------- helpers ----------
 
+// An error stays longer than a success: it says what to do next. The live
+// region is never hidden, only emptied: screen readers miss text that
+// arrives in a region as it appears.
 let toastTimer = 0;
 function toast(msg: string, error = false) {
   const t = $("#toast");
   t.textContent = msg;
   t.className = error ? "error" : "";
-  t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (t.hidden = true), 2600);
+  toastTimer = window.setTimeout(() => (t.textContent = ""), error ? 6000 : 2600);
 }
 
 // failed shows a call's error; Go errors carry the sentence for the user.

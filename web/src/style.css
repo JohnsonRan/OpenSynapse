@@ -959,6 +959,11 @@ input[type="range"] {
   font-size: var(--text-control);
 }
 
+#toast:empty {
+  padding: 0;
+  border: 0;
+}
+
 #toast.error {
   border-color: var(--danger);
   color: var(--danger);
