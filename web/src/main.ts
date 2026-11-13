@@ -794,7 +794,7 @@ const buttonName = (id: number) => ([1, 2, 3, 4, 5, 9, 10, 96].includes(id) ? t(
 
 // The tab shows only for devices that answer Synapse's button commands. Each
 // button plays a macro, or is remapped on the device: to a mouse button, a
-// DPI action or a key (which works without OpenSynapse).
+// DPI action, a sensitivity clutch or a key (which works without OpenSynapse).
 const DPI_ACTIONS = [1, 2, 6, 7];
 const MOUSE_TARGETS = [1, 2, 3, 4, 5, 9, 10];
 const MODIFIER_VKS = [16, 17, 18, 91, 92];
@@ -811,6 +811,8 @@ function actionValue(a: ButtonAction) {
       return `${a.kind}:${a.code}`;
     case "key":
       return `key:${a.code}:${a.mods}`;
+    case "clutch":
+      return `clutch:${a.dpi}`;
   }
   return a.kind; // default, other
 }
@@ -818,6 +820,7 @@ function actionValue(a: ButtonAction) {
 function parseAction(v: string): ButtonAction {
   const [kind = "default", x = "", y = "0"] = v.split(":");
   if (kind === "macro") return { kind, macro: x, code: 0, mods: 0 };
+  if (kind === "clutch") return { kind, macro: "", code: 0, mods: 0, dpi: +x };
   return { kind, macro: "", code: +x || 0, mods: +y || 0 };
 }
 
@@ -872,15 +875,21 @@ function keyItems(act: ButtonAction, cur: string): [string, string][] {
   ];
 }
 
-function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
+// The DPI a new sensitivity clutch starts at; the field next to the menu changes it.
+const CLUTCH_DPI = 400;
+
+// clutch: the mouse is offered the sensitivity clutch (features.clutch).
+function buttonOptions(act: ButtonAction, layer: number, macros: Macro[], clutch: boolean) {
   const cur = actionValue(act);
   const group = (label: string, items: [string, string][]) =>
     items.length ? `<optgroup label="${label}">${items.map(([v, l]) => option(v, l, v === cur)).join("")}</optgroup>` : "";
+  const dpiItems: [string, string][] = DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")]);
+  if (clutch) dpiItems.push([act.kind === "clutch" ? cur : `clutch:${CLUTCH_DPI}`, t("buttons.clutch")]);
   return (
     option("default", t("buttons.default"), cur === "default") +
     (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
     group(t("buttons.groupMouse"), MOUSE_TARGETS.map((n) => [`mouse:${n}`, buttonName(n)])) +
-    group(t("buttons.groupDpi"), DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
+    group(t("buttons.groupDpi"), dpiItems) +
     (layer === 0 ? group(t("buttons.groupHypershift"), [["hypershift", t("buttons.hypershift")]]) : "") +
     group(t("buttons.groupKey"), keyItems(act, cur)) +
     group(t("buttons.groupMacro"), macros.map((m) => [`macro:${m.id}`, esc(m.name)]))
@@ -913,18 +922,38 @@ async function loadButtons(d: DeviceInfo) {
         row.className = "button-row";
         const sel = document.createElement("select");
         const cur = () => (layer ? b.shift : b.action);
-        const render = () => (sel.innerHTML = buttonOptions(cur(), layer, all));
+        // The DPI of a sensitivity clutch, shown only while the button is one.
+        const dpi = document.createElement("input");
+        dpi.type = "number";
+        dpi.min = "100";
+        dpi.max = String(d.maxDpi);
+        dpi.step = "50";
+        dpi.title = t("buttons.clutchDpi");
+        dpi.setAttribute("aria-label", t("buttons.clutchDpi"));
+        const render = () => {
+          const act = cur();
+          sel.innerHTML = buttonOptions(act, layer, all, d.features.clutch);
+          dpi.hidden = act.kind !== "clutch";
+          dpi.value = String(act.dpi ?? "");
+          row.classList.toggle("clutch", !dpi.hidden);
+        };
         render();
         sel.disabled = b.id === 1 && layer === 0; // the left button keeps clicking
-        const apply = (act: ButtonAction) =>
+        // redraw=false keeps the row, and with it the focus in its DPI field.
+        const apply = (act: ButtonAction, redraw = true) =>
           attempt(() => Devices.setButton(d.id, b.id, layer, act), t("buttons.saved")).then((ok) => {
             if (ok) {
               if (layer) b.shift = act;
               else b.action = act;
             }
-            if (ok && layer === 0) renderList(); // the Hypershift hint may change
+            if (ok && layer === 0 && redraw) renderList(); // the Hypershift hint may change
             else render();
           });
+        dpi.onchange = () => {
+          if (!dpi.value) return render();
+          const v = Math.min(d.maxDpi, Math.max(100, Math.round(+dpi.value / 50) * 50));
+          apply({ kind: "clutch", macro: "", code: 0, mods: 0, dpi: v }, false);
+        };
         sel.onchange = () => {
           const v = sel.value; // a cancelled capture redraws the menu
           stopCapture();
@@ -934,7 +963,7 @@ async function loadButtons(d: DeviceInfo) {
         };
         const name = document.createElement("span");
         name.textContent = buttonName(b.id);
-        row.append(name, sel);
+        row.append(name, sel, dpi);
         return row;
       }),
     );

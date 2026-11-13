@@ -8,18 +8,19 @@ import (
 )
 
 // Buttons can play a macro (macro.go), or be remapped on the device itself:
-// to a mouse button, a DPI action, a key, or Hypershift. A remap is stored in
-// the mouse and works without OpenSynapse.
+// to a mouse button, a DPI action, a sensitivity clutch, a key, or Hypershift.
+// A remap is stored in the mouse and works without OpenSynapse.
 //
 // Each button has two layers: what it does normally, and what it does while
 // a button set to Hypershift is held.
 
 // ButtonAction is what a button does, as the page shows and sets it.
 type ButtonAction struct {
-	Kind  string `json:"kind"`  // default, macro, mouse, dpi, key, hypershift, other
-	Macro string `json:"macro"` // macro: its ID
-	Code  int    `json:"code"`  // mouse: 1–5, 9, 10; dpi: 1 up, 2 down, 6 cycle up, 7 cycle down; key: virtual-key code, 0 for modifiers only
-	Mods  int    `json:"mods"`  // key: modifier bits, left Ctrl 1, Shift 2, Alt 4, Win 8
+	Kind  string `json:"kind"`          // default, macro, mouse, dpi, clutch, key, hypershift, other
+	Macro string `json:"macro"`         // macro: its ID
+	Code  int    `json:"code"`          // mouse: 1–5, 9, 10; dpi: 1 up, 2 down, 6 cycle up, 7 cycle down; key: virtual-key code, 0 for modifiers only
+	Mods  int    `json:"mods"`          // key: modifier bits, left Ctrl 1, Shift 2, Alt 4, Win 8
+	DPI   int    `json:"dpi,omitempty"` // clutch: the DPI while the button is held
 }
 
 // ButtonInfo is a remappable button and what it does on each layer.
@@ -34,15 +35,36 @@ var (
 	dpiCodes   = []int{1, 2, 6, 7}
 )
 
-// actionOf describes a device assignment. The Hypershift layer's default is
-// the button's normal function, as the DeathAdder V4 Pro ships.
-func actionOf(button int, a razer.Assignment) ButtonAction {
+// mouseModel is a catalog model of the family, nil for none. A binding names
+// its mouse by family alone, and the wired and wireless models of one family
+// take the same button functions.
+func mouseModel(family string) *razer.Model {
+	for i := range razer.Models {
+		if m := &razer.Models[i]; m.Family() == family {
+			return m
+		}
+	}
+	return nil
+}
+
+// actionOf describes a device assignment of a mouse of model m (nil when the
+// model is not known). The Hypershift layer's default is the button's normal
+// function, as the DeathAdder V4 Pro ships.
+func actionOf(m *razer.Model, button int, a razer.Assignment) ButtonAction {
 	def := defaultAssignment(button)
 	switch {
 	case a.Fn == def.Fn && slices.Equal(a.Data, def.Data):
 		return ButtonAction{Kind: "default"}
 	case a.Fn == razer.FnMouse && len(a.Data) == 1:
 		return ButtonAction{Kind: "mouse", Code: int(a.Data[0])}
+	case a.Fn == razer.FnDPI && len(a.Data) >= 1 && a.Data[0] == razer.DPIClutch:
+		// A clutch the app could not write again (another model, X and Y
+		// apart, a DPI out of range) is "other", not a DPI action.
+		if m != nil {
+			if dpi, ok := m.ClutchDPI(a); ok {
+				return ButtonAction{Kind: "clutch", DPI: dpi}
+			}
+		}
 	case a.Fn == razer.FnDPI && len(a.Data) >= 1:
 		return ButtonAction{Kind: "dpi", Code: int(a.Data[0])}
 	case a.Fn == razer.FnHypershift:
@@ -55,11 +77,18 @@ func actionOf(button int, a razer.Assignment) ButtonAction {
 	return ButtonAction{Kind: "other"}
 }
 
-// assignmentOf is the device assignment of an action other than a macro.
-func assignmentOf(button, layer int, act ButtonAction) (razer.Assignment, error) {
+// assignmentOf is the device assignment of an action other than a macro, for
+// a mouse of model m (nil when the model is not known).
+func assignmentOf(m *razer.Model, button, layer int, act ButtonAction) (razer.Assignment, error) {
 	switch act.Kind {
 	case "default":
 		return defaultAssignment(button), nil
+	case "clutch": // refused for a model that is not offered it, and for a DPI out of range
+		if m != nil {
+			if a, err := m.ClutchAssignment(act.DPI); err == nil {
+				return a, nil
+			}
+		}
 	case "mouse":
 		if slices.Contains(mouseCodes, act.Code) {
 			return razer.Assignment{Fn: razer.FnMouse, Data: []byte{byte(act.Code)}}, nil
@@ -98,7 +127,7 @@ func buttonAction(d *razer.Device, button, layer int) (ButtonAction, error) {
 	if err != nil {
 		return ButtonAction{}, err
 	}
-	return actionOf(button, a), nil
+	return actionOf(d.Model, button, a), nil
 }
 
 // Buttons lists the device's remappable buttons. It fails on devices without
@@ -138,16 +167,18 @@ func (s Devices) SetButton(id string, button, layer int, act ButtonAction) error
 	if act.Kind == "macro" {
 		return s.bindButton(id, button, layer, act.Macro)
 	}
-	a, err := assignmentOf(button, layer, act)
+	d, err := devices.get(id)
 	if err != nil {
 		return err
 	}
-	d, err := devices.get(id)
+	a, err := assignmentOf(d.Model, button, layer, act)
 	if err != nil {
 		return err
 	}
 	bindMu.Lock()
 	defer bindMu.Unlock()
+	// One assignment is one report: a write that fails leaves the button as it
+	// was, so there is no earlier value to read and put back.
 	if err := d.SetButtonAssignment(button, layer, a); err != nil {
 		return err
 	}

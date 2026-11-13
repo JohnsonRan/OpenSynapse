@@ -113,7 +113,8 @@ func importBindings(in []Binding, macros []Macro, current []Binding) []Binding {
 			// An original the app cannot name, or a trigger key, is not written to
 			// a mouse from a file: the button gets what it did here before it was
 			// bound, or else its own function.
-			if _, err := assignmentOf(b.Button, b.Layer, actionOf(b.Button, b.Original)); err != nil || isTriggerAssignment(b.Original) {
+			m := mouseModel(b.Family)
+			if _, err := assignmentOf(m, b.Button, b.Layer, actionOf(m, b.Button, b.Original)); err != nil || isTriggerAssignment(b.Original) {
 				b.Original = defaultAssignment(b.Button)
 				if i := slices.IndexFunc(current, func(c Binding) bool {
 					return c.Family == b.Family && c.Button == b.Button && c.Layer == b.Layer

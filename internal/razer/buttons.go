@@ -21,11 +21,44 @@ type Assignment struct {
 const (
 	FnMouse = 1 // data: mouse button code (1 left … 5 forward, 9/10 wheel)
 	FnKey   = 2 // data: modifier bits, HID keyboard usage
-	FnDPI   = 6 // data: 1 up, 2 down, 6 cycle up, 7 cycle down
+	FnDPI   = 6 // data: 1 up, 2 down, 6 cycle up, 7 cycle down, or a clutch (DPIClutch)
 	// FnHypershift: while the button is held, the other buttons do what their
 	// Hypershift layer says (data [1], as Synapse writes it).
 	FnHypershift = 12
 )
+
+// DPIClutch is the FnDPI action of a sensitivity clutch: while the button is
+// held the mouse runs at the DPI in its data, [5, X hi, X lo, Y hi, Y lo].
+// From Synapse 4 (mw7116.js, sensitivityGroupToFnDataByte; its byte helpers
+// are big-endian), which lists the clutch among the functions that work
+// without it.
+const DPIClutch = 5
+
+// ClutchAssignment is the assignment of a sensitivity clutch at dpi on both
+// axes. It is refused for a model that is not offered the clutch and for a
+// DPI the mouse cannot run at.
+func (m *Model) ClutchAssignment(dpi int) (Assignment, error) {
+	if !m.synapseExtras() {
+		return Assignment{}, ErrUnsupported
+	}
+	if err := m.checkDPI(dpi, dpi); err != nil {
+		return Assignment{}, err
+	}
+	return Assignment{Fn: FnDPI, Data: slices.Concat([]byte{DPIClutch}, put16(dpi), put16(dpi))}, nil
+}
+
+// ClutchDPI is the DPI of an assignment that ClutchAssignment can write
+// again: a clutch on this model with one DPI in range for both axes.
+func (m *Model) ClutchDPI(a Assignment) (dpi int, ok bool) {
+	if !m.synapseExtras() || a.Fn != FnDPI || len(a.Data) != 5 || a.Data[0] != DPIClutch {
+		return 0, false
+	}
+	x, y := be16(a.Data[1:]), be16(a.Data[3:])
+	if x != y || m.checkDPI(x, y) != nil {
+		return 0, false
+	}
+	return x, true
+}
 
 // Button layers: what a button does normally, and while a Hypershift button is held.
 const (

@@ -62,7 +62,7 @@ Closing the window keeps OpenSynapse running in the notification area (system tr
 - **Receiver indicators:** on HyperPolling receivers, choose what each of the three lights shows: battery, connection, polling rate or DPI.
 - **Lift-off distance:** low, medium or high, or separate distances for lifting and landing (asymmetric).
 - **Sensor rotation:** turn the sensor's axes by -44° to 44°, for holding the mouse at an angle. Available on the DeathAdder V4 Pro.
-- **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. A button set to **Hypershift** gives the other buttons a second set of functions while it's held, chosen on the **Hypershift layer**. These are stored in the mouse and work without OpenSynapse. Buttons can also play [macros](#macros).
+- **Buttons:** turn any button except the left one into another mouse button, a DPI action (up, down, cycle) or a key or key combination. A button set to **Hypershift** gives the other buttons a second set of functions while it's held, chosen on the **Hypershift layer**. These are stored in the mouse and work without OpenSynapse. On the DeathAdder V4 Pro, a button can also be a **sensitivity clutch**: the mouse uses the DPI you set while the button is held. Buttons can also play [macros](#macros).
 - **Info:** the firmware version and serial number, with links to Razer's firmware updater and, for mice with a receiver, a search for its pairing utility. Pairing itself needs a Razer pairing utility or Razer Synapse.
 
 Each device shows only the settings it supports. Plugging in, unplugging and switching a wireless mouse between cable and receiver are picked up within a few seconds.

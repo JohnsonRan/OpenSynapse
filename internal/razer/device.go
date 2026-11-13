@@ -142,6 +142,7 @@ type Features struct {
 	IdleTime     bool          `json:"idleTime"`
 	LowBattery   bool          `json:"lowBattery"`
 	ReceiverLEDs bool          `json:"receiverLeds"`
+	Clutch       bool          `json:"clutch"` // a button can be a sensitivity clutch
 	Lighting     *LightingCaps `json:"lighting"`
 }
 
@@ -155,6 +156,7 @@ func (m *Model) Features() Features {
 		IdleTime:     m.has("misc_get_idle_time") && m.has("misc_set_idle_time"),
 		LowBattery:   m.has("misc_get_low_battery_threshold") && m.has("misc_set_low_battery_threshold"),
 		ReceiverLEDs: m.receivers,
+		Clutch:       m.synapseExtras(),
 		Lighting:     m.lightingCaps(),
 	}
 }
@@ -194,16 +196,16 @@ func (d *Device) SetDPI(x, y int) error {
 	return err
 }
 
-func (d *Device) maxDPI() int {
-	if d.MaxDPI > 0 {
-		return d.MaxDPI
+func (m *Model) maxDPI() int {
+	if m.MaxDPI > 0 {
+		return m.MaxDPI
 	}
 	return 16000
 }
 
-func (d *Device) checkDPI(x, y int) error {
-	if x < 100 || y < 100 || x > d.maxDPI() || y > d.maxDPI() {
-		return fmt.Errorf("DPI must be 100–%d", d.maxDPI())
+func (m *Model) checkDPI(x, y int) error {
+	if x < 100 || y < 100 || x > m.maxDPI() || y > m.maxDPI() {
+		return fmt.Errorf("DPI must be 100–%d", m.maxDPI())
 	}
 	return nil
 }

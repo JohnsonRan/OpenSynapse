@@ -1163,6 +1163,11 @@ h3 {
   margin-top: 8px;
 }
 
+/* A sensitivity clutch has its DPI after the menu. */
+.button-row.clutch {
+  grid-template-columns: 160px 1fr 96px;
+}
+
 /* ---------- macros ---------- */
 
 .macros {

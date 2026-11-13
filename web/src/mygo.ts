@@ -70,7 +70,7 @@ export interface Band {
 
 /** ButtonAction is what a button does, as the page shows and sets it. */
 export interface ButtonAction {
-  /** default, macro, mouse, dpi, key, hypershift, other */
+  /** default, macro, mouse, dpi, clutch, key, hypershift, other */
   kind: string;
   /** macro: its ID */
   macro: string;
@@ -78,6 +78,8 @@ export interface ButtonAction {
   code: number;
   /** key: modifier bits, left Ctrl 1, Shift 2, Alt 4, Win 8 */
   mods: number;
+  /** clutch: the DPI while the button is held */
+  dpi?: number;
 }
 
 /** ButtonInfo is a remappable button and what it does on each layer. */
@@ -183,6 +185,8 @@ export interface Features {
   idleTime: boolean;
   lowBattery: boolean;
   receiverLeds: boolean;
+  /** a button can be a sensitivity clutch */
+  clutch: boolean;
   lighting: LightingCaps | null;
 }
 
