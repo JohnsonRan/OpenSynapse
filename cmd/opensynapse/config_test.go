@@ -139,6 +139,34 @@ func TestLoadConfigUnreadKeyBackedUp(t *testing.T) {
 	}
 }
 
+// A scene that is not valid must not reach the scene switcher: a highlight key
+// past the keyboard's keys panicked it on every start. The other scenes and
+// settings load, and the file is kept.
+func TestLoadConfigDropsInvalidScenes(t *testing.T) {
+	const content = `{"notify":false,"scenes":{"enabled":true,
+		"game":{"apps":["cs2.exe"],"highlight":{"keys":[126]}},
+		"scenes":[{"name":"ok","apps":["a.exe"],"highlight":{"keys":[125]}},{"name":"bad","highlight":{"keys":[4,200]}}]}}`
+	p := writeConfig(t, content)
+
+	loadConfig()
+
+	cfgMu.Lock()
+	sc, notify := cfg.Scenes, cfg.Notify
+	cfgMu.Unlock()
+	if notify || !sc.Enabled || len(sc.Scenes) != 1 || sc.Scenes[0].Name != "ok" {
+		t.Fatalf("loaded %+v, notify %v; want the valid scene and the other settings", sc, notify)
+	}
+	if sc.Game.Highlight != nil || len(sc.Game.Apps) != 1 || sc.Game.Apps[0] != "cs2.exe" {
+		t.Fatalf("game scene %+v; want its programs without the highlight", sc.Game)
+	}
+	for _, s := range append([]Scene{sc.Game, sc.Desktop}, sc.Scenes...) {
+		sceneShow(&s) // panics on a key out of range
+	}
+	if got, err := os.ReadFile(p + ".bad"); err != nil || string(got) != content {
+		t.Fatalf("backup: %q, %v; want the file as it was", got, err)
+	}
+}
+
 func TestLoadConfigUnreadKeyBackupFailedBlocksSave(t *testing.T) {
 	const content = `{"notify":false,"macros":"oops"}`
 	p := writeConfig(t, content)

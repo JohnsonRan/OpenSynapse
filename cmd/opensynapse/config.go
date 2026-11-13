@@ -236,10 +236,10 @@ func loadConfig() {
 		// keys, so the file is kept as it was first.
 		keys := strings.Join(unread, ", ")
 		if writeErr := os.WriteFile(p+".bad", b, 0o644); writeErr != nil {
-			log.Printf("config %s: cannot read %s; backup failed: %v; saving disabled", p, keys, writeErr)
+			log.Printf("config %s: not valid: %s; backup failed: %v; saving disabled", p, keys, writeErr)
 			blocked = true
 		} else {
-			log.Printf("config %s: cannot read %s, defaults used; the file is kept as %s.bad", p, keys, p)
+			log.Printf("config %s: not valid: %s; defaults used for it; the file is kept as %s.bad", p, keys, p)
 		}
 	}
 	cfgMu.Lock()
@@ -253,7 +253,8 @@ func loadConfig() {
 // parseConfig overlays the saved keys on the defaults. Each key is decoded on
 // its own: decoding into the defaults would reuse their slice elements, so a
 // saved scene would inherit fields it omits. unread names the keys whose value
-// does not decode; they keep the default.
+// does not decode, which keep the default, and "scenes" when a scene in it is
+// not valid.
 func parseConfig(b []byte, defaults config) (c config, unread []string, err error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {
@@ -274,7 +275,9 @@ func parseConfig(b []byte, defaults config) (c config, unread []string, err erro
 	}
 	var scenes ScenesConfig
 	if decode("scenes", &scenes) {
-		_ = scenes.normalize() // fills names and lists an older save lacks
+		if scenes.repair() {
+			unread = append(unread, "scenes")
+		}
 		c.Scenes = scenes
 	}
 	if _, ok := raw["smartPoll"]; ok {
@@ -425,6 +428,32 @@ func (c *ScenesConfig) normalize() error {
 		}
 	}
 	return nil
+}
+
+// repair is normalize for a loaded setup, which also fills the names and
+// lists an older save lacks. The scene switcher applies a scene as it is (a
+// highlight key out of range indexes past the keyboard's keys), so a custom
+// scene that is not valid is dropped, and Game or Desktop keeps its programs
+// only. It reports whether a scene was lost that way.
+func (c *ScenesConfig) repair() (lost bool) {
+	c.Game.Name, c.Desktop.Name, c.Desktop.Apps = "game", "desktop", nil
+	for _, s := range []*Scene{&c.Game, &c.Desktop} {
+		if s.normalize() != nil {
+			*s = Scene{Name: s.Name, Apps: s.Apps}
+			_ = s.normalize()
+			lost = true
+		}
+	}
+	kept := []Scene{}
+	for _, s := range c.Scenes {
+		if s.normalize() != nil {
+			lost = true
+			continue
+		}
+		kept = append(kept, s)
+	}
+	c.Scenes = kept
+	return lost
 }
 
 func (c ScenesConfig) clone() ScenesConfig {

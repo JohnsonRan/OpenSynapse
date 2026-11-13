@@ -78,9 +78,6 @@ func importConfig(b []byte) (config, error) {
 	if err != nil || len(unread) > 0 {
 		return config{}, errors.New(tr("err.importFile"))
 	}
-	if err := c.Scenes.normalize(); err != nil {
-		return config{}, errors.New(tr("err.importFile"))
-	}
 	if err := c.Smart.normalize(); err != nil {
 		return config{}, errors.New(tr("err.importFile"))
 	}
