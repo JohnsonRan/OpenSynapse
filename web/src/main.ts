@@ -137,7 +137,7 @@ function segmented<T>(el: HTMLElement, values: T[], current: T, label: (v: T) =>
     }),
   );
 }
-const hz = (v: number) => `${v} Hz`;
+const hz = (v: number) => `${v} ${t("unit.hz")}`;
 
 const toHex = (c: RGB) => "#" + [c.r, c.g, c.b].map((v) => v.toString(16).padStart(2, "0")).join("");
 const fromHex = (h: string): RGB => ({ r: parseInt(h.slice(1, 3), 16), g: parseInt(h.slice(3, 5), 16), b: parseInt(h.slice(5, 7), 16) });
@@ -286,7 +286,7 @@ function fillCard(card: HTMLElement, d: DeviceInfo) {
           const p = eqOf(r);
           return !!p && sameEQ(p, st.eq);
         });
-        chips(...(st.format ? [`${st.format.bits} bit · ${st.format.rate / 1000} kHz`] : []), `${t("tab.eq")} ${ref ? presetLabel(ref) : t("eq.custom")}`);
+        chips(...(st.format ? [t("audio.formatShort", { bits: st.format.bits, rate: st.format.rate / 1000 })] : []), `${t("tab.eq")} ${ref ? presetLabel(ref) : t("eq.custom")}`);
       })
       .catch(() => chips(t("overview.noAnswer")));
     return;
@@ -305,7 +305,7 @@ function fillCard(card: HTMLElement, d: DeviceInfo) {
   if (!f.dpi && !f.pollRate && !f.battery) return;
   Devices.state(d.id)
     .then((s) => {
-      chips(...(f.dpi ? [`${s.dpi.x} DPI`] : []), ...(f.pollRate && s.pollRate ? [hz(s.pollRate)] : []));
+      chips(...(f.dpi ? [`${s.dpi.x} ${t("unit.dpi")}`] : []), ...(f.pollRate && s.pollRate ? [hz(s.pollRate)] : []));
       const bat = card.querySelector<HTMLElement>(".dc-battery")!;
       bat.hidden = s.battery < 0;
       if (bat.hidden) return;
@@ -490,8 +490,8 @@ function renderStages() {
       card.innerHTML = `
         <div class="stage-top"><button class="num" aria-pressed="${i + 1 === s.activeStage}" title="${t("dpi.useStage", { n: i + 1 })}">${i + 1}</button>
           <button class="x" title="${t("dpi.deleteStage")}" ${s.stages.length <= 1 ? "disabled" : ""}>✕</button></div>
-        <label>X <input class="dx" type="number" min="100" max="${max}" step="50" value="${st.x}"></label>
-        ${link ? "" : `<label>Y <input class="dy" type="number" min="100" max="${max}" step="50" value="${st.y}"></label>`}
+        <label>${t("axis.x")} <input class="dx" type="number" min="100" max="${max}" step="50" value="${st.x}"></label>
+        ${link ? "" : `<label>${t("axis.y")} <input class="dy" type="number" min="100" max="${max}" step="50" value="${st.y}"></label>`}
         <input class="slider" type="range" aria-label="${t("dpi.stage", { n: i + 1 })}" min="100" max="${max}" step="50" value="${st.x}">`;
       const dx = card.querySelector<HTMLInputElement>(".dx")!;
       const dy = card.querySelector<HTMLInputElement>(".dy");
@@ -802,8 +802,8 @@ function buttonOptions(act: ButtonAction, layer: number, macros: Macro[]) {
     option("default", t("buttons.default"), cur === "default") +
     (act.kind === "other" ? option("other", t("buttons.other"), true) : "") +
     group(t("buttons.groupMouse"), MOUSE_TARGETS.map((n) => [`mouse:${n}`, buttonName(n)])) +
-    group("DPI", DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
-    (layer === 0 ? group("Hypershift", [["hypershift", t("buttons.hypershift")]]) : "") +
+    group(t("buttons.groupDpi"), DPI_ACTIONS.map((n) => [`dpi:${n}`, t(`dpiAction.${n}` as "dpiAction.1")])) +
+    (layer === 0 ? group(t("buttons.groupHypershift"), [["hypershift", t("buttons.hypershift")]]) : "") +
     group(t("buttons.groupKey"), [...keyItems, ["capture", t("buttons.pressKey")]]) +
     group(t("buttons.groupMacro"), macros.map((m) => [`macro:${m.id}`, esc(m.name)]))
   );
@@ -1338,15 +1338,15 @@ function bandRow(b: Band, i: number) {
   row.className = "eq-band";
   row.innerHTML = `
     <select class="eq-type">${BAND_TYPES.map((x) => option(x, t(`eq.${x}`), x === b.type)).join("")}</select>
-    <label><input class="eq-freq" type="number" min="20" max="20000" step="1" /> Hz</label>
+    <label><input class="eq-freq" type="number" min="20" max="20000" step="1" /> ${t("unit.hz")}</label>
     <input class="eq-gain" type="range" aria-label="${t("eq.bandGain", { n: i + 1 })}" min="-10" max="10" step="0.5" />
     <b class="eq-gain-val accent"></b>
-    <label>Q <input class="eq-q" type="number" min="0.1" max="10" step="0.05" /></label>`;
+    <label>${t("eq.q")} <input class="eq-q" type="number" min="0.1" max="10" step="0.05" /></label>`;
   const q = <T extends HTMLElement>(sel: string) => row.querySelector<T>(sel)!;
   const freq = q<HTMLInputElement>(".eq-freq");
   const gain = q<HTMLInputElement>(".eq-gain");
   const qv = q<HTMLInputElement>(".eq-q");
-  const showGain = () => (q(".eq-gain-val").textContent = `${signed(b.gain)} dB`);
+  const showGain = () => (q(".eq-gain-val").textContent = `${signed(b.gain)} ${t("unit.db")}`);
   freq.value = String(b.freq);
   gain.value = String(b.gain);
   qv.value = String(b.q);
@@ -1449,7 +1449,7 @@ function vkName(vk: number) {
   if ((vk >= 48 && vk <= 57) || (vk >= 65 && vk <= 90)) return String.fromCharCode(vk);
   if (vk >= 96 && vk <= 105) return `Num ${vk - 96}`;
   if (vk >= 112 && vk <= 135) return `F${vk - 111}`;
-  return VK_NAMES[vk] ?? `VK ${vk}`;
+  return VK_NAMES[vk] ?? t("key.vk", { n: vk });
 }
 const MOUSE_BUTTONS = [1, 2, 3, 4, 5];
 const inputName = (e: MacroEvent) => (e.kind === "mouse" ? buttonName(e.code) : vkName(e.code));
@@ -1557,7 +1557,7 @@ function renderSteps() {
       const row = document.createElement("div");
       row.className = "step";
       row.innerHTML = `
-        <span class="step-delay"><input type="number" min="0" max="600000" step="10" title="${t("macros.delay")}" /> ms</span>
+        <span class="step-delay"><input type="number" min="0" max="600000" step="10" title="${t("macros.delay")}" /> ${t("unit.ms")}</span>
         <span class="step-what ${e.down ? "down" : "up"}"></span>
         <button class="ghost x" title="${t("macros.deleteStep")}">✕</button>`;
       const what = row.querySelector<HTMLElement>(".step-what")!;
@@ -1601,7 +1601,7 @@ function stepAmount(m: Macro, e: MacroEvent) {
     return l;
   };
   if (e.kind === "move") {
-    box.append(t("macros.move"), num("X", () => e.x, (v) => (e.x = v)), num("Y", () => e.y, (v) => (e.y = v)));
+    box.append(t("macros.move"), num(t("axis.x"), () => e.x, (v) => (e.x = v)), num(t("axis.y"), () => e.y, (v) => (e.y = v)));
   } else {
     const clamp = (v: number) => Math.max(-100, Math.min(100, v)) || (e.code > 0 ? 1 : -1);
     box.append(t(e.kind === "wheel" ? "macros.wheel" : "macros.hwheel"), num("", () => e.code, (v) => (e.code = clamp(v))));
@@ -1720,7 +1720,7 @@ const saveScenes = debounce(() => scenes && attempt(() => Scenes.setConfig(scene
 let smart: SmartPoll | undefined;
 let soundDevs: AudioDevices = { playback: [], recording: [], output: "", input: "" };
 const saveSmart = debounce(() => smart && attempt(() => Scenes.setSmart(smart!)), 300);
-const rateText = (hz: number) => (hz === 0 ? t("smart.highest") : `${hz} Hz`);
+const rateText = (r: number) => (r === 0 ? t("smart.highest") : hz(r));
 const RATE_CHOICES = [0, ...[...RATES].reverse()];
 
 function rateSelect(sel: HTMLSelectElement, value: number, onChange: (v: number) => void) {
@@ -1810,7 +1810,7 @@ function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   if (kind !== "desktop") parts.push(s.apps?.length ? s.apps.join(", ") : kind === "game" ? t("scenes.gameHint") : t("scenes.noPrograms"));
   else parts.push(t("scenes.desktopHint"));
   const set: string[] = [];
-  if (s.dpi) set.push(`${s.dpi} DPI`);
+  if (s.dpi) set.push(`${s.dpi} ${t("unit.dpi")}`);
   if (s.lighting) set.push(effectName(s.lighting.effect));
   if (s.brightness != null) set.push(`${t("light.brightness")} ${s.brightness}%`);
   if (s.highlight) set.push(`${t("cat.keyboard")} ${t("scenes.kbHighlight")}`);
@@ -2131,7 +2131,7 @@ async function autoStatus() {
       ? [
           t("auto.foreground", { exe: st.foreground }),
           t(st.fullscreen ? "auto.fullscreen" : "auto.windowed"),
-          st.gpu >= 0 ? `GPU ${st.gpu.toFixed(0)}%` : "",
+          st.gpu >= 0 ? t("auto.gpu", { pct: st.gpu.toFixed(0) }) : "",
           st.game ? t("auto.game") : "",
           st.rate >= 0 ? t("auto.rate", { rate: rateText(st.rate) }) : "",
           st.scene ? t("auto.scene", { name: st.scene }) : "",

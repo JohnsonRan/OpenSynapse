@@ -85,7 +85,7 @@
           <div class="card" id="card-stages">
             <div class="card-head">
               <h2 data-i18n="dpi.title"></h2>
-              <span class="muted"><span data-i18n="dpi.current"></span> <b id="cur-dpi" class="accent">—</b> DPI</span>
+              <span class="muted"><span data-i18n="dpi.current"></span> <b id="cur-dpi" class="accent">—</b> <span data-i18n="unit.dpi"></span></span>
             </div>
             <p class="muted small" data-i18n="dpi.stagesHint"></p>
             <div id="stages" class="stages"></div>
@@ -96,7 +96,7 @@
           </div>
 
           <div class="card" id="card-dpi">
-            <div class="card-head"><h2 id="dpi-title" data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> DPI</span></div>
+            <div class="card-head"><h2 id="dpi-title" data-i18n="dpi.title"></h2><span class="accent"><b id="dpi-val">—</b> <span data-i18n="unit.dpi"></span></span></div>
             <input id="dpi" type="range" aria-labelledby="dpi-title" min="100" step="50" />
           </div>
 
@@ -293,7 +293,7 @@
               <div class="eq-preamp">
                 <span class="muted small" id="eq-preamp-title" data-i18n="eq.preamp"></span>
                 <input id="eq-preamp" type="range" aria-labelledby="eq-preamp-title" min="-10" max="10" step="1" />
-                <b class="accent"><span id="eq-preamp-val"></span> dB</b>
+                <b class="accent"><span id="eq-preamp-val"></span> <span data-i18n="unit.db"></span></b>
               </div>
               <div id="eq-bands" class="eq-bands"></div>
             </details>
@@ -335,7 +335,7 @@
                 <div class="row-title" id="audio-mic-title" data-i18n="audio.mic"></div>
                 <div class="muted small" data-i18n="audio.micHint"></div>
               </div>
-              <span class="eq-preamp"><input id="audio-mic" type="range" aria-labelledby="audio-mic-title" min="-15" max="15" step="1" /><b class="accent"><span id="audio-mic-val"></span> dB</b></span>
+              <span class="eq-preamp"><input id="audio-mic" type="range" aria-labelledby="audio-mic-title" min="-15" max="15" step="1" /><b class="accent"><span id="audio-mic-val"></span> <span data-i18n="unit.db"></span></b></span>
             </div>
           </div>
         </div>
