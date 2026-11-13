@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# The pre-commit tier of REQUIREMENTS.md, "Commands". Turn it on once per clone:
+#     git config core.hooksPath scripts/hooks
+exec "$(git rev-parse --show-toplevel)/scripts/check.sh" --fast

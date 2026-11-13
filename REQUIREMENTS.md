@@ -36,7 +36,7 @@ The CI host is GitHub's `windows-latest`.
 
 | Tier | Command | Runs (where, when) | Wall-time limit | Baseline (date, host, load) |
 | --- | --- | --- | --- | --- |
-| Pre-commit | `scripts/check.sh --fast` | locally, before every commit (no hook installed) | 1.5 s | 1.18 s, 1.14 s, 1.12 s (2026-11-14, local, CPU 1%) |
+| Pre-commit | `scripts/check.sh --fast` | locally, every commit, by `scripts/hooks/pre-commit` once `git config core.hooksPath scripts/hooks` is set | 1.5 s | 1.18 s, 1.14 s, 1.12 s (2026-11-14, local, CPU 1%) |
 | Merge gate | `scripts/check.sh` | CI (`ci.yml`), every push to master and every pull request; locally before a pull request | 5 s locally | 4.1 s, 3.0 s, 3.0 s (2026-11-14, local, CPU 1%, Go test cache warm) |
 | Release | `bun run build -- -platform windows/amd64 -upload` | CI (`release.yml`), on a `v*` tag the owner pushes | 4 min 10 s (whole workflow) | 3 min 26 s, 2 min 44 s, 2 min 45 s (2026-10-28 to 2026-10-30, CI, load not reported) |
 
@@ -56,7 +56,7 @@ meanwhile.
 | Slowest test package | 0.7 s | 0.55 s, `internal/walkplay` (2026-11-14, local, CPU 1%) | review |
 | Page JavaScript, gzip (one chunk, so also the entry chunk) | 46 kB | 38.0 kB (2026-11-14, `bun run build:web`, local) | review |
 | Page JavaScript + CSS, gzip | 52 kB | 43.0 kB (2026-11-14, `bun run build:web`, local) | review |
-| Background process memory, window closed | | | review |
+| Background process memory, window closed (private working set, the Memory column of Task Manager) | 20 MB | 16.4 MB, 16.5 MB, 16.5 MB (2026-11-14, local, v0.8.0 portable running two days in the tray, CPU 5%) | review |
 | Source file size, p90 of this repository (pass bar) | 442 lines | 442 lines over 79 Go, TS, CSS, Python and HTML files, generated `web/src/mygo.ts` left out (2026-11-14) | review |
 | Wait timeout before a stuck step is recorded and left | 30 min | a setting, not measured | agent |
 | Context handoff limit (share of the model's window) | 60% | a setting, not measured | orchestrator |
@@ -159,4 +159,3 @@ body.
 | Numbers: Type scale (role: size / line height) | `style.css` uses ten literal font sizes (10 to 48 px) | name the sizes per role as custom properties on `:root`, then measure | 2027-03-31 |
 | Numbers: Spacing scale (section, card, inside card, label to control) | gaps and paddings are literal pixel values | name the gaps per relationship as custom properties on `:root`, then measure | 2027-03-31 |
 | Numbers: Content width; readable column width | not measured | measure the page widths at the minimum and the default window size | 2027-03-31 |
-| Numbers: Background process memory, window closed | not measured; the README states about 20–30 MB | measure the working set after start with the window closed, three times | 2027-01-31 |
