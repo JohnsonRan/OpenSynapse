@@ -111,6 +111,7 @@ const zh = {
   "dpi.addStage": "＋ 添加档位",
   "dpi.xyLink": "X/Y 同步",
   "dpi.deleteStage": "删除档位",
+  "dpi.useStage": "使用档位 {n}",
 
   "poll.title": "回报率",
   "poll.set": "回报率已设为 {hz} Hz",
@@ -518,6 +519,7 @@ const en: Record<Key, string> = {
   "dpi.addStage": "+ Add stage",
   "dpi.xyLink": "Link X/Y",
   "dpi.deleteStage": "Delete stage",
+  "dpi.useStage": "Use stage {n}",
 
   "poll.title": "Polling rate",
   "poll.set": "Polling rate set to {hz} Hz",
@@ -922,6 +924,7 @@ const ja: Record<Key, string> = {
   "dpi.addStage": "+ ステージを追加",
   "dpi.xyLink": "X/Y を連動",
   "dpi.deleteStage": "ステージを削除",
+  "dpi.useStage": "ステージ {n} を使用",
 
   "poll.title": "ポーリングレート",
   "poll.set": "ポーリングレートを {hz} Hz に設定しました",

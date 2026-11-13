@@ -472,7 +472,7 @@ function renderStages() {
       const card = document.createElement("div");
       card.className = "stage" + (i + 1 === s.activeStage ? " on" : "");
       card.innerHTML = `
-        <div class="stage-top"><span class="num">${i + 1}</span>
+        <div class="stage-top"><button class="num" aria-pressed="${i + 1 === s.activeStage}" title="${t("dpi.useStage", { n: i + 1 })}">${i + 1}</button>
           <button class="x" title="${t("dpi.deleteStage")}" ${s.stages.length <= 1 ? "disabled" : ""}>✕</button></div>
         <label>X <input class="dx" type="number" min="100" max="${max}" step="50" value="${st.x}"></label>
         ${link ? "" : `<label>Y <input class="dy" type="number" min="100" max="${max}" step="50" value="${st.y}"></label>`}
@@ -497,10 +497,15 @@ function renderStages() {
         renderStages();
         saveStages();
       };
+      // A click anywhere on the card but its fields picks the stage; its
+      // number is the button that does it from the keyboard.
       card.onclick = (e) => {
         if ((e.target as HTMLElement).closest("input")) return;
         s.activeStage = i + 1;
-        box.querySelectorAll(".stage").forEach((c, j) => c.classList.toggle("on", j === i));
+        box.querySelectorAll(".stage").forEach((c, j) => {
+          c.classList.toggle("on", j === i);
+          c.querySelector(".num")!.setAttribute("aria-pressed", String(j === i));
+        });
         saveStages();
       };
       return card;
@@ -1817,7 +1822,7 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
   const apps = { custom: t("scenes.appsCustom"), game: t("scenes.appsGame"), desktop: "" }[kind];
   card.innerHTML = `
     <div class="scene-head" title="${t("scenes.edit")}">
-      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+      <button class="disclose" aria-label="${t("scenes.edit")}"><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></button>
       <div class="scene-title">${title}</div>
       <div class="scene-summary"><span class="sum-apps muted small"></span><span class="sum-set small"></span></div>
       ${kind === "custom" ? `<button class="ghost x" title="${t("scenes.delete")}">✕</button>` : ""}
@@ -1871,14 +1876,19 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
     q(".sum-set").textContent = set!;
   };
   const changed = () => (summarize(), saveScenes());
+  // The chevron is the keyboard's way in; a click anywhere else on the head
+  // that is not a control of its own also toggles.
+  const disclose = q<HTMLButtonElement>(".disclose");
   const setOpen = (open: boolean) => {
     card.classList.toggle("open", open);
+    disclose.setAttribute("aria-expanded", String(open));
     if (open) openScenes.add(key);
     else openScenes.delete(key);
   };
   setOpen(openScenes.has(key));
   q(".scene-head").onclick = (e) => {
-    if ((e.target as HTMLElement).closest("input, button, .info")) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("input, button, .info") && !target.closest(".disclose")) return;
     setOpen(!card.classList.contains("open"));
   };
   if (kind !== "desktop") {
