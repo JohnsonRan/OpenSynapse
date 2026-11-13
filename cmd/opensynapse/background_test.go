@@ -30,3 +30,27 @@ func TestGuardContainsPanic(t *testing.T) {
 		t.Fatal("guard reported a round that returned as failed")
 	}
 }
+
+// A contained panic must not leave the settings lock held: every other job
+// and every call from the page would wait on it for good.
+func TestRememberKeyboardReleasesTheLockOnPanic(t *testing.T) {
+	old := log.Writer()
+	log.SetOutput(&bytes.Buffer{})
+	cfgMu.Lock()
+	saved := cfg.Keyboards
+	cfgMu.Unlock()
+	t.Cleanup(func() {
+		log.SetOutput(old)
+		cfgMu.Lock()
+		cfg.Keyboards = saved
+		cfgMu.Unlock()
+	})
+	guard("test job", func() {
+		_ = rememberKeyboard("k", func(*KeyboardMemory) { panic("in change") })
+	})
+	held := !cfgMu.TryLock()
+	cfgMu.Unlock() // also when it was left held: the other tests need it
+	if held {
+		t.Fatal("cfgMu is still held after the panic")
+	}
+}

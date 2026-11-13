@@ -70,8 +70,8 @@ func (Settings) Import() (bool, error) {
 // still send their trigger keys, so the import is refused until it answers.
 func replaceConfig(next config) error {
 	bindMu.Lock()
+	defer bindMu.Unlock() // MyGo recovers a panic in a call from the page: the lock must not stay held
 	if missed := applyBindingsLocked(true); len(missed) > 0 {
-		bindMu.Unlock()
 		kickBindings() // the buttons that were restored play their macros again
 		return errors.New(tr("err.importAsleep", strings.Join(missed, ", ")))
 	}
@@ -80,7 +80,6 @@ func replaceConfig(next config) error {
 	next.ViaKeys, next.ViaModels = cfg.ViaKeys, cfg.ViaModels
 	cfg = next
 	cfgMu.Unlock()
-	bindMu.Unlock()
 	return saveConfig()
 }
 

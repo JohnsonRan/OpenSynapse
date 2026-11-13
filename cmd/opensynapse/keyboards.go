@@ -111,20 +111,23 @@ func keyboardMemory(id string) KeyboardMemory {
 // change runs under cfgMu, which the input hook takes: it must not wait on a
 // device (d.mu is held for seconds during a factory reset).
 func rememberKeyboard(id string, change func(*KeyboardMemory)) error {
-	cfgMu.Lock()
-	if cfg.Keyboards == nil {
-		cfg.Keyboards = map[string]KeyboardMemory{}
-	}
-	m, ok := cfg.Keyboards[id]
-	if !ok {
-		m = KeyboardMemory{Colors: leobog.DefaultColors()}
-	}
-	before, _ := json.Marshal(m)
-	change(&m)
-	after, _ := json.Marshal(m)
-	cfg.Keyboards[id] = m
-	cfgMu.Unlock()
-	if string(before) == string(after) {
+	changed := func() bool {
+		cfgMu.Lock()
+		defer cfgMu.Unlock() // a panic in change is recovered (guard, MyGo's calls): cfgMu must not stay held
+		if cfg.Keyboards == nil {
+			cfg.Keyboards = map[string]KeyboardMemory{}
+		}
+		m, ok := cfg.Keyboards[id]
+		if !ok {
+			m = KeyboardMemory{Colors: leobog.DefaultColors()}
+		}
+		before, _ := json.Marshal(m)
+		change(&m)
+		after, _ := json.Marshal(m)
+		cfg.Keyboards[id] = m
+		return string(before) != string(after)
+	}()
+	if !changed {
 		return nil
 	}
 	return saveConfig()
