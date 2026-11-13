@@ -876,6 +876,7 @@ async function loadButtons(d: DeviceInfo) {
     );
   };
   segmented($("#button-layer"), [0, 1], buttonLayer, (v) => t(v ? "buttons.layerShift" : "buttons.layerNormal"), (v) => {
+    stopCapture(); // its key would be written to the layer no longer shown
     buttonLayer = v;
     renderList();
   });
