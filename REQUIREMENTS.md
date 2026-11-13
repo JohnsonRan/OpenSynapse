@@ -48,9 +48,9 @@ meanwhile.
 
 | Item | Limit | Baseline (date, host, load) | Enforced by |
 | --- | --- | --- | --- |
-| Type scale (role: size / line height) | | | style.css custom properties |
-| Spacing scale (section, card, inside card, label to control) | | | style.css custom properties |
-| Content width; readable column width | | | screenshots |
+| Type scale (role: size / line height) | page title 26 px; card title 15 px; body 14 px; section heading 13 px; control text 13 px; card heading 12 px; small 12 px; meta 11 px; field value 16 px; battery figure 48 px and its unit 18 px; key cap 10 px. Line height 1, 1.3 (titles), 1.6 (prose) | a setting, not measured: the `--text-*` and `--leading-*` custom properties on `:root` in `web/src/style.css` (2026-11-14) | review |
+| Spacing scale (section, card, inside card, label to control) | page padding 28 / 40 / 48 px; inside a card 18 × 20 px; between cards 14 px; between fields in a card 12 px; label to control 6 px; between buttons in a row 8 px. Between page sections: not unified yet (18 to 26 px) | a setting, not measured: the spacing custom properties on `:root` in `web/src/style.css` (2026-11-14) | review |
+| Content width; readable column width | content at most 1240 px (`--content-width`); readable column 640 px (`--readable-width`) | 804 px at the minimum window, 868 px at the default window (1024 DIP, on a 2560 × 1440 screen at 150%); computed from `style.css` and `main.go`, not measured on a screenshot (2026-11-14) | screenshots |
 | Window sizes | minimum 960 × 620; default 60% × 75% of the work area, kept within 960–1320 × 620–900 | a setting, not measured (`cmd/opensynapse/main.go`, `windowSize`) | screenshots |
 | Full Go test run, wall time (`go test -count=1 ./...`) | 2 s | 1.51 s, 1.64 s, 1.54 s (2026-11-14, local, CPU 1%) | review |
 | Slowest test package | 0.7 s | 0.55 s, `internal/walkplay` (2026-11-14, local, CPU 1%) | review |
@@ -141,6 +141,11 @@ after a release.
 
 | Option or finding | Source | Why it waits |
 | --- | --- | --- |
+| Unify the gap between page sections: `.device-head` 18 px, `.tabs` 20 px, `.device-groups` 22 px, `.section-head` 26 px | type and spacing tokens, 2026-11-14 | a visible change; the owner picks the value after seeing screenshots |
+| Unify the remaining label gaps (`.macro-opts label` and `.step-what.amount label` 4 px, `.leds label` 8 × 10 px) and field gaps (10, 16 and 18 px grids) with `--label-gap` and `--field-gap` | type and spacing tokens, 2026-11-14 | a visible change; needs screenshots |
+| `.list-row` and `.scene-head` pad 16 × 20 and 14 × 18 px against `--card-padding` 18 × 20 px | type and spacing tokens, 2026-11-14 | may be a different relationship (rows in a list); the owner decides |
+| `.about-foot` line height 1.7 against `--leading-prose` 1.6 | type and spacing tokens, 2026-11-14 | a visible change on the About page |
+| On a wide window the content stops at 1240 px and sits centred with blank sides; `web/AGENTS.md` calls a large blank area a defect, the comment on `.view` calls it intended | type and spacing tokens, 2026-11-14 | needs the owner's ruling, recorded under Exceptions |
 
 ## Not yet enforced
 
@@ -156,6 +161,3 @@ body.
 
 | Row | Current state | Plan | Due |
 | --- | --- | --- | --- |
-| Numbers: Type scale (role: size / line height) | `style.css` uses ten literal font sizes (10 to 48 px) | name the sizes per role as custom properties on `:root`, then measure | 2027-03-31 |
-| Numbers: Spacing scale (section, card, inside card, label to control) | gaps and paddings are literal pixel values | name the gaps per relationship as custom properties on `:root`, then measure | 2027-03-31 |
-| Numbers: Content width; readable column width | not measured | measure the page widths at the minimum and the default window size | 2027-03-31 |

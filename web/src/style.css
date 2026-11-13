@@ -11,6 +11,32 @@
   --accent: #44d62c;
   --accent-dim: #44d62c22;
   --danger: #ff4d4f;
+  /* Type: one size per text role. */
+  --text-stat: 48px; /* the big battery figure */
+  --text-page-title: 26px;
+  --text-stat-unit: 18px;
+  --text-input: 16px; /* values typed into number and name fields */
+  --text-card-title: 15px;
+  --text-body: 14px;
+  --text-section: 13px;
+  --text-control: 13px; /* back link, notices, check labels, placeholders */
+  --text-card-heading: 12px;
+  --text-small: 12px;
+  --text-meta: 11px; /* rail labels, eyebrows, group titles */
+  --text-key: 10px; /* key caps in the keyboard drawing */
+  --leading-none: 1;
+  --leading-title: 1.3;
+  --leading-prose: 1.6;
+
+  /* Layout: one value per relationship. */
+  --page-padding: 28px 40px 48px;
+  --content-width: 1240px;
+  --readable-width: 640px;
+  --card-padding: 18px 20px;
+  --card-gap: 14px; /* between cards */
+  --field-gap: 12px; /* between fields inside a card */
+  --label-gap: 6px; /* between a label and its control */
+  --inline-gap: 8px; /* between buttons in a row */
 }
 
 /* Japanese glyphs, not the Chinese forms of Microsoft YaHei. */
@@ -49,7 +75,7 @@ body {
   grid-template-areas: "bar bar" "rail main";
   background: var(--bg);
   color: var(--fg);
-  font-size: 14px;
+  font-size: var(--text-body);
   user-select: none;
 }
 
@@ -89,7 +115,7 @@ svg {
 }
 
 .wordmark {
-  font-size: 12px;
+  font-size: var(--text-small);
   letter-spacing: 0.32em;
   color: var(--muted);
 }
@@ -123,7 +149,7 @@ svg {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--text-meta);
   cursor: pointer;
   position: relative;
 }
@@ -154,13 +180,13 @@ main {
   grid-area: main;
   min-height: 0;
   overflow-y: auto;
-  padding: 28px 40px 48px;
+  padding: var(--page-padding);
 }
 
 /* Pages use the window's width up to a comfortable line length, and sit in
    the middle of a wider one instead of leaving a blank strip on the right. */
 .view {
-  max-width: 1240px;
+  max-width: var(--content-width);
   margin: 0 auto;
 }
 
@@ -203,20 +229,20 @@ main {
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 
 h1 {
   margin: 4px 0 0;
-  font-size: 26px;
+  font-size: var(--text-page-title);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 h2 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-section);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -224,7 +250,7 @@ h2 {
 
 .head-right {
   display: flex;
-  gap: 8px;
+  gap: var(--inline-gap);
   align-items: center;
 }
 
@@ -233,7 +259,7 @@ h2 {
   background: var(--panel);
   border-radius: 999px;
   padding: 4px 12px;
-  font-size: 12px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 
@@ -256,7 +282,7 @@ h2 {
 }
 
 .small {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .accent {
@@ -283,7 +309,7 @@ h2 {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 12px;
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -299,8 +325,8 @@ h2 {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 18px 20px;
-  margin-bottom: 14px;
+  padding: var(--card-padding);
+  margin-bottom: var(--card-gap);
 }
 
 .card-head {
@@ -363,7 +389,7 @@ button:disabled {
   gap: 10px;
   margin: 0 0 12px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -371,7 +397,7 @@ button:disabled {
 
 .group-title small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-meta);
   letter-spacing: 0;
 }
 
@@ -385,7 +411,7 @@ button:disabled {
 .device-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
+  gap: var(--card-gap);
 }
 
 .device-card {
@@ -393,7 +419,7 @@ button:disabled {
   background: linear-gradient(160deg, var(--panel-2), var(--panel) 55%);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 18px 20px;
+  padding: var(--card-padding);
   cursor: pointer;
   display: grid;
   gap: 14px;
@@ -426,9 +452,9 @@ button:disabled {
 }
 
 .dc-name {
-  font-size: 15px;
+  font-size: var(--text-card-title);
   font-weight: 600;
-  line-height: 1.3;
+  line-height: var(--leading-title);
 }
 
 .dc-chips {
@@ -445,7 +471,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--text-small);
   color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
@@ -480,7 +506,7 @@ button:disabled {
   cursor: pointer;
   padding: 0;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--text-control);
 }
 
 .back:hover {
@@ -492,7 +518,7 @@ button:disabled {
 .color-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--field-gap);
   margin-top: 16px;
 }
 
@@ -568,7 +594,7 @@ button:disabled {
   place-items: center;
   border-radius: 50%;
   background: var(--line);
-  font-size: 12px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 
@@ -588,9 +614,9 @@ button:disabled {
 .stage label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--label-gap);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 input[type="number"],
@@ -611,7 +637,7 @@ select:focus {
 }
 
 input[type="number"] {
-  font-size: 16px;
+  font-size: var(--text-input);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -623,10 +649,9 @@ input[type="range"] {
 
 .check {
   display: flex;
-  gap: 6px;
+  gap: var(--label-gap);
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
 }
 
 .check input {
@@ -675,13 +700,13 @@ input[type="range"] {
 }
 
 .battery-big {
-  font-size: 48px;
+  font-size: var(--text-stat);
   font-weight: 300;
-  line-height: 1;
+  line-height: var(--leading-none);
 }
 
 .battery-big small {
-  font-size: 18px;
+  font-size: var(--text-stat-unit);
   color: var(--muted);
   margin-left: 4px;
 }
@@ -770,7 +795,7 @@ input[type="range"] {
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .dot {
@@ -790,7 +815,7 @@ input[type="range"] {
 .leds {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: var(--field-gap);
   margin-top: 12px;
 }
 
@@ -800,7 +825,7 @@ input[type="range"] {
   align-items: center;
   gap: 8px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .leds select {
@@ -827,7 +852,7 @@ input[type="range"] {
   border-bottom: 1px solid var(--line) !important;
   border-radius: 0 !important;
   padding: 2px 0 !important;
-  font-size: 15px;
+  font-size: var(--text-card-title);
   font-weight: 600;
   max-width: 280px;
 }
@@ -846,20 +871,20 @@ input[type="range"] {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: var(--field-gap);
   margin-bottom: 14px;
 }
 
 .scene-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--field-gap);
   align-items: end;
 }
 
 .scene-grid label {
   display: grid;
-  gap: 6px;
+  gap: var(--label-gap);
 }
 
 .scene-grid .muted input {
@@ -883,13 +908,13 @@ input[type="range"] {
 .smart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 220px));
-  gap: 12px;
+  gap: var(--field-gap);
   margin-bottom: 18px;
 }
 
 .smart-grid label {
   display: grid;
-  gap: 6px;
+  gap: var(--label-gap);
 }
 
 .sub-head {
@@ -924,7 +949,7 @@ input[type="range"] {
   border: 1px solid var(--accent);
   border-radius: 4px;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: var(--text-control);
 }
 
 #toast.error {
@@ -965,13 +990,13 @@ input[type="range"] {
 h1 .info {
   width: 18px;
   height: 18px;
-  font-size: 12px;
+  font-size: var(--text-small);
   vertical-align: 5px;
 }
 
 h3 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-card-heading);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1127,7 +1152,7 @@ h3 {
 }
 
 .macro-top input {
-  font-size: 16px;
+  font-size: var(--text-input);
   font-weight: 600;
 }
 
@@ -1154,7 +1179,7 @@ h3 {
 
 .step-delay {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .step-delay input {
@@ -1183,7 +1208,7 @@ h3 {
 
 .macro-add {
   justify-content: flex-start;
-  gap: 8px;
+  gap: var(--inline-gap);
 }
 
 .macro-add select {
@@ -1193,7 +1218,7 @@ h3 {
 /* ---------- about ---------- */
 
 .view.about {
-  max-width: 640px;
+  max-width: var(--readable-width);
   margin: 0 auto;
 }
 
@@ -1227,7 +1252,7 @@ h3 {
 .about-hero p {
   margin: 12px 0 0;
   max-width: 440px;
-  line-height: 1.6;
+  line-height: var(--leading-prose);
 }
 
 .about-links {
@@ -1247,7 +1272,7 @@ button.link {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -1306,12 +1331,12 @@ button.inline-link:hover {
 
 .lift-grid label {
   display: grid;
-  gap: 6px;
+  gap: var(--label-gap);
 }
 
 .row-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--inline-gap);
   flex-shrink: 0;
 }
 
@@ -1334,7 +1359,7 @@ option {
 
 .seg.seg-small button {
   padding: 5px 14px;
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .step-what.amount span {
@@ -1348,7 +1373,7 @@ option {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .step-what.amount input {
@@ -1375,7 +1400,7 @@ input:not([type]),
 select {
   box-sizing: border-box;
   height: var(--control-h);
-  line-height: 1;
+  line-height: var(--leading-none);
 }
 
 button.ghost {
@@ -1425,7 +1450,7 @@ button.ghost.x {
 
 .check {
   min-height: var(--control-h);
-  font-size: 13px;
+  font-size: var(--text-control);
   white-space: nowrap;
 }
 
@@ -1466,7 +1491,7 @@ button.ghost.x {
 }
 
 .step input[type="number"] {
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 .step-what {
@@ -1511,7 +1536,7 @@ button.ghost.x {
 .scene-grid label > .muted {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--label-gap);
   height: 18px;
   white-space: nowrap;
 }
@@ -1533,7 +1558,7 @@ button.ghost.x {
 }
 
 input::placeholder {
-  font-size: 13px;
+  font-size: var(--text-control);
   font-weight: 400;
   color: var(--muted);
   opacity: 0.8;
@@ -1623,7 +1648,7 @@ input::placeholder {
 .eq-band label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--label-gap);
   white-space: nowrap;
 }
 
@@ -1639,7 +1664,7 @@ input::placeholder {
 .eq-presets {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--inline-gap);
 }
 
 .eq-presets input {
@@ -1673,8 +1698,8 @@ input::placeholder {
   border-radius: 4px;
   background: var(--panel-2);
   color: var(--fg);
-  font-size: 10px;
-  line-height: 1;
+  font-size: var(--text-key);
+  line-height: var(--leading-none);
   white-space: nowrap;
 }
 
@@ -1694,7 +1719,7 @@ input::placeholder {
 
 .kb-key-edit {
   margin-top: 14px;
-  gap: 12px;
+  gap: var(--field-gap);
 }
 
 /* A scene's highlighted keys: the key picker under the keyboard row. */
@@ -1709,7 +1734,7 @@ input::placeholder {
 .scene-hl label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--label-gap);
 }
 
 .scene-hl .color {
@@ -1719,7 +1744,7 @@ input::placeholder {
 .kb-resets {
   justify-content: flex-end;
   margin-top: 14px;
-  gap: 8px;
+  gap: var(--inline-gap);
 }
 
 .ghost.danger {

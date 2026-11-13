@@ -34,12 +34,14 @@ rules those values must satisfy.
   - Every text size and line height comes from one named scale: page title, section heading, card
     title, body, small or meta.
   - A role has one size on every page.
-  - New code takes a size already used for its role; it adds no new literal size.
+  - Sizes and line heights come from the `--text-*` and `--leading-*` properties on `:root` in
+    `style.css`; new code adds no literal size. A new role is a new property, named for the role.
 - **Spacing.**
   - Every gap and padding comes from one spacing scale.
   - The same relationship gets the same gap everywhere: between page sections, between cards,
     inside a card, between a label and its control.
-  - New code takes a gap already used for the same relationship.
+  - Gaps for those relationships come from the spacing properties on `:root` (`--card-gap`,
+    `--field-gap`, `--label-gap` and the others); new code takes the one for its relationship.
 - **Page titles.**
   - Every page has exactly one title, in the same position, size and distance from the content.
   - The page's actions sit at the end of the title row.
