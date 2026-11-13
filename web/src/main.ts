@@ -27,6 +27,7 @@ import {
   type Key as KbKey,
   type KeyboardKeys,
   type RGB,
+  type Rotation,
   type Scene,
   type ScenesConfig,
   type SmartPoll,
@@ -390,6 +391,7 @@ async function openDevice(d: DeviceInfo) {
   loadButtons(d);
   loadInfo(d);
   loadLift(d);
+  loadRotation(d);
   if (!smart) smart = await Scenes.smart().catch(() => undefined);
   await refreshState();
 }
@@ -409,6 +411,7 @@ async function refreshState(full = true) {
   }
   if (dev?.id !== id) return; // switched device meanwhile
   $("#dev-conn").textContent = "";
+  if (rotationRetry === id) loadRotation(dev);
   if (full || !state) {
     state = fresh;
     render();
@@ -722,6 +725,67 @@ $("#lift-reset").onclick = () => {
   lift = { ...LIFT_DEFAULT };
   renderLift();
   saveLift();
+};
+
+// --- sensor rotation ---
+
+let rotation: Rotation | undefined;
+// The device whose rotation could not be read: a sleeping mouse cannot say
+// whether it has one, so refreshState asks again once it answers.
+let rotationRetry: string | undefined;
+
+// reload keeps the card in place while the mouse is asked again.
+async function loadRotation(d: DeviceInfo, reload = false) {
+  if (!reload) {
+    $("#card-rotation").hidden = true;
+    rotation = undefined;
+  }
+  rotationRetry = undefined;
+  let r: Rotation | null = null;
+  let asleep = false;
+  try {
+    r = await Devices.rotation(d.id);
+  } catch {
+    asleep = true;
+  }
+  if (dev?.id !== d.id) return;
+  if (asleep) rotationRetry = d.id;
+  rotation = r ?? undefined;
+  $("#card-rotation").hidden = !r;
+  if (r) renderRotation();
+}
+
+function renderRotation() {
+  const r = rotation!;
+  $<HTMLInputElement>("#rotation-on").checked = r.enabled;
+  const angle = $<HTMLInputElement>("#rotation-angle");
+  angle.value = String(r.angle);
+  angle.disabled = !r.enabled;
+  $("#rotation-val").textContent = t("rotation.degrees", { n: r.angle });
+}
+
+// The device and the value are taken at the edit, as for lift-off. A write
+// that failed is not sent again: the card shows what the mouse holds now.
+const sendRotation = debounce(async (d: DeviceInfo, r: Rotation) => {
+  if (await attempt(() => Devices.setRotation(d.id, r), t("rotation.saved"))) return;
+  if (dev?.id === d.id) loadRotation(d, true);
+}, 300);
+const saveRotation = () => dev && rotation && sendRotation(dev, { ...rotation });
+
+$<HTMLInputElement>("#rotation-on").onchange = (e) => {
+  if (!rotation) return;
+  rotation.enabled = (e.target as HTMLInputElement).checked;
+  renderRotation();
+  saveRotation();
+};
+// Dragging only shows the angle; the mouse gets it when the slider is released.
+$<HTMLInputElement>("#rotation-angle").oninput = (e) => {
+  $("#rotation-val").textContent = t("rotation.degrees", { n: +(e.target as HTMLInputElement).value });
+};
+$<HTMLInputElement>("#rotation-angle").onchange = (e) => {
+  if (!rotation) return;
+  rotation.angle = +(e.target as HTMLInputElement).value;
+  saveRotation();
 };
 
 // --- buttons ---

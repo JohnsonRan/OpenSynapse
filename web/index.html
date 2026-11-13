@@ -113,6 +113,14 @@
             <div class="row"><span class="muted small" data-i18n="lift.hint"></span><button id="lift-reset" class="ghost" data-i18n="lift.reset"></button></div>
           </div>
 
+          <div class="card" id="card-rotation" hidden>
+            <div class="card-head">
+              <h2><span id="rotation-title" data-i18n="rotation.title"></span><span class="info" tabindex="0" role="img" data-i18n-title="rotation.more">i</span></h2>
+              <label class="switch"><input id="rotation-on" type="checkbox" aria-labelledby="rotation-title" /><i></i></label>
+            </div>
+            <label class="rotation-angle"><span class="muted small"><span data-i18n="rotation.angle"></span> <b id="rotation-val"></b></span><input id="rotation-angle" type="range" min="-44" max="44" step="1" /></label>
+          </div>
+
           <div class="card" id="card-poll">
             <div class="card-head"><h2 data-i18n="poll.title"></h2><span class="muted small" id="poll-hint"></span></div>
             <div id="poll" class="seg"></div>

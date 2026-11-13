@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"net/url"
 
 	"github.com/egoist/mygo"
@@ -74,4 +75,46 @@ func (Devices) SetTracking(id string, t razer.Tracking) error {
 		return err
 	}
 	return d.SetTracking(t)
+}
+
+// Rotation reads the sensor rotation. It is nil for a device without it, and
+// fails while the device does not answer: a sleeping mouse cannot say.
+func (Devices) Rotation(id string) (*razer.Rotation, error) {
+	d, err := devices.get(id)
+	if err != nil {
+		return nil, err
+	}
+	r, err := d.Rotation()
+	if errors.Is(err, razer.ErrUnsupported) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// SetRotation turns the sensor by -44 to 44 degrees, or turns rotation off.
+// The device layer refuses a mouse without the command and reads the value
+// back; after a failure the page asks Rotation what the mouse holds.
+func (Devices) SetRotation(id string, r razer.Rotation) error {
+	d, err := devices.get(id)
+	if err != nil {
+		return err
+	}
+	return rotationError(d.ID, d.SetRotation(r))
+}
+
+// rotationError is the sentence the page shows for a failed rotation write.
+func rotationError(id string, err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, razer.ErrNotKept):
+		log.Printf("rotation: %s read back another value than the one written", id)
+		return errors.New(tr("err.rotationKept"))
+	case !errors.Is(err, razer.ErrNoAnswer): // a sleeping mouse is expected
+		log.Printf("rotation: %s: %v", id, err)
+	}
+	return errors.New(tr("err.rotationSet"))
 }

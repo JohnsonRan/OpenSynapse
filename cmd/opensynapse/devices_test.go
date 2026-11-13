@@ -44,6 +44,45 @@ func TestConnectedPairsWiredAndWireless(t *testing.T) {
 	}
 }
 
+// The page hides the rotation card for "this device has none" (nil) and asks
+// again later after "no answer" (an error). Neither device here has a HID
+// collection, so nothing is sent.
+func TestRotationBinding(t *testing.T) {
+	other := &razer.Device{Model: &razer.Model{Name: "Razer Viper V3 Pro (Wired)", Category: "mouse"}, ID: "other"}
+	v4 := &razer.Device{Model: &razer.Model{Name: "Razer DeathAdder V4 Pro (Wireless)", Category: "mouse"}, ID: "v4"}
+	devices.mu.Lock()
+	saved := devices.devs
+	devices.devs = []*razer.Device{other, v4}
+	devices.mu.Unlock()
+	t.Cleanup(func() {
+		devices.mu.Lock()
+		devices.devs = saved
+		devices.mu.Unlock()
+	})
+
+	if r, err := (Devices{}).Rotation("other"); r != nil || err != nil {
+		t.Errorf("a mouse without rotation: %+v %v, want nil and no error", r, err)
+	}
+	if r, err := (Devices{}).Rotation("v4"); r != nil || err == nil {
+		t.Errorf("a DeathAdder V4 Pro that cannot be reached: %+v %v, want an error", r, err)
+	}
+	set := razer.Rotation{Enabled: true, Angle: 20}
+	for _, id := range []string{"other", "v4"} {
+		if err := (Devices{}).SetRotation(id, set); err == nil || err.Error() != tr("err.rotationSet") {
+			t.Errorf("%s: write %v, want %q", id, err, tr("err.rotationSet"))
+		}
+	}
+	if err := rotationError("v4", razer.ErrNotKept); err == nil || err.Error() != tr("err.rotationKept") {
+		t.Errorf("a value the mouse did not keep: %v", err)
+	}
+	if err := rotationError("v4", razer.ErrNoAnswer); err == nil || err.Error() != tr("err.rotationSet") {
+		t.Errorf("no answer: %v", err)
+	}
+	if err := rotationError("v4", nil); err != nil {
+		t.Errorf("success: %v", err)
+	}
+}
+
 func TestTrayLabel(t *testing.T) {
 	cases := []struct {
 		got, want string

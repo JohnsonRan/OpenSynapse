@@ -323,6 +323,13 @@ export interface RGB {
   b: number;
 }
 
+/** Rotation is the sensor rotation setting. */
+export interface Rotation {
+  enabled: boolean;
+  /** degrees, -44–44 */
+  angle: number;
+}
+
 /** Rule is a per-program polling rate (0 = the mouse's highest). */
 export interface Rule {
   exe: string;
@@ -467,6 +474,13 @@ export const Devices = {
   rescan(): Promise<DeviceInfo[]> {
     return call("Devices.Rescan");
   },
+  /**
+   * Rotation reads the sensor rotation. It is nil for a device without it, and
+   * fails while the device does not answer: a sleeping mouse cannot say.
+   */
+  rotation(id: string): Promise<Rotation | null> {
+    return call("Devices.Rotation", id);
+  },
   /** SetBrightness sets lighting brightness, 0–100. */
   setBrightness(id: string, pct: number): Promise<void> {
     return call("Devices.SetBrightness", id, pct);
@@ -508,6 +522,14 @@ export const Devices = {
    */
   setReceiverLEDs(id: string, modes: number[]): Promise<void> {
     return call("Devices.SetReceiverLEDs", id, modes);
+  },
+  /**
+   * SetRotation turns the sensor by -44 to 44 degrees, or turns rotation off.
+   * The device layer refuses a mouse without the command and reads the value
+   * back; after a failure the page asks Rotation what the mouse holds.
+   */
+  setRotation(id: string, r: Rotation): Promise<void> {
+    return call("Devices.SetRotation", id, r);
   },
   /** SetTracking sets the lift-off distance. */
   setTracking(id: string, t: Tracking): Promise<void> {

@@ -1383,7 +1383,8 @@ button.inline-link:hover {
   gap: var(--field-gap);
 }
 
-.lift-grid label {
+.lift-grid label,
+.rotation-angle {
   display: grid;
   gap: var(--label-gap);
 }
