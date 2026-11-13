@@ -77,13 +77,15 @@ var DevicesChanged = mygo.NewEvent[[]DeviceInfo]("devicesChanged")
 // (plugging a cable, a receiver, a keyboard). Listing interface paths opens
 // nothing, so checking every 2 s is cheap.
 func watchDevices() {
-	var last string
+	var last, lastRazer string
 	started := false
 	for ; ; time.Sleep(2 * time.Second) {
 		paths, err := razer.PresentPaths()
 		if err != nil {
 			continue
 		}
+		slices.Sort(paths)
+		razerKey := strings.Join(paths, "\n")
 		audio, _ := walkplay.PresentPaths()
 		kbs, _ := leobog.PresentPaths()
 		qmk, _ := via.PresentPaths()
@@ -95,13 +97,14 @@ func watchDevices() {
 			continue
 		}
 		last = key
+		razerChanged := razerKey != lastRazer
+		lastRazer = razerKey
 		if !started {
 			started = true
 			continue // main already scanned at startup
 		}
 		// A device re-enumerates in stages; let it settle before probing it.
 		time.Sleep(time.Second)
-		before := razerSet(devices.list())
 		if err := devices.rescan(); err != nil {
 			log.Println("rescan:", err)
 			continue
@@ -118,8 +121,9 @@ func watchDevices() {
 		_ = lightKeyboards.rescan()
 		// A new or switched mouse gets the current scene and polling rate. The
 		// reset re-applies them to every Razer device, so it waits for a change
-		// among them: plugging in a headset leaves a DPI set by hand alone.
-		if razerSet(devices.list()) != before {
+		// in their HID interfaces: plugging in a headset leaves a DPI set by hand
+		// alone.
+		if razerChanged {
 			resetAuto()
 		}
 		kickBindings()
@@ -129,20 +133,6 @@ func watchDevices() {
 			_ = DevicesChanged.Emit(w, Devices{}.List())
 		}
 	}
-}
-
-// razerSet names the connected Razer devices and whether each answers, so a
-// mouse moving between cable and receiver counts as a change.
-func razerSet(devs []*razer.Device) string {
-	ids := make([]string, len(devs))
-	for i, d := range devs {
-		ids[i] = d.ID
-		if d.Answered {
-			ids[i] += "+"
-		}
-	}
-	slices.Sort(ids)
-	return strings.Join(ids, ",")
 }
 
 func (h *hub) list() []*razer.Device {
