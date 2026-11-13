@@ -311,7 +311,7 @@ function fillCard(card: HTMLElement, d: DeviceInfo) {
       if (bat.hidden) return;
       bat.querySelector("span")!.textContent = `${s.charging ? "⚡ " : ""}${t("overview.battery", { pct: s.battery })}`;
       const fill = bat.querySelector<HTMLElement>("b")!;
-      fill.style.width = `${s.battery}%`;
+      fill.style.transform = `scaleX(${s.battery / 100})`;
       fill.classList.toggle("low", s.battery <= 20 && !s.charging);
     })
     .catch(() => chips(t("overview.noAnswer")));
@@ -460,7 +460,7 @@ function renderBattery() {
   bat.textContent = `${s.charging ? "⚡ " : ""}${s.battery}%`;
   bat.classList.toggle("low", s.battery >= 0 && s.lowBattery > 0 && s.battery <= s.lowBattery);
   $("#bat-num").textContent = s.battery < 0 ? "—" : `${s.battery}`;
-  $("#bat-fill").style.width = `${Math.max(0, s.battery)}%`;
+  $("#bat-fill").style.transform = `scaleX(${Math.max(0, s.battery) / 100})`;
   $("#bat-state").textContent = t(s.battery < 0 ? "power.unreadable" : s.charging ? "power.charging" : "power.onBattery");
 }
 

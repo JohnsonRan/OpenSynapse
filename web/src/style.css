@@ -502,6 +502,7 @@ button:disabled {
   display: block;
   height: 100%;
   background: var(--accent);
+  transform-origin: left; /* main.ts scales it to the battery level */
 }
 
 .dc-battery b.low {
@@ -734,7 +735,8 @@ input[type="range"] {
   display: block;
   height: 100%;
   background: var(--accent);
-  transition: width 0.4s;
+  transform-origin: left; /* main.ts scales it to the battery level */
+  transition: transform 0.4s;
 }
 
 /* ---------- switch ---------- */
@@ -1821,4 +1823,14 @@ button.ghost.x.armed {
 .view[inert] {
   opacity: 0.6;
   cursor: progress;
+}
+
+/* Windows "Animation effects" off: values change in one step. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
