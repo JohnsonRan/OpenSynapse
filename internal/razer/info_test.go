@@ -362,23 +362,10 @@ func TestSetRotationRollback(t *testing.T) {
 		if err := m.device(findModel(0x00BF)).SetRotation(Rotation{Enabled: true, Angle: 20}); !errors.Is(err, ErrNoAnswer) {
 			t.Errorf("no answer to the %s: %v, want ErrNoAnswer", name, err)
 		}
-		if writes := bytes.Count(distinctTx(m.sent), []byte{0x14}); writes != 1 {
+		if writes := bytes.Count(m.cmds(), []byte{0x14}); writes != 1 {
 			t.Errorf("no answer to the %s: the value was written %d times, want once", name, writes)
 		}
 	}
-}
-
-// distinctTx lists the command ids sent, counting a request repeated under
-// the next transaction id (run does that after no answer) once.
-func distinctTx(sent []Report) []byte {
-	var out []byte
-	for i, r := range sent {
-		if i > 0 && r[offCmd] == sent[i-1][offCmd] && r[offTxID] != sent[i-1][offTxID] {
-			continue
-		}
-		out = append(out, r[offCmd])
-	}
-	return out
 }
 
 // Two writes at once would read back each other's value and undo it.
