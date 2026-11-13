@@ -18,6 +18,7 @@ type Device struct {
 	active     *conn
 	txOK       map[string]byte              // transaction id that worked, per command
 	sendFn     func(Report) (Report, error) // tests replace the HID transport
+	rotMu      sync.Mutex                   // one rotation write and its read-back at a time
 	// Answered: the device replied when scanned. A wireless receiver stays
 	// attached while its mouse is off or on a cable, but cannot reply for it.
 	Answered bool
