@@ -215,7 +215,7 @@ func loadConfig() {
 	cfgMu.Lock()
 	def := cfg
 	cfgMu.Unlock()
-	next, err := parseConfig(b, def)
+	next, unread, err := parseConfig(b, def)
 	if err != nil {
 		if renameErr := os.Rename(p, p+".bad"); renameErr != nil {
 			log.Printf("corrupted config %s: %v; backup failed: %v; saving disabled", p, err, renameErr)
@@ -230,86 +230,87 @@ func loadConfig() {
 		saveMu.Unlock()
 		return
 	}
+	blocked := false
+	if len(unread) > 0 {
+		// The rest loads. The next save would write the defaults over the unread
+		// keys, so the file is kept as it was first.
+		keys := strings.Join(unread, ", ")
+		if writeErr := os.WriteFile(p+".bad", b, 0o644); writeErr != nil {
+			log.Printf("config %s: cannot read %s; backup failed: %v; saving disabled", p, keys, writeErr)
+			blocked = true
+		} else {
+			log.Printf("config %s: cannot read %s, defaults used; the file is kept as %s.bad", p, keys, p)
+		}
+	}
 	cfgMu.Lock()
 	cfg = next
 	cfgMu.Unlock()
 	saveMu.Lock()
-	saveBlocked = false
+	saveBlocked = blocked
 	saveMu.Unlock()
 }
 
 // parseConfig overlays the saved keys on the defaults. Each key is decoded on
 // its own: decoding into the defaults would reuse their slice elements, so a
-// saved scene would inherit fields it omits.
-func parseConfig(b []byte, defaults config) (config, error) {
+// saved scene would inherit fields it omits. unread names the keys whose value
+// does not decode; they keep the default.
+func parseConfig(b []byte, defaults config) (c config, unread []string, err error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {
-		return defaults, err
+		return defaults, nil, err
 	}
-	c := defaults
-	if v, ok := raw["scenes"]; ok {
-		var s ScenesConfig
-		if json.Unmarshal(v, &s) == nil {
-			_ = s.normalize() // fills names and lists an older save lacks
-			c.Scenes = s
+	c = defaults
+	// decode reports whether the key is there and its value fits target.
+	decode := func(key string, target any) bool {
+		v, ok := raw[key]
+		if !ok {
+			return false
 		}
+		if json.Unmarshal(v, target) != nil {
+			unread = append(unread, key)
+			return false
+		}
+		return true
 	}
-	if v, ok := raw["smartPoll"]; ok {
+	var scenes ScenesConfig
+	if decode("scenes", &scenes) {
+		_ = scenes.normalize() // fills names and lists an older save lacks
+		c.Scenes = scenes
+	}
+	if _, ok := raw["smartPoll"]; ok {
 		var s SmartPoll
-		if json.Unmarshal(v, &s) == nil {
+		if decode("smartPoll", &s) {
 			_ = s.normalize()
 			c.Smart = s
 		}
-	} else if v, ok := raw["smart"]; ok {
+	} else {
 		var l legacySmart
-		if json.Unmarshal(v, &l) == nil {
+		if decode("smart", &l) {
 			c.Smart = l.smartPoll()
 			_ = c.Smart.normalize()
 		}
 	}
-	if v, ok := raw["lighting"]; ok {
-		_ = json.Unmarshal(v, &c.Lighting)
+	decode("lighting", &c.Lighting)
+	decode("notify", &c.Notify)
+	decode("dpiDisplay", &c.DPIDisplay)
+	decode("glass", &c.Glass)
+	decode("language", &c.Language)
+	var macros []Macro
+	if decode("macros", &macros) && macros != nil {
+		c.Macros = macros
 	}
-	if v, ok := raw["notify"]; ok {
-		_ = json.Unmarshal(v, &c.Notify)
+	var bindings []Binding
+	if decode("bindings", &bindings) && bindings != nil {
+		c.Bindings = bindings
 	}
-	if v, ok := raw["dpiDisplay"]; ok {
-		_ = json.Unmarshal(v, &c.DPIDisplay)
+	decode("keyboards", &c.Keyboards)
+	decode("viaKeys", &c.ViaKeys)
+	decode("viaModels", &c.ViaModels)
+	var presets []EQPreset
+	if decode("eqPresets", &presets) && presets != nil {
+		c.EQPresets = presets
 	}
-	if v, ok := raw["glass"]; ok {
-		_ = json.Unmarshal(v, &c.Glass)
-	}
-	if v, ok := raw["language"]; ok {
-		_ = json.Unmarshal(v, &c.Language)
-	}
-	if v, ok := raw["macros"]; ok {
-		var m []Macro
-		if json.Unmarshal(v, &m) == nil && m != nil {
-			c.Macros = m
-		}
-	}
-	if v, ok := raw["bindings"]; ok {
-		var b []Binding
-		if json.Unmarshal(v, &b) == nil && b != nil {
-			c.Bindings = b
-		}
-	}
-	if v, ok := raw["keyboards"]; ok {
-		_ = json.Unmarshal(v, &c.Keyboards)
-	}
-	if v, ok := raw["viaKeys"]; ok {
-		_ = json.Unmarshal(v, &c.ViaKeys)
-	}
-	if v, ok := raw["viaModels"]; ok {
-		_ = json.Unmarshal(v, &c.ViaModels)
-	}
-	if v, ok := raw["eqPresets"]; ok {
-		var p []EQPreset
-		if json.Unmarshal(v, &p) == nil && p != nil {
-			c.EQPresets = p
-		}
-	}
-	return c, nil
+	return c, unread, nil
 }
 
 func saveConfig() error {

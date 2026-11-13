@@ -74,27 +74,8 @@ func importConfig(b []byte) (config, error) {
 	if json.Unmarshal(b, &raw) != nil || raw["scenes"] == nil && raw["macros"] == nil && raw["smartPoll"] == nil {
 		return config{}, errors.New(tr("err.importFile"))
 	}
-	check := func(key string, target any) error {
-		if v, ok := raw[key]; ok {
-			return json.Unmarshal(v, target)
-		}
-		return nil
-	}
-	if check("scenes", &ScenesConfig{}) != nil ||
-		check("smartPoll", &SmartPoll{}) != nil ||
-		check("smart", &legacySmart{}) != nil ||
-		check("lighting", &map[string]Lighting{}) != nil ||
-		check("notify", new(bool)) != nil ||
-		check("dpiDisplay", new(bool)) != nil ||
-		check("glass", new(bool)) != nil ||
-		check("language", new(string)) != nil ||
-		check("macros", &[]Macro{}) != nil ||
-		check("bindings", &[]Binding{}) != nil ||
-		check("eqPresets", &[]EQPreset{}) != nil {
-		return config{}, errors.New(tr("err.importFile"))
-	}
-	c, err := parseConfig(b, defaultConfig())
-	if err != nil {
+	c, unread, err := parseConfig(b, defaultConfig())
+	if err != nil || len(unread) > 0 {
 		return config{}, errors.New(tr("err.importFile"))
 	}
 	if err := c.Scenes.normalize(); err != nil {

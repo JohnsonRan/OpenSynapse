@@ -143,7 +143,6 @@ after a release.
 
 | Option or finding | Source | Why it waits |
 | --- | --- | --- |
-| A settings section that fails to decode is replaced by its default without a log line or a `.bad` copy, and lost at the next save (`config.go`, `parseConfig`) | code survey, 2026-11-14 | Medium; needs a hand-edited file or a downgrade |
 | No background job recovers from a panic; a hand-edited scene with a highlight key of 126 or more panics `runAuto` on every start | code survey, 2026-11-14 | Medium; needs a hand-edited file; the wrapper touches every job |
 | A `razer.Device` from an older scan reopens a HID handle that nothing closes; the Razer hub has no `scanMu` | code survey, 2026-11-14 | Low to medium; a handle per stale round |
 | Music lighting spins at 100 Hz without frames after `AUDCLNT_E_DEVICE_INVALIDATED` (`winaudio/loopback_windows.go`) | code survey, 2026-11-14 | Low to medium; the invalidation is from the WASAPI docs, not seen on hardware |
