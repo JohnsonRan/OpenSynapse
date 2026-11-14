@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -241,5 +243,71 @@ func TestLoadConfigUnreadKeyBackupFailedBlocksSave(t *testing.T) {
 	}
 	if got, err := os.ReadFile(p); err != nil || string(got) != content {
 		t.Fatalf("settings file: %q, %v; want it untouched", got, err)
+	}
+}
+
+// A settings file as 0.9.1 wrote it has no title rules: it loads as it is,
+// with nothing reported and no backup made.
+func TestLoadConfigOlderFileHasNoTitles(t *testing.T) {
+	const scene = `"dpi":0,"lighting":null,"brightness":null,"eq":null,"output":"","input":"","volume":null,"keyboard":null,"highlight":null}`
+	p := writeConfig(t, `{"smartPoll":{"enabled":true,"gameRate":0,"normalRate":1000,"exceptions":[{"exe":"osu!.exe","rate":4000}]},
+		"scenes":{"enabled":true,"game":{"name":"game","apps":["windowed.exe"],`+scene+`,"desktop":{"name":"desktop","apps":null,`+scene+`,
+		"scenes":[{"name":"Work","apps":["code.exe"],`+scene+`]},
+		"lighting":null,"notify":false,"language":"","glass":false,"dpiDisplay":true,"macros":[],"bindings":[],"eqPresets":[]}`)
+
+	loadConfig()
+
+	cfgMu.Lock()
+	sc, sp := cfg.Scenes, cfg.Smart
+	cfgMu.Unlock()
+	if !sc.Enabled || len(sc.Scenes) != 1 || sc.Scenes[0].Name != "Work" || len(sc.Scenes[0].Apps) != 1 || len(sc.Game.Apps) != 1 {
+		t.Fatalf("scenes %+v; want them as the file has them", sc)
+	}
+	if sc.Scenes[0].Titles != nil || sc.Game.Titles != nil || wantTitle(sc) {
+		t.Fatalf("scenes %+v; want no title rule", sc)
+	}
+	if len(sp.Exceptions) != 1 || sp.Exceptions[0].Exe != "osu!.exe" {
+		t.Fatalf("smart polling %+v; want its exception kept", sp)
+	}
+	if _, err := os.Stat(p + ".bad"); !os.IsNotExist(err) {
+		t.Fatalf("a backup of a valid older file: %v", err)
+	}
+}
+
+// Title rules survive a save and a load; a setup without them is written
+// without the key, as 0.9.1 wrote it. The desktop scene has no rules: titles
+// a hand-edited file gives it are not kept.
+func TestLoadConfigKeepsTitles(t *testing.T) {
+	p := writeConfig(t, `{}`)
+	c := ScenesConfig{Enabled: true, Scenes: []Scene{{Name: "Cloud", Titles: []string{"GeForce NOW"}}, {Name: "Work", Apps: []string{"code.exe"}}}}
+	if err := (Scenes{}).SetConfig(c); err != nil {
+		t.Fatal(err)
+	}
+	drainAutoReset()
+	saved, err := os.ReadFile(p)
+	if err != nil || strings.Count(string(saved), `"titles"`) != 1 {
+		t.Fatalf("saved file, %v: %s\nwant the titles key on the one scene that has a rule", err, saved)
+	}
+	cfgMu.Lock()
+	cfg = defaultConfig()
+	cfgMu.Unlock()
+	loadConfig()
+	cfgMu.Lock()
+	sc := cfg.Scenes
+	cfgMu.Unlock()
+	if len(sc.Scenes) != 2 || !slices.Equal(sc.Scenes[0].Titles, []string{"GeForce NOW"}) || sc.Scenes[1].Titles != nil {
+		t.Fatalf("loaded %+v; want the title rule back", sc.Scenes)
+	}
+
+	p = writeConfig(t, `{"scenes":{"enabled":true,"desktop":{"titles":["x"]},"game":{"titles":[" Y ","y"]}}}`)
+	loadConfig()
+	cfgMu.Lock()
+	sc = cfg.Scenes
+	cfgMu.Unlock()
+	if sc.Desktop.Titles != nil || !slices.Equal(sc.Game.Titles, []string{"Y"}) {
+		t.Fatalf("desktop titles %q, game titles %q; want none on the desktop scene and the game scene's tidied", sc.Desktop.Titles, sc.Game.Titles)
+	}
+	if _, err := os.Stat(p + ".bad"); !os.IsNotExist(err) {
+		t.Fatalf("tidying titles counted as a repair: %v", err)
 	}
 }

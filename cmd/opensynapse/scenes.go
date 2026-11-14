@@ -267,7 +267,7 @@ func (a *auto) round() (idle bool) {
 		// lighting: the next rounds try it again.
 		return !sceneAudioPending() && !sceneKeyboards.pending()
 	}
-	f := getForeground()
+	f := getForeground(wantTitle(sc))
 	if f.exe == "" {
 		return false // lock screen, UAC prompt, protected process: keep the current settings
 	}
@@ -289,7 +289,7 @@ func (a *auto) round() (idle bool) {
 	devs := devices.list()
 	st := AutoStatus{Foreground: f.exe, Fullscreen: f.fullscreen, GPU: load, Game: game, Rate: -1}
 	if sc.Enabled {
-		idx, why := decideScene(sc, f.exe, game)
+		idx, why := decideScene(sc, f.exe, f.title, game)
 		s := sc.scene(idx)
 		name := s.Name
 		switch idx {

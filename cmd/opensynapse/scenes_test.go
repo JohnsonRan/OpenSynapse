@@ -191,24 +191,32 @@ func TestGameStreak(t *testing.T) {
 }
 
 func TestDecideScene(t *testing.T) {
-	c := ScenesConfig{Game: Scene{Apps: []string{"windowed.exe"}}, Scenes: []Scene{
-		{Name: "fps", Apps: []string{"cs2.exe"}},
-		{Name: "slow", Apps: []string{"game2.exe"}},
+	c := ScenesConfig{Game: Scene{Apps: []string{"windowed.exe"}, Titles: []string{"GeForce NOW"}}, Scenes: []Scene{
+		{Name: "fps", Apps: []string{"cs2.exe", "chrome.exe"}},
+		{Name: "slow", Apps: []string{"game2.exe"}, Titles: []string{"Budget.xlsx", "report"}},
+		{Name: "later", Titles: []string{"REPORT", ""}}, // "" only in a file normalize refused
 	}}
 	cases := []struct {
-		exe   string
-		game  bool
-		scene int
-		why   string
+		exe, title string
+		game       bool
+		scene      int
+		why        string
 	}{
-		{"cs2.exe", false, 0, reasonRule},
-		{"game2.exe", true, 1, reasonRule},             // a custom scene beats detection
-		{"elden.exe", true, gameScene, reasonGame},     // detected
-		{"windowed.exe", false, gameScene, reasonRule}, // listed in the game scene, not detected
-		{"code.exe", false, desktop, reasonDefault},
+		{"cs2.exe", "", false, 0, reasonRule},
+		{"game2.exe", "", true, 1, reasonRule},                              // a custom scene beats detection
+		{"elden.exe", "", true, gameScene, reasonGame},                      // detected
+		{"windowed.exe", "", false, gameScene, reasonRule},                  // listed in the game scene, not detected
+		{"code.exe", "", false, desktop, reasonDefault},                     // and a window without a title matches no title rule
+		{"cs2.exe", "budget.XLSX - Excel", false, 1, reasonRule},            // a title beats a program, without case
+		{"code.exe", "Annual Report", false, 1, reasonRule},                 // the first scene with the title
+		{"chrome.exe", "Play on GeForce NOW", false, gameScene, reasonRule}, // the game scene's title beats a custom scene's program
+		{"chrome.exe", "GeForce NOW: Budget.xlsx", true, 1, reasonRule},     // a custom scene's title beats the game scene's
+		{"chrome.exe", "New Tab", false, 0, reasonRule},                     // no title matches: by program
+		{"code.exe", "untitled", false, desktop, reasonDefault},             // an empty rule matches no title
+		{"elden.exe", "ELDEN RING", true, gameScene, reasonGame},
 	}
 	for _, k := range cases {
-		if s, why := decideScene(c, k.exe, k.game); s != k.scene || why != k.why {
+		if s, why := decideScene(c, k.exe, k.title, k.game); s != k.scene || why != k.why {
 			t.Errorf("%+v: got %d %s", k, s, why)
 		}
 	}
@@ -235,9 +243,16 @@ func TestDecideRate(t *testing.T) {
 }
 
 func TestNormalize(t *testing.T) {
-	s := Scene{Name: " 直播 ", Apps: []string{` C:\Games\CS2.EXE `, "", "cs2.exe"}}
+	s := Scene{Name: " 直播 ", Apps: []string{` C:\Games\CS2.EXE `, "", "cs2.exe"}, Titles: []string{" GeForce NOW ", "", "geforce now", "  ", "Budget.xlsx"}}
 	if err := s.normalize(); err != nil || s.Name != "直播" || !slices.Equal(s.Apps, []string{"cs2.exe"}) {
 		t.Fatalf("%v %+v", err, s)
+	}
+	if !slices.Equal(s.Titles, []string{"GeForce NOW", "Budget.xlsx"}) {
+		t.Fatalf("titles %q; want them trimmed, without empty ones and repeats, as the user spelled them", s.Titles)
+	}
+	sc := ScenesConfig{Desktop: Scene{Titles: []string{"x"}}, Game: Scene{Titles: []string{"y"}}}
+	if err := sc.normalize(); err != nil || sc.Desktop.Titles != nil || !slices.Equal(sc.Game.Titles, []string{"y"}) {
+		t.Fatalf("%v: desktop titles %q, game titles %q; want none on the desktop scene", err, sc.Desktop.Titles, sc.Game.Titles)
 	}
 	for _, bad := range []Scene{{Name: "a", DPI: 50}, {Name: ""}, {Name: "a", Lighting: &Lighting{Effect: "disco"}}} {
 		if bad.normalize() == nil {

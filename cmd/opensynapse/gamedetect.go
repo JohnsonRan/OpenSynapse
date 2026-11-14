@@ -15,6 +15,7 @@ var (
 	procGetMonitorInfo = user32.NewProc("GetMonitorInfoW")
 	procGetWindowLong  = user32.NewProc("GetWindowLongPtrW")
 	procGetClassName   = user32.NewProc("GetClassNameW")
+	procGetWindowText  = user32.NewProc("GetWindowTextW")
 	pdh                = windows.NewLazySystemDLL("pdh.dll")
 	procPdhOpenQuery   = pdh.NewProc("PdhOpenQueryW")
 	procPdhAddCounter  = pdh.NewProc("PdhAddEnglishCounterW")
@@ -30,9 +31,14 @@ type foreground struct {
 	pid        uint32
 	exe        string
 	fullscreen bool // covers its whole monitor without a caption: exclusive or borderless
+	// title is the window's title, read only when asked for. It is compared
+	// with the user's title rules and goes nowhere else: not into AutoStatus,
+	// a log or the settings file.
+	title string
 }
 
-func getForeground() foreground {
+// getForeground reads the foreground window; a test replaces it.
+var getForeground = func(wantTitle bool) foreground {
 	hwnd := windows.GetForegroundWindow()
 	if hwnd == 0 {
 		return foreground{}
@@ -43,6 +49,15 @@ func getForeground() foreground {
 	}
 	f.exe = exeName(f.pid)
 	f.fullscreen = isFullscreen(hwnd)
+	// For another process GetWindowTextW copies the caption without asking the
+	// window, so a hung program does not stall the round. For the app's own
+	// window it sends WM_GETTEXT to the UI thread, which must not hold up
+	// this loop, so that title is not read.
+	if wantTitle && f.pid != windows.GetCurrentProcessId() {
+		buf := make([]uint16, 512) // a longer title is cut; a rule past the cut does not match
+		n, _, _ := procGetWindowText.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+		f.title = windows.UTF16ToString(buf[:n])
+	}
 	return f
 }
 

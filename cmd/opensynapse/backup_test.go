@@ -246,4 +246,12 @@ func TestImportConfig(t *testing.T) {
 	if err != nil || c.Language != "ja" || len(c.Macros) != 1 || len(c.Bindings) != 1 || c.Bindings[0].Macro != "a" {
 		t.Fatalf("%v %+v", err, c)
 	}
+	// Title rules come along, and untidy ones do not refuse the file.
+	c, err = importConfig([]byte(`{"scenes":{"enabled":true,"scenes":[{"name":"Cloud","apps":[],"titles":[" GeForce NOW ","geforce now",""]}]}}`))
+	if err != nil || len(c.Scenes.Scenes) != 1 || !slices.Equal(c.Scenes.Scenes[0].Titles, []string{"GeForce NOW"}) {
+		t.Fatalf("%v %+v; want the title rule imported and tidied", err, c.Scenes)
+	}
+	if _, err := importConfig([]byte(`{"scenes":{"scenes":[{"name":"Cloud","titles":"oops"}]}}`)); err == nil {
+		t.Fatal("accepted titles that are not a list")
+	}
 }

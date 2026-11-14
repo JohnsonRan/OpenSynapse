@@ -1916,7 +1916,8 @@ const GAME_KEYS = ["Esc", "W", "A", "S", "D", "Up", "Down", "Left", "Right"];
 
 function sceneSummary(s: Scene, kind: "custom" | "game" | "desktop") {
   const parts: string[] = [];
-  if (kind !== "desktop") parts.push(s.apps?.length ? s.apps.join(", ") : kind === "game" ? t("scenes.gameHint") : t("scenes.noPrograms"));
+  const match = [...(s.apps ?? []), ...(s.titles ?? [])];
+  if (kind !== "desktop") parts.push(match.length ? match.join(", ") : kind === "game" ? t("scenes.gameHint") : t("scenes.noPrograms"));
   else parts.push(t("scenes.desktopHint"));
   const set: string[] = [];
   if (s.dpi) set.push(`${s.dpi} ${t("unit.dpi")}`);
@@ -1962,6 +1963,8 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
         : `<div class="scene-row">
       <span class="muted small">${t("scenes.programs")}</span>
       <input class="apps" placeholder="${apps}" />
+      <span class="muted small">${t("scenes.titles")}<span class="info" tabindex="0" role="img" title="${t("scenes.titlesMore")}">i</span></span>
+      <input class="titles" placeholder="${t("scenes.titlesPlaceholder")}" />
     </div>`
     }
     <div class="scene-grid">
@@ -2023,6 +2026,10 @@ function sceneCard(s: Scene, kind: "custom" | "game" | "desktop", key: string, o
     const apps = q<HTMLInputElement>(".apps");
     apps.value = (s.apps ?? []).join(", ");
     apps.onchange = () => ((s.apps = apps.value.split(/[,，\s]+/).filter(Boolean)), changed());
+    // Titles hold spaces, so only a comma separates them.
+    const titles = q<HTMLInputElement>(".titles");
+    titles.value = (s.titles ?? []).join(", ");
+    titles.onchange = () => ((s.titles = titles.value.split(/[,，]/).map((x) => x.trim()).filter(Boolean)), changed());
   }
   if (kind === "custom") {
     const name = q<HTMLInputElement>(".scene-name");

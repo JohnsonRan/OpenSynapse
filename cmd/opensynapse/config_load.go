@@ -194,7 +194,7 @@ func (s *Scene) repair() (changed bool) {
 // scene as it is, so one that still fails normalize after that is dropped.
 // It reports whether anything was changed.
 func (c *ScenesConfig) repair() (changed bool) {
-	c.Game.Name, c.Desktop.Name, c.Desktop.Apps = "game", "desktop", nil
+	c.Game.Name, c.Desktop.Name, c.Desktop.Apps, c.Desktop.Titles = "game", "desktop", nil, nil
 	for _, s := range []*Scene{&c.Game, &c.Desktop} {
 		changed = s.repair() || changed
 		if s.normalize() != nil {

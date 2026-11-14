@@ -881,9 +881,10 @@ input[type="range"] {
   padding: 0;
 }
 
+/* What a scene matches: the labels share a column, so the inputs share an edge. */
 .scene-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: var(--field-gap);
   margin-bottom: 14px;

@@ -19,11 +19,16 @@ type Lighting struct {
 	Color  razer.RGB `json:"color"`
 }
 
-// Scene is a set of device settings used while its programs are in front.
-// Zero/nil fields leave that setting alone.
+// Scene is a set of device settings used while one of its programs, or a
+// window whose title holds one of its texts, is in front. Zero/nil fields
+// leave that setting alone.
 type Scene struct {
-	Name       string    `json:"name"`
-	Apps       []string  `json:"apps"` // program file names, e.g. cs2.exe
+	Name string   `json:"name"`
+	Apps []string `json:"apps"` // program file names, e.g. cs2.exe
+	// Titles: texts of a window title, compared without case. A release that
+	// does not know the key reads the scene as one without them, so it never
+	// uses the scene more widely than asked.
+	Titles     []string  `json:"titles,omitempty"`
 	DPI        int       `json:"dpi"`
 	Lighting   *Lighting `json:"lighting"`   // every device with lighting
 	Brightness *int      `json:"brightness"` // 0–100
@@ -57,8 +62,9 @@ func (h *SceneHighlight) colors() leobog.KeyColors {
 	return c
 }
 
-// ScenesConfig: the first custom scene listing the foreground program wins,
-// then Game (auto-detected games, plus the programs it lists), then Desktop.
+// ScenesConfig: the first custom scene matching the foreground window wins,
+// then Game (auto-detected games, plus what it lists), then Desktop; the
+// order is decideScene's.
 type ScenesConfig struct {
 	Enabled bool    `json:"enabled"`
 	Game    Scene   `json:"game"`
@@ -234,6 +240,14 @@ func (s *Scene) normalize() error {
 		}
 	}
 	s.Apps = apps
+	var titles []string
+	for _, t := range s.Titles {
+		t = strings.TrimSpace(t)
+		if t != "" && !slices.ContainsFunc(titles, func(o string) bool { return strings.EqualFold(o, t) }) {
+			titles = append(titles, t)
+		}
+	}
+	s.Titles = titles
 	return nil
 }
 
@@ -267,7 +281,7 @@ func normExe(a string) string {
 }
 
 func (c *ScenesConfig) normalize() error {
-	c.Game.Name, c.Desktop.Name, c.Desktop.Apps = "game", "desktop", nil
+	c.Game.Name, c.Desktop.Name, c.Desktop.Apps, c.Desktop.Titles = "game", "desktop", nil, nil
 	if err := c.Game.normalize(); err != nil {
 		return err
 	}

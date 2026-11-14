@@ -87,13 +87,15 @@ Go to the **Scenes** page, or right-click the tray icon, to turn these on.
 
 - **Smart polling rate:** your mice use a higher rate while you're in a game and a lower one otherwise, which saves battery and CPU. You can also fix the rate for specific programs. **Highest** means each mouse's own maximum.
 - **Scenes:** change mouse DPI, device lighting, the audio dongle's EQ preset, the default playback and recording devices and the playback volume based on the program in front. Anything set to **Keep current** is left alone; the EQ, sound devices and volume go back to how they were once you leave the scene, and a scene's EQ is never saved in the dongle. OpenSynapse picks a scene in this order:
-  1. **Your own scenes**, matched by program file name (for example, `obs64.exe`).
+  1. **Your own scenes**, matched by program file name (for example, `obs64.exe`) or by window title.
   2. **Game**, used when a game is detected. Add games it misses, such as windowed games, under **Programs**.
   3. **Desktop**, used for everything else. It also restores your settings when you leave another scene, so lighting set here keeps all your devices in sync.
 
+**Window titles:** a scene can also list text that the title of the window in front contains, ignoring case: for example, `GeForce NOW` for a cloud game in a browser tab, or `Budget.xlsx` for one document. A match by title, in your own scenes and then in **Game**, comes before any match by program. OpenSynapse reads the title of the window in front only while a scene lists such text. It compares the title in memory and never logs or saves it.
+
 A program needs to stay in front for about 2 seconds before OpenSynapse switches. Settings you change by hand are replaced at the next switch.
 
-**How games are detected:** a fullscreen or borderless-fullscreen window whose program keeps at least 15% of the GPU's 3D engine busy for 5 seconds in a row without decoding video. Browsers and video players are never treated as games.
+**How games are detected:** a fullscreen or borderless-fullscreen window whose program keeps at least 15% of the GPU's 3D engine busy for 5 seconds in a row without decoding video. Browsers and video players are never detected as games; text under **Window titles** in the **Game** scene can still give a browser tab that scene.
 
 ### Notifications and tray
 

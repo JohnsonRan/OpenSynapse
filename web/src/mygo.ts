@@ -341,13 +341,20 @@ export interface Rule {
 }
 
 /**
- * Scene is a set of device settings used while its programs are in front.
- * Zero/nil fields leave that setting alone.
+ * Scene is a set of device settings used while one of its programs, or a
+ * window whose title holds one of its texts, is in front. Zero/nil fields
+ * leave that setting alone.
  */
 export interface Scene {
   name: string;
   /** program file names, e.g. cs2.exe */
   apps: string[];
+  /**
+   * Titles: texts of a window title, compared without case. A release that
+   * does not know the key reads the scene as one without them, so it never
+   * uses the scene more widely than asked.
+   */
+  titles?: string[];
   dpi: number;
   /** every device with lighting */
   lighting: Lighting | null;
@@ -389,8 +396,9 @@ export interface SceneHighlight {
 }
 
 /**
- * ScenesConfig: the first custom scene listing the foreground program wins,
- * then Game (auto-detected games, plus the programs it lists), then Desktop.
+ * ScenesConfig: the first custom scene matching the foreground window wins,
+ * then Game (auto-detected games, plus what it lists), then Desktop; the
+ * order is decideScene's.
  */
 export interface ScenesConfig {
   enabled: boolean;

@@ -46,8 +46,10 @@ commits) applies as well; numbers are in `REQUIREMENTS.md`.
   partial write.
 - **Network.** The update check is the only network access. Changing that changes the README's
   promise and needs the owner's go.
-- **Other processes.** Game detection reads process names and window state only; it never
-  injects into or writes to another process.
+- **Other processes.** Game detection and scene matching read process names, window titles and
+  window state only. A window title is read only while a switched-on feature has a title rule; it
+  is compared in memory and never logged, stored or sent to the page. Nothing injects into or
+  writes to another process.
 
 ### Background work (if present)
 
