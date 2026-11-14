@@ -302,6 +302,11 @@ export interface Macro {
   mode: string;
   /** for repeat */
   count: number;
+  /**
+   * Imported: the macro came from a backup file with a launch step, and the
+   * user has not allowed it on this PC yet. Go alone sets and clears it.
+   */
+  imported?: boolean;
 }
 
 /**
@@ -310,6 +315,8 @@ export interface Macro {
  *   - mouse: Code is a button, 1 left, 2 right, 3 middle, 4 back, 5 forward
  *   - move: the pointer moves by X, Y (relative, as the mouse would move it)
  *   - wheel, hwheel: Code notches, up or right when positive
+ *   - text: Text is typed, a line break as the Enter key
+ *   - launch: Target, a full path or a link, is opened with Args
  */
 export interface MacroEvent {
   kind: string;
@@ -318,6 +325,9 @@ export interface MacroEvent {
   x: number;
   y: number;
   delay: number;
+  text?: string;
+  target?: string;
+  args?: string;
 }
 
 /** RGB is a color. */
@@ -774,6 +784,13 @@ export const Lights = {
 
 /** Macros records, edits and stores macros. */
 export const Macros = {
+  /**
+   * Allow lets a macro from a backup file open its programs and links, once
+   * the user has seen them.
+   */
+  allow(id: string): Promise<Macro> {
+    return call("Macros.Allow", id);
+  },
   /** Delete removes a macro that no button plays. */
   delete(id: string): Promise<void> {
     return call("Macros.Delete", id);
@@ -782,7 +799,18 @@ export const Macros = {
   list(): Promise<Macro[]> {
     return call("Macros.List");
   },
-  /** Save stores a macro; one without an ID is new. It returns the stored macro. */
+  /**
+   * PickTarget asks for the program or file of a launch step. It returns an
+   * empty path when the user cancels.
+   */
+  pickTarget(): Promise<string> {
+    return call("Macros.PickTarget");
+  },
+  /**
+   * Save stores a macro; one without an ID is new. It returns the stored macro.
+   * Whether an imported macro may open programs is not the page's to say here:
+   * the stored macro keeps its answer, and only Allow changes it.
+   */
   save(m: Macro): Promise<Macro> {
     return call("Macros.Save", m);
   },

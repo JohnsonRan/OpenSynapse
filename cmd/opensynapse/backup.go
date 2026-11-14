@@ -150,7 +150,12 @@ func importConfig(b []byte) (config, error) {
 	if err := c.Smart.normalize(); err != nil {
 		return config{}, errors.New(tr("err.importFile"))
 	}
-	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.normalize() != nil })
+	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.ID == "" || m.normalize() != nil })
+	for i := range c.Macros {
+		// Whatever the file says: a program a backup names starts only after
+		// the user has seen it on this PC.
+		c.Macros[i].Imported = c.Macros[i].launches()
+	}
 	c.EQPresets = slices.DeleteFunc(c.EQPresets, func(p EQPreset) bool { return p.normalize() != nil })
 	cfgMu.Lock()
 	current := slices.Clone(cfg.Bindings)

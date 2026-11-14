@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -23,13 +24,18 @@ import (
 //   - mouse: Code is a button, 1 left, 2 right, 3 middle, 4 back, 5 forward
 //   - move: the pointer moves by X, Y (relative, as the mouse would move it)
 //   - wheel, hwheel: Code notches, up or right when positive
+//   - text: Text is typed, a line break as the Enter key
+//   - launch: Target, a full path or a link, is opened with Args
 type MacroEvent struct {
-	Kind  string `json:"kind"`
-	Code  int    `json:"code"`
-	Down  bool   `json:"down"`
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
-	Delay int    `json:"delay"`
+	Kind   string `json:"kind"`
+	Code   int    `json:"code"`
+	Down   bool   `json:"down"`
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	Delay  int    `json:"delay"`
+	Text   string `json:"text,omitempty"`
+	Target string `json:"target,omitempty"`
+	Args   string `json:"args,omitempty"`
 }
 
 // pressable events go down and up; the others happen at once.
@@ -42,6 +48,9 @@ type Macro struct {
 	Events []MacroEvent `json:"events"`
 	Mode   string       `json:"mode"`  // once, repeat (Count times), toggle (until pressed again), hold (while held)
 	Count  int          `json:"count"` // for repeat
+	// Imported: the macro came from a backup file with a launch step, and the
+	// user has not allowed it on this PC yet. Go alone sets and clears it.
+	Imported bool `json:"imported,omitempty"`
 }
 
 // Binding plays a macro from a device button, which sends Trigger.
@@ -92,7 +101,14 @@ func freeTrigger(bs []Binding) int {
 	return 0
 }
 
+// macroID is the form Save gives an ID. The page and the bindings use the ID
+// as it is, so one from a file is taken only in that form.
+var macroID = regexp.MustCompile(`^[0-9a-f]{1,16}$`)
+
 func (m *Macro) normalize() error {
+	if m.ID != "" && !macroID.MatchString(m.ID) {
+		return errors.New(tr("err.macroMissing"))
+	}
 	m.Name = strings.TrimSpace(m.Name)
 	if m.Name == "" {
 		return errors.New(tr("err.macroName"))
@@ -109,9 +125,15 @@ func (m *Macro) normalize() error {
 	if m.Events == nil {
 		m.Events = []MacroEvent{}
 	}
-	for _, e := range m.Events {
+	for i, e := range m.Events {
 		bad := e.Delay < 0 || e.Delay > 600_000
+		e.Text, e.Target, e.Args = "", "", "" // only the text and launch steps have these
 		switch e.Kind {
+		case "text", "launch":
+			var why string
+			if e, why = cleanStep(m.Events[i]); why != "" {
+				return errors.New(tr(why, m.Name))
+			}
 		case "key":
 			bad = bad || e.Code < 1 || e.Code > 254
 		case "mouse":
@@ -126,6 +148,10 @@ func (m *Macro) normalize() error {
 		if bad {
 			return errors.New(tr("err.macroEvent", m.Name))
 		}
+		m.Events[i] = e
+	}
+	if m.launches() && m.Mode != "once" {
+		return errors.New(tr("err.macroOnce", m.Name))
 	}
 	return nil
 }
@@ -207,6 +233,11 @@ func onTriggerKey(vk int, down bool) bool {
 // play sends the events once, Count times, or until stopped (toggle, hold).
 // Whatever is still down at the end is released, so no key stays stuck.
 func play(m Macro, stop <-chan struct{}) {
+	events, why := playable(m)
+	if why != "" {
+		notifyMacro(m, why)
+		return
+	}
 	down := map[inputKey]MacroEvent{}
 	defer func() {
 		for _, e := range down {
@@ -241,11 +272,23 @@ func play(m Macro, stop <-chan struct{}) {
 	}
 	for i := 0; runs < 0 || i < runs; i++ {
 		total := 0
-		for _, e := range m.Events {
+		for _, e := range events {
 			if !wait(e.Delay) {
 				return
 			}
 			total += e.Delay
+			switch e.Kind {
+			case "text":
+				if !typeText(e.Text, wait) {
+					return
+				}
+				continue
+			case "launch":
+				if !runLaunch(m, e) {
+					return
+				}
+				continue
+			}
 			sendEvent(e)
 			if !e.pressable() {
 				continue
@@ -391,12 +434,16 @@ func (Macros) List() []Macro {
 }
 
 // Save stores a macro; one without an ID is new. It returns the stored macro.
+// Whether an imported macro may open programs is not the page's to say here:
+// the stored macro keeps its answer, and only Allow changes it.
 func (Macros) Save(m Macro) (Macro, error) {
 	if err := m.normalize(); err != nil {
 		return m, err
 	}
+	m.Imported = false
 	cfgMu.Lock()
 	if i := slices.IndexFunc(cfg.Macros, func(x Macro) bool { return x.ID == m.ID }); m.ID != "" && i >= 0 {
+		m.Imported = cfg.Macros[i].Imported
 		cfg.Macros[i] = m
 	} else {
 		m.ID = fmt.Sprintf("%x", time.Now().UnixNano())
