@@ -2235,7 +2235,11 @@ function syncSwitches() {
 
 $("#add-scene").onclick = () => {
   if (!scenes) return;
-  scenes.scenes.push({ name: t("scenes.newName", { n: scenes.scenes.length + 1 }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null, keyboard: null, highlight: null });
+  // A name no scene has: the tray lock follows a scene by index and name.
+  const names = new Set(scenes.scenes.map((s) => s.name));
+  let n = scenes.scenes.length + 1;
+  while (names.has(t("scenes.newName", { n }))) n++;
+  scenes.scenes.push({ name: t("scenes.newName", { n }), apps: [], dpi: 0, lighting: null, brightness: null, eq: null, output: "", input: "", volume: null, keyboard: null, highlight: null });
   openScenes.add(`custom:${scenes.scenes.length - 1}`); // a new scene opens for editing
   renderScenes();
   saveScenes();
