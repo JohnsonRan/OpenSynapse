@@ -120,6 +120,14 @@ func TestPlayTextStops(t *testing.T) {
 	if len(got)%2 != 0 || got[len(got)-1] != "key 0D up" {
 		t.Fatalf("stopped with Enter down: last of %d events is %q", len(got), got[len(got)-1])
 	}
+	// Stopped at the first wait: a press already sent is released first.
+	for txt, want := range map[string][]string{"\n\n": {"key 0D down", "key 0D up"}, "\t\t": {"key 09 down", "key 09 up"}, "ab": {"char a"}} {
+		s.log = nil
+		waits := 0
+		if typeText(txt, func(int) bool { waits++; return false }) || waits != 1 || !slices.Equal(s.entries(), want) {
+			t.Fatalf("%q stopped after %d waits with %q", txt, waits, s.entries())
+		}
+	}
 }
 
 func TestPlayLaunch(t *testing.T) {
