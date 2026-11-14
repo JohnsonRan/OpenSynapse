@@ -49,7 +49,8 @@ commits) applies as well; numbers are in `REQUIREMENTS.md`.
 - **Other processes.** Game detection and scene matching read process names, window titles and
   window state only. A window title is read only while a switched-on feature has a title rule; it
   is compared in memory and never logged, stored or sent to the page. Nothing injects into or
-  writes to another process.
+  writes to another process. A macro's launch step starts only a target the user entered or
+  allowed on this PC; an imported launch step never runs before that.
 
 ### Background work (if present)
 

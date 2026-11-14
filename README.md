@@ -74,6 +74,8 @@ Create macros on the **Macros** page, and then bind them to mouse buttons.
 - **Record:** select **● Record** and press keys and mouse buttons. The delays between presses are recorded too, and so is mouse movement if you check **Record mouse movement**. Select **■ Stop** when you're done.
 - **Edit:** add presses by hand with **+ Key** or **+ Mouse button**, which also adds wheel notches and mouse movement, change the delay of each step (in milliseconds), and delete steps you don't need.
 - **Playback:** **Play once**, **Repeat a number of times**, **Loop until pressed again** or **Loop while held**.
+- **Type text:** **+ Text** adds a step that types up to 1,000 characters. A line break presses Enter, so in a chat box it sends the message. The text is saved as plain text in your settings and backups, so don't use it for passwords. Games that read raw input and windows that run as administrator may not receive typed text; use key steps for game keys.
+- **Open a program or link:** **+ Program or link** adds a step that opens a program, a file or a link, as double-clicking it would. Enter a full path (such as `C:\Tools\app.exe`) or a link (such as `https://example.com` or `steam://run/440`); network paths and `file:` links aren't accepted. A macro with such a step always plays once. A step that opens a link hands it to Windows, as clicking it would. OpenSynapse connects to nothing itself; the browser or program that opens may. If you run OpenSynapse as administrator, the programs it opens run as administrator too.
 - **Bind to a button:** on the device page, open the **Buttons** tab and choose a macro for any button except the left one. Choose **Default** to give a button its original function back.
 
 The **Buttons** tab appears only on mice that support button remapping. So far, it has been tested only on the DeathAdder V4 Pro.
@@ -107,7 +109,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 - **Glass effect** (under **Settings**, Windows 11 22H2 or later) makes the window translucent, blurring the desktop and windows behind it.
 - **DPI display** (under **Settings**) shows the new DPI near the bottom of the screen when you press the mouse's DPI button.
 - **Sound devices** (under **Settings**) switches the default playback and recording devices, and sets the default format, bit depth and sample rate, of every playback device, as Sound settings > device properties > Advanced does.
-- **Back up settings** (under **Settings**) exports scenes, macros, button bindings and other settings to a file, and imports them, for example on another PC.
+- **Back up settings** (under **Settings**) exports scenes, macros, button bindings and other settings to a file, and imports them, for example on another PC. Import only files you trust: imported macros play when their buttons are pressed. An imported macro that opens a program or link doesn't play until you select **Allow** for it on the **Macros** page.
 
 ### Audio dongles
 
@@ -150,7 +152,7 @@ No. The color is set by the firmware and the public protocol can't change it.
 If Smart polling rate or Scenes is on, OpenSynapse changes settings when you switch programs. Turn them off on the **Scenes** page or from the tray menu. Also make sure Razer Synapse isn't running.
 
 **How do macros work?**
-A bound button is set on the mouse to send an unused key (F13–F24). OpenSynapse catches that key and plays the macro by simulating keyboard and mouse input.
+A bound button is set on the mouse to send an unused key (F13–F24). OpenSynapse catches that key and plays the macro by simulating keyboard and mouse input. Text is typed as Unicode characters, and programs and links are opened by Windows.
 
 **Why doesn't my macro work in a game?**
 Some games' anti-cheat software blocks simulated input. Also make sure OpenSynapse is running, because macros don't work without it.
