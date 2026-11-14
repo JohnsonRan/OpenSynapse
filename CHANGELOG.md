@@ -4,6 +4,38 @@ Each release has a section here; the app shows it when it offers the update.
 MyGo's update window shows a section as it is, in one language for everyone,
 so from 0.3.1 each section is written in Simplified Chinese, English and Japanese.
 
+## 0.10.0
+
+### 简体中文
+
+- 情景: 可按前台窗口的标题匹配情景，适合浏览器中的云游戏等场景；标题只用于比对，不会被记录或保存
+- 智能回报率: 例外规则可按窗口标题固定回报率
+- 托盘: 新增“锁定情景”，可让某个情景保持启用，不随前台程序切换
+- 宏: 新增键入文本和打开程序或链接的步骤；导入的宏中打开程序或链接的步骤需在“宏”页面选择“允许”后才会播放
+- DeathAdder V4 Pro: 新增传感器旋转 (-44° 到 44°) 和灵敏度离合器按键功能
+- 修复: 改进了键盘改键、备份导入、音乐律动和设备重新扫描时的可靠性；页面的键盘操作和读屏支持更完善
+- 注意: 0.9.1 及更早版本保存设置时会丢失窗口标题规则和新的宏步骤。如需退回旧版本，请先导出备份
+
+### English
+
+- Scenes: a scene can match the title of the window in front, for example cloud gaming in a browser; titles are only compared, never logged or saved
+- Smart polling rate: an exception can fix the polling rate by window title
+- Tray: Lock scene keeps one scene on whatever program is in front
+- Macros: new steps that type text or open a program or link; in an imported macro, a step that opens a program or link plays only after you select Allow on the Macros page
+- DeathAdder V4 Pro: sensor rotation (-44° to 44°) and a sensitivity clutch button function
+- Fixes: key remapping, backup import, music lighting and device rescans are more reliable, and the page works better with the keyboard and screen readers
+- Note: 0.9.1 and earlier drop window title rules and the new macro steps when they save the settings. Export a backup before going back to an older version
+
+### 日本語
+
+- シーン: 前面のウィンドウのタイトルでシーンを切り替えられるようになりました (ブラウザーでのクラウド ゲームなど)。タイトルは照合にのみ使用され、記録も保存もされません
+- スマート ポーリングレート: 例外ルールでウィンドウ タイトルごとにポーリングレートを固定できます
+- トレイ: [シーンをロック] で、前面のプログラムにかかわらず 1 つのシーンを使い続けられます
+- マクロ: テキストを入力するステップと、プログラムまたはリンクを開くステップを追加しました。インポートしたマクロのプログラムまたはリンクを開くステップは、[マクロ] ページで [許可] を選択するまで再生されません
+- DeathAdder V4 Pro: センサーの回転 (-44° から 44°) と感度クラッチのボタン機能を追加しました
+- 修正: キーの割り当て、バックアップのインポート、音楽ライティング、デバイスの再スキャンの信頼性が向上し、キーボード操作とスクリーン リーダーへの対応が改善されました
+- 注意: 0.9.1 以前のバージョンは、設定の保存時にウィンドウ タイトルのルールと新しいマクロ ステップを削除します。古いバージョンに戻す場合は、先にバックアップをエクスポートしてください
+
 ## 0.9.1
 
 ### 简体中文
