@@ -153,14 +153,18 @@ func importConfig(b []byte) (config, error) {
 	// A second macro with an ID already taken is dropped like a bad one. The
 	// bindings, the page and Save find a macro by its ID, so a duplicate could
 	// take the first one's place without being flagged.
+	// Each macro is normalized in place, so the trimmed name and default mode
+	// are what gets stored.
 	ids := map[string]bool{}
-	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool {
+	kept := c.Macros[:0]
+	for _, m := range c.Macros {
 		if m.ID == "" || ids[m.ID] || m.normalize() != nil {
-			return true
+			continue
 		}
 		ids[m.ID] = true
-		return false
-	})
+		kept = append(kept, m)
+	}
+	c.Macros = kept
 	for i := range c.Macros {
 		// Whatever the file says: a program a backup names starts only after
 		// the user has seen it on this PC.

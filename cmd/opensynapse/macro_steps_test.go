@@ -341,6 +341,17 @@ func TestImportConfigDropsDuplicateIDs(t *testing.T) {
 	}
 }
 
+// Import stores a macro as normalize leaves it, not as the file wrote it.
+func TestImportConfigStoresNormalizedMacros(t *testing.T) {
+	src := defaultConfig()
+	src.Macros = []Macro{{ID: "a1", Name: " opens ", Events: []MacroEvent{launch(`C:\a.exe`, "")}}}
+	b, _ := json.Marshal(src)
+	c, err := importConfig(b)
+	if err != nil || len(c.Macros) != 1 || c.Macros[0].Name != "opens" || c.Macros[0].Mode != "once" {
+		t.Fatalf("%v %+v", err, c.Macros)
+	}
+}
+
 // Macros from an earlier release load and are written back as they were, and
 // the new steps are written so that an earlier release sends no key for them.
 func TestLoadConfigKeepsOldMacros(t *testing.T) {
