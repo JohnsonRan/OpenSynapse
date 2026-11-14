@@ -135,7 +135,7 @@ Intentional designs that look like defects:
 | What | Why | Owner ruling (date, quote) |
 | --- | --- | --- |
 | On a window wider than the content, the content stops at `--content-width` (1240 px) and sits centred, leaving blank sides | a settings page reads badly stretched across a wide screen; Windows Settings caps its content the same way. It is the one exception to "No large blank areas" in `web/AGENTS.md` | 2026-11-14, the owner left the five layout questions to the agent's proposal: "1-5都按你的想法来" |
-| A macro's text step is saved as plain text in the settings file and in backups | the text is what the user chose to type, not a credential of the app; the editor and the README say not to use it for passwords, and Go keeps it out of logs and notifications | 2026-11-14, owner ruling on the plan for text and launch steps: the hard limit "no secret in the settings file" covers the app's own credentials, not text the user types into a macro |
+| A macro's text step is saved as plain text in the settings file and in backups | the text is what the user chose to type, not a credential of the app; the editor and the README say not to use it for passwords, and Go keeps it out of logs and notifications | 2026-11-14, answer to open question 10 of the plan for text and launch steps (the hard limit "no secret in the settings file" covers the app's own credentials, not text the user types into a macro): "全部按建议，第 10 条同意裁定" |
 
 ## Deferred options
 
@@ -159,7 +159,7 @@ after a release.
 | A scene lock that survives a restart | plan of scenes by window title, 2026-11-14 | scenes have no ID that a saved lock could name; the owner chose a lock for the session |
 | Keeping the keys of a settings file that this version does not know across a load and a save, so that going back to an older version loses nothing | plan of scenes by window title, 2026-11-14 | releases up to 0.9.1 drop `titles` and `title` at their next save, and no later change reaches them; it would only help from this version on |
 | A window title that blinks about once a second can line up with the 1 s look of the scene switcher and switch the scene, where a faster or slower blink would not | review of the plan of scenes by window title, 2026-11-14 | Low; no such title is known; the debouncer needs two equal looks in a row |
-| Text and launch steps in macros: a working-directory field; a typing speed per step; bare program names found through App Paths; a launch step in a repeating macro with a minimum interval; a notice inside the page when a macro does not play (needs the Go notice event deferred above); checking macros when the settings load; requiring a registered URL protocol before a link-shaped target is opened | plan for text and launch steps, 2026-11-14 | options the first version left out; the last one waits for the owner's desktop check of a target such as `calc.exe:x` |
+| Text and launch steps in macros: a working-directory field; a typing speed per step; bare program names found through App Paths; a launch step in a repeating macro with a minimum interval; a notice inside the page when a macro does not play (needs the Go notice event deferred above); checking macros when the settings load, including two macros with one ID in a hand-edited file (import drops the second); requiring a registered URL protocol before a link-shaped target is opened | plan for text and launch steps, 2026-11-14 | options the first version left out; the last one waits for the owner's desktop check of a target such as `calc.exe:x` |
 
 ## Not yet enforced
 
