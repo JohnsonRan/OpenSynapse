@@ -309,6 +309,23 @@ func TestImportConfigBlocksLaunchSteps(t *testing.T) {
 	}
 }
 
+// A backup with two macros of one ID: the second, which opens a program,
+// must not reach the page. Saving it there would replace the first one, which
+// carries no flag, and the bound button would then open the program unasked.
+func TestImportConfigDropsDuplicateIDs(t *testing.T) {
+	src := defaultConfig()
+	src.Macros = []Macro{
+		{ID: "a1", Name: "keys", Mode: "once", Events: []MacroEvent{key(0x41, true, 0), key(0x41, false, 0)}},
+		{ID: "a1", Name: "opens", Mode: "once", Events: []MacroEvent{launch(`C:\a.exe`, "")}},
+	}
+	src.Bindings = []Binding{{Family: "F", Button: 5, Macro: "a1", Trigger: firstTrigger}}
+	b, _ := json.Marshal(src)
+	c, err := importConfig(b)
+	if err != nil || len(c.Macros) != 1 || c.Macros[0].Name != "keys" || len(c.Bindings) != 1 {
+		t.Fatalf("%v %+v %+v", err, c.Macros, c.Bindings)
+	}
+}
+
 // Macros from an earlier release load and are written back as they were, and
 // the new steps are written so that an earlier release sends no key for them.
 func TestLoadConfigKeepsOldMacros(t *testing.T) {

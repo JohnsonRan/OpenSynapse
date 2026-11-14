@@ -150,7 +150,17 @@ func importConfig(b []byte) (config, error) {
 	if err := c.Smart.normalize(); err != nil {
 		return config{}, errors.New(tr("err.importFile"))
 	}
-	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool { return m.ID == "" || m.normalize() != nil })
+	// A second macro with an ID already taken is dropped like a bad one. The
+	// bindings, the page and Save find a macro by its ID, so a duplicate could
+	// take the first one's place without being flagged.
+	ids := map[string]bool{}
+	c.Macros = slices.DeleteFunc(c.Macros, func(m Macro) bool {
+		if m.ID == "" || ids[m.ID] || m.normalize() != nil {
+			return true
+		}
+		ids[m.ID] = true
+		return false
+	})
 	for i := range c.Macros {
 		// Whatever the file says: a program a backup names starts only after
 		// the user has seen it on this PC.
