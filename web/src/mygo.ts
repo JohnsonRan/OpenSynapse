@@ -786,10 +786,12 @@ export const Lights = {
 export const Macros = {
   /**
    * Allow lets a macro from a backup file open its programs and links, once
-   * the user has seen them.
+   * the user has seen them. shown holds the steps the page showed: a save the
+   * page counted on may have failed, so Allow refuses when they are not the
+   * steps stored, and the user never allows a target other than the one seen.
    */
-  allow(id: string): Promise<Macro> {
-    return call("Macros.Allow", id);
+  allow(id: string, shown: MacroEvent[]): Promise<Macro> {
+    return call("Macros.Allow", id, shown);
   },
   /** Delete removes a macro that no button plays. */
   delete(id: string): Promise<void> {

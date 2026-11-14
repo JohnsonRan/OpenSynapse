@@ -1816,11 +1816,13 @@ $("#macro-allow").onclick = () => {
   if (!m) return;
   attempt(async () => {
     await macroSaves.get(m); // Go allows what it has stored: the edits shown above go first
-    m.imported = (await Macros.allow(m.id)).imported;
+    m.imported = (await Macros.allow(m.id, m.events)).imported;
     renderMacroList();
     if (m !== macro) return;
     renderImported(m);
     $("#macro-name").focus(); // the button that had the focus is gone
+  }).then((ok) => {
+    if (!ok) loadMacros(); // Go refused the steps shown here: show what it stored
   });
 };
 

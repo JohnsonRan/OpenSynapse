@@ -262,10 +262,17 @@ func TestSaveKeepsImportedUntilAllowed(t *testing.T) {
 	if err != nil || fresh.Imported {
 		t.Fatalf("a macro made on this PC is blocked: %v %+v", err, fresh)
 	}
-	if _, err := (Macros{}).Allow("ffff"); err == nil {
+	if _, err := (Macros{}).Allow("ffff", stored().Events); err == nil {
 		t.Fatal("allowed a macro that does not exist")
 	}
-	if got, err := (Macros{}).Allow("1a"); err != nil || got.Imported || stored().Imported {
+	// The page shows an edit Go refused, or one that has not arrived: what
+	// the user reviewed is not what would run.
+	for _, shown := range [][]MacroEvent{{launch("notepad", "")}, {launch(`C:\a.exe`, "")}, {launch(`C:\b.exe`, "--x")}, nil} {
+		if _, err := (Macros{}).Allow("1a", shown); err == nil || !stored().Imported {
+			t.Fatalf("allowed %+v while %+v is stored", shown, stored().Events)
+		}
+	}
+	if got, err := (Macros{}).Allow("1a", []MacroEvent{launch(` C:\b.exe `, "")}); err != nil || got.Imported || stored().Imported {
 		t.Fatalf("Allow: %v %+v", err, stored())
 	}
 	s := recordSteps(t)

@@ -264,13 +264,26 @@ func (Macros) PickTarget() (string, error) {
 }
 
 // Allow lets a macro from a backup file open its programs and links, once
-// the user has seen them.
-func (Macros) Allow(id string) (Macro, error) {
+// the user has seen them. shown holds the steps the page showed: a save the
+// page counted on may have failed, so Allow refuses when they are not the
+// steps stored, and the user never allows a target other than the one seen.
+func (Macros) Allow(id string, shown []MacroEvent) (Macro, error) {
+	// The shown steps as Save would store them, as import and Save stored the
+	// imported macro's steps: a line break written as CRLF or a stray field is
+	// no difference. A step normalize refuses stays as sent, so it matches no
+	// stored step. Outside cfgMu: normalize's messages read the language there.
+	page := Macro{Name: "shown", Events: slices.Clone(shown)}
+	page.normalize()
 	cfgMu.Lock()
 	i := slices.IndexFunc(cfg.Macros, func(m Macro) bool { return m.ID == id })
 	if i < 0 {
 		cfgMu.Unlock()
 		return Macro{}, errors.New(tr("err.macroMissing"))
+	}
+	if !slices.Equal(cfg.Macros[i].Events, page.Events) {
+		name := cfg.Macros[i].Name
+		cfgMu.Unlock()
+		return Macro{}, errors.New(tr("err.macroChanged", name))
 	}
 	cfg.Macros[i].Imported = false
 	m := cfg.Macros[i]
