@@ -267,7 +267,7 @@ func (a *auto) round() (idle bool) {
 		// lighting: the next rounds try it again.
 		return !sceneAudioPending() && !sceneKeyboards.pending()
 	}
-	f := getForeground(wantTitle(sc))
+	f := getForeground(wantTitle(sc, sp))
 	if f.exe == "" {
 		return false // lock screen, UAC prompt, protected process: keep the current settings
 	}
@@ -310,7 +310,7 @@ func (a *auto) round() (idle bool) {
 		st.Scene, st.SceneWhy = name, why
 	}
 	if sp.Enabled {
-		hz, why := decideRate(sp, f.exe, game)
+		hz, why := decideRate(sp, f.exe, f.title, game)
 		a.rates.step(hz, devs, func(d *razer.Device) error { return applyRate(d, hz) })
 		st.Rate, st.RateWhy = hz, why
 	}

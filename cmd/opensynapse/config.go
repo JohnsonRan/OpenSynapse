@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"os"
@@ -72,10 +73,12 @@ type ScenesConfig struct {
 	Scenes  []Scene `json:"scenes"` // custom, by program
 }
 
-// Rule is a per-program polling rate (0 = the mouse's highest).
+// Rule is a polling rate (0 = the mouse's highest) for one program, or with
+// no Exe for the windows whose title holds Title, compared without case.
 type Rule struct {
-	Exe  string `json:"exe"`
-	Rate int    `json:"rate"`
+	Exe   string `json:"exe"`
+	Title string `json:"title,omitempty"`
+	Rate  int    `json:"rate"`
 }
 
 // SmartPoll switches mouse polling rates: high while a game is in front,
@@ -257,12 +260,17 @@ func (c *SmartPoll) normalize() error {
 	}
 	out := []Rule{}
 	for _, r := range c.Exceptions {
-		r.Exe = normExe(r.Exe)
-		if r.Exe == "" || slices.ContainsFunc(out, func(o Rule) bool { return o.Exe == r.Exe }) {
+		r.Exe, r.Title = normExe(r.Exe), strings.TrimSpace(r.Title)
+		if r.Exe != "" {
+			r.Title = "" // a release without title rules reads this rule as the program's too
+		}
+		if r.Exe == "" && r.Title == "" || slices.ContainsFunc(out, func(o Rule) bool {
+			return o.Exe == r.Exe && strings.EqualFold(o.Title, r.Title)
+		}) {
 			continue
 		}
 		if !rateOrMax(r.Rate) {
-			return errors.New(tr("err.ruleRate", r.Exe))
+			return errors.New(tr("err.ruleRate", cmp.Or(r.Exe, r.Title)))
 		}
 		out = append(out, r)
 	}

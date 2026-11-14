@@ -34,7 +34,7 @@ func (l legacySmart) smartPoll() SmartPoll {
 	}
 	c := SmartPoll{Enabled: l.Enabled, GameRate: l.AutoRate, NormalRate: l.DefaultRate, Exceptions: []Rule{}}
 	for _, r := range l.Rules {
-		c.Exceptions = append(c.Exceptions, Rule{r.Exe, r.Rate})
+		c.Exceptions = append(c.Exceptions, Rule{Exe: r.Exe, Rate: r.Rate})
 	}
 	return c
 }

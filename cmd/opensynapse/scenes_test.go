@@ -223,22 +223,41 @@ func TestDecideScene(t *testing.T) {
 }
 
 func TestDecideRate(t *testing.T) {
-	c := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{{"osu!.exe", 4000}, {"overwatch.exe", 1000}}}
+	c := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{
+		{Exe: "osu!.exe", Rate: 4000}, {Exe: "overwatch.exe", Rate: 1000}, {Title: "GeForce NOW", Rate: 8000}, {Title: "Sheets", Rate: 125},
+	}}
 	cases := []struct {
-		exe  string
-		game bool
-		rate int
-		why  string
+		exe, title string
+		game       bool
+		rate       int
+		why        string
 	}{
-		{"osu!.exe", false, 4000, reasonRule},
-		{"overwatch.exe", true, 1000, reasonRule}, // an exception beats detection
-		{"elden.exe", true, 0, reasonGame},        // 0 = highest
-		{"code.exe", false, 1000, reasonDefault},
+		{"osu!.exe", "", false, 4000, reasonRule},
+		{"overwatch.exe", "", true, 1000, reasonRule},                  // an exception beats detection
+		{"elden.exe", "", true, 0, reasonGame},                         // 0 = highest
+		{"code.exe", "", false, 1000, reasonDefault},                   // and a window without a title matches no title rule
+		{"chrome.exe", "Play on geforce now", false, 8000, reasonRule}, // by title, without case
+		{"osu!.exe", "osu! - Google Sheets", false, 125, reasonRule},   // a title beats a program
+		{"elden.exe", "ELDEN RING", true, 0, reasonGame},
 	}
 	for _, k := range cases {
-		if r, why := decideRate(c, k.exe, k.game); r != k.rate || why != k.why {
+		if r, why := decideRate(c, k.exe, k.title, k.game); r != k.rate || why != k.why {
 			t.Errorf("%+v: got %d %s", k, r, why)
 		}
+	}
+	// A hand-edited file whose game rate is not valid keeps its exceptions as
+	// they are (parseConfig): a rule without a program and a title matches nothing.
+	loaded, _, err := parseConfig([]byte(`{"smartPoll":{"enabled":true,"gameRate":333,"normalRate":1000,"exceptions":[{"exe":"","rate":125}]}}`), defaultConfig())
+	if err != nil || len(loaded.Smart.Exceptions) != 1 {
+		t.Fatalf("%v %+v; want the rule loaded as the file has it", err, loaded.Smart)
+	}
+	for _, title := range []string{"", "Notepad"} {
+		if r, why := decideRate(loaded.Smart, "code.exe", title, false); r != 1000 || why != reasonDefault {
+			t.Errorf("empty rule, title %q: got %d %s", title, r, why)
+		}
+	}
+	if wantTitle(ScenesConfig{}, loaded.Smart) {
+		t.Error("the title is read for a rule without a text")
 	}
 }
 
@@ -259,11 +278,15 @@ func TestNormalize(t *testing.T) {
 			t.Errorf("accepted %+v", bad)
 		}
 	}
-	p := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{{` D:\osu!.EXE`, 4000}, {"osu!.exe", 500}, {"", 8000}}}
-	if err := p.normalize(); err != nil || len(p.Exceptions) != 1 || p.Exceptions[0] != (Rule{"osu!.exe", 4000}) {
-		t.Fatalf("%v %+v", err, p)
+	p := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{
+		{Exe: ` D:\osu!.EXE`, Rate: 4000}, {Exe: "osu!.exe", Rate: 500}, {Rate: 8000}, {Title: "  ", Rate: 8000},
+		{Title: " GeForce NOW ", Rate: 8000}, {Title: "geforce now", Rate: 125}, {Exe: "a.exe", Title: "both", Rate: 500},
+	}}
+	want := []Rule{{Exe: "osu!.exe", Rate: 4000}, {Title: "GeForce NOW", Rate: 8000}, {Exe: "a.exe", Rate: 500}}
+	if err := p.normalize(); err != nil || !slices.Equal(p.Exceptions, want) {
+		t.Fatalf("%v %+v; want %+v", err, p.Exceptions, want)
 	}
-	for _, bad := range []SmartPoll{{GameRate: 333, NormalRate: 1000}, {NormalRate: 1000, Exceptions: []Rule{{"a.exe", 7}}}} {
+	for _, bad := range []SmartPoll{{GameRate: 333, NormalRate: 1000}, {NormalRate: 1000, Exceptions: []Rule{{Exe: "a.exe", Rate: 7}}}, {NormalRate: 1000, Exceptions: []Rule{{Title: "x", Rate: 7}}}} {
 		if bad.normalize() == nil {
 			t.Errorf("accepted %+v", bad)
 		}
@@ -301,7 +324,7 @@ func TestParseConfigDoesNotMergeDefaults(t *testing.T) {
 func TestLegacySmartMigration(t *testing.T) {
 	c, _, _ := parseConfig([]byte(`{"smart":{"enabled":true,"defaultRate":1000,"rules":[{"exe":"cs2.exe","rate":8000}]}}`), cfg)
 	s := c.Smart
-	if !s.Enabled || s.NormalRate != 1000 || s.GameRate != 8000 || !slices.Equal(s.Exceptions, []Rule{{"cs2.exe", 8000}}) {
+	if !s.Enabled || s.NormalRate != 1000 || s.GameRate != 8000 || !slices.Equal(s.Exceptions, []Rule{{Exe: "cs2.exe", Rate: 8000}}) {
 		t.Fatalf("%+v", s)
 	}
 	if c.Scenes.Enabled {

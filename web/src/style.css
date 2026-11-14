@@ -795,7 +795,7 @@ input[type="range"] {
 
 .rule {
   display: grid;
-  grid-template-columns: 1fr 140px 36px;
+  grid-template-columns: auto 1fr 140px 36px;
   gap: 8px;
   margin-bottom: 8px;
 }

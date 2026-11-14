@@ -1872,15 +1872,27 @@ function renderExceptions() {
       ? list.map((r, i) => {
           const row = document.createElement("div");
           row.className = "rule";
+          // A rule is for a program (exe), or with no exe for a window title.
+          const kind = document.createElement("select");
+          kind.innerHTML = option("exe", t("smart.kindProgram"), !!r.exe || r.title === undefined) + option("title", t("smart.kindTitle"), !r.exe && r.title !== undefined);
           const exe = document.createElement("input");
-          exe.placeholder = t("smart.exePlaceholder");
-          exe.value = r.exe;
-          exe.onchange = () => ((r.exe = exe.value.trim()), saveSmart());
+          const byTitle = () => kind.value === "title";
+          const hint = () => (exe.placeholder = t(byTitle() ? "smart.titlePlaceholder" : "smart.exePlaceholder"));
+          const store = () => {
+            const text = exe.value.trim();
+            if (byTitle()) [r.exe, r.title] = ["", text];
+            else [r.exe, r.title] = [text, undefined];
+            saveSmart();
+          };
+          hint();
+          exe.value = r.exe || r.title || "";
+          exe.onchange = store;
+          kind.onchange = () => (hint(), store());
           const del = document.createElement("button");
           del.className = "ghost x";
           del.textContent = "✕";
           del.onclick = () => (list.splice(i, 1), renderExceptions(), saveSmart());
-          row.append(exe, rateSelect(document.createElement("select"), r.rate, (v) => ((r.rate = v), saveSmart())), del);
+          row.append(kind, exe, rateSelect(document.createElement("select"), r.rate, (v) => ((r.rate = v), saveSmart())), del);
           return row;
         })
       : [Object.assign(document.createElement("p"), { className: "muted small", textContent: t("smart.noExceptions") })]),

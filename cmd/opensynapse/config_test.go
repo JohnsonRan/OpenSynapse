@@ -263,10 +263,10 @@ func TestLoadConfigOlderFileHasNoTitles(t *testing.T) {
 	if !sc.Enabled || len(sc.Scenes) != 1 || sc.Scenes[0].Name != "Work" || len(sc.Scenes[0].Apps) != 1 || len(sc.Game.Apps) != 1 {
 		t.Fatalf("scenes %+v; want them as the file has them", sc)
 	}
-	if sc.Scenes[0].Titles != nil || sc.Game.Titles != nil || wantTitle(sc) {
+	if sc.Scenes[0].Titles != nil || sc.Game.Titles != nil || wantTitle(sc, sp) {
 		t.Fatalf("scenes %+v; want no title rule", sc)
 	}
-	if len(sp.Exceptions) != 1 || sp.Exceptions[0].Exe != "osu!.exe" {
+	if len(sp.Exceptions) != 1 || sp.Exceptions[0] != (Rule{Exe: "osu!.exe", Rate: 4000}) {
 		t.Fatalf("smart polling %+v; want its exception kept", sp)
 	}
 	if _, err := os.Stat(p + ".bad"); !os.IsNotExist(err) {
@@ -283,20 +283,27 @@ func TestLoadConfigKeepsTitles(t *testing.T) {
 	if err := (Scenes{}).SetConfig(c); err != nil {
 		t.Fatal(err)
 	}
+	sp := SmartPoll{NormalRate: 1000, Exceptions: []Rule{{Exe: "osu!.exe", Rate: 4000}, {Title: "GeForce NOW", Rate: 8000}}}
+	if err := (Scenes{}).SetSmart(sp); err != nil {
+		t.Fatal(err)
+	}
 	drainAutoReset()
 	saved, err := os.ReadFile(p)
-	if err != nil || strings.Count(string(saved), `"titles"`) != 1 {
-		t.Fatalf("saved file, %v: %s\nwant the titles key on the one scene that has a rule", err, saved)
+	if err != nil || strings.Count(string(saved), `"titles"`) != 1 || strings.Count(string(saved), `"title"`) != 1 {
+		t.Fatalf("saved file, %v: %s\nwant the keys on the one scene and the one exception that have a title rule", err, saved)
 	}
 	cfgMu.Lock()
 	cfg = defaultConfig()
 	cfgMu.Unlock()
 	loadConfig()
 	cfgMu.Lock()
-	sc := cfg.Scenes
+	sc, loaded := cfg.Scenes, cfg.Smart
 	cfgMu.Unlock()
 	if len(sc.Scenes) != 2 || !slices.Equal(sc.Scenes[0].Titles, []string{"GeForce NOW"}) || sc.Scenes[1].Titles != nil {
 		t.Fatalf("loaded %+v; want the title rule back", sc.Scenes)
+	}
+	if !slices.Equal(loaded.Exceptions, sp.Exceptions) {
+		t.Fatalf("loaded %+v; want the exceptions back", loaded.Exceptions)
 	}
 
 	p = writeConfig(t, `{"scenes":{"enabled":true,"desktop":{"titles":["x"]},"game":{"titles":[" Y ","y"]}}}`)

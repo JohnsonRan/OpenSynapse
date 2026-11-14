@@ -30,8 +30,11 @@ func titleHas(lowTitle, text string) bool {
 
 // wantTitle reports whether a round needs the foreground window's title: a
 // switched-on feature has a title rule. Without one no title is ever read.
-func wantTitle(sc ScenesConfig) bool {
-	return sc.Enabled && (len(sc.Game.Titles) > 0 || slices.ContainsFunc(sc.Scenes, func(s Scene) bool { return len(s.Titles) > 0 }))
+func wantTitle(sc ScenesConfig, sp SmartPoll) bool {
+	if sc.Enabled && (len(sc.Game.Titles) > 0 || slices.ContainsFunc(sc.Scenes, func(s Scene) bool { return len(s.Titles) > 0 })) {
+		return true
+	}
+	return sp.Enabled && slices.ContainsFunc(sp.Exceptions, func(r Rule) bool { return r.Exe == "" && r.Title != "" })
 }
 
 // decideScene: a custom scene by window title, the game scene by title, a
@@ -73,9 +76,16 @@ func (c ScenesConfig) scene(idx int) Scene {
 	return c.Scenes[idx]
 }
 
-// decideRate: an exception for the program, then the game rate, then the
-// normal rate. 0 means each mouse's highest rate.
-func decideRate(c SmartPoll, exe string, game bool) (int, string) {
+// decideRate: an exception for the window title, an exception for the
+// program, then the game rate, then the normal rate. 0 means each mouse's
+// highest rate.
+func decideRate(c SmartPoll, exe, title string, game bool) (int, string) {
+	title = strings.ToLower(title)
+	for _, r := range c.Exceptions {
+		if r.Exe == "" && titleHas(title, r.Title) {
+			return r.Rate, reasonRule
+		}
+	}
 	for _, r := range c.Exceptions {
 		if r.Exe == exe {
 			return r.Rate, reasonRule

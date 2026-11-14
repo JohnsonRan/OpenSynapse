@@ -254,4 +254,8 @@ func TestImportConfig(t *testing.T) {
 	if _, err := importConfig([]byte(`{"scenes":{"scenes":[{"name":"Cloud","titles":"oops"}]}}`)); err == nil {
 		t.Fatal("accepted titles that are not a list")
 	}
+	c, err = importConfig([]byte(`{"smartPoll":{"normalRate":1000,"exceptions":[{"exe":"","title":" GeForce NOW ","rate":8000},{"exe":"osu!.exe","rate":4000}]}}`))
+	if err != nil || !slices.Equal(c.Smart.Exceptions, []Rule{{Title: "GeForce NOW", Rate: 8000}, {Exe: "osu!.exe", Rate: 4000}}) {
+		t.Fatalf("%v %+v; want the rate by title imported next to the one by program", err, c.Smart.Exceptions)
+	}
 }

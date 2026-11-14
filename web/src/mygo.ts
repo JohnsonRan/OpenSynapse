@@ -334,9 +334,13 @@ export interface Rotation {
   angle: number;
 }
 
-/** Rule is a per-program polling rate (0 = the mouse's highest). */
+/**
+ * Rule is a polling rate (0 = the mouse's highest) for one program, or with
+ * no Exe for the windows whose title holds Title, compared without case.
+ */
 export interface Rule {
   exe: string;
+  title?: string;
   rate: number;
 }
 

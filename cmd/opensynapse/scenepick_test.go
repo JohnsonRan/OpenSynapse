@@ -12,17 +12,22 @@ import (
 // The window title is read only for a title rule of a feature that is on.
 func TestWantTitle(t *testing.T) {
 	titled := []Scene{{Name: "a", Apps: []string{"a.exe"}}, {Name: "b", Titles: []string{"x"}}}
+	byProgram := SmartPoll{Enabled: true, Exceptions: []Rule{{Exe: "a.exe", Rate: 500}}}
+	byTitle := SmartPoll{Enabled: true, Exceptions: []Rule{{Exe: "a.exe", Rate: 500}, {Title: "x", Rate: 500}}}
 	cases := map[string]struct {
 		sc   ScenesConfig
+		sp   SmartPoll
 		want bool
 	}{
-		"no rules":               {ScenesConfig{Enabled: true, Scenes: titled[:1]}, false},
-		"a custom scene's title": {ScenesConfig{Enabled: true, Scenes: titled}, true},
-		"the game scene's title": {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, true},
-		"scenes off":             {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, false},
+		"no rules":               {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byProgram, false},
+		"a custom scene's title": {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, true},
+		"the game scene's title": {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, SmartPoll{}, true},
+		"scenes off":             {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, byProgram, false},
+		"a rate by title":        {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byTitle, true},
+		"smart polling off":      {ScenesConfig{}, SmartPoll{Exceptions: byTitle.Exceptions}, false},
 	}
 	for name, k := range cases {
-		if got := wantTitle(k.sc); got != k.want {
+		if got := wantTitle(k.sc, k.sp); got != k.want {
 			t.Errorf("%s: got %v", name, got)
 		}
 	}
