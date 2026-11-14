@@ -29,19 +29,6 @@ var notGames = map[string]bool{
 	"mpc-be.exe": true, "wmplayer.exe": true, "powerpnt.exe": true, "explorer.exe": true,
 }
 
-const (
-	reasonDefault = "default"
-	reasonRule    = "rule"
-	reasonGame    = "game"
-)
-
-// Scene indexes besides custom scenes (0…).
-const (
-	desktop   = -1
-	gameScene = -2
-	noScene   = -3
-)
-
 // looksLikeGame: one sample of a fullscreen/borderless app with 3D load that
 // is not decoding video. Players render through the 3D engine too, but only
 // they keep the video-decode engine busy.
@@ -65,47 +52,6 @@ func (s *gameStreak) observe(pid uint32, like bool) bool {
 		s.n++
 	}
 	return s.n >= gameSeconds
-}
-
-// decideScene: a custom scene listing the program, then the game scene
-// (detected games and the programs it lists), then the desktop.
-func decideScene(c ScenesConfig, exe string, game bool) (int, string) {
-	for i, s := range c.Scenes {
-		if slices.Contains(s.Apps, exe) {
-			return i, reasonRule
-		}
-	}
-	if slices.Contains(c.Game.Apps, exe) {
-		return gameScene, reasonRule
-	}
-	if game {
-		return gameScene, reasonGame
-	}
-	return desktop, reasonDefault
-}
-
-func (c ScenesConfig) scene(idx int) Scene {
-	switch idx {
-	case desktop:
-		return c.Desktop
-	case gameScene:
-		return c.Game
-	}
-	return c.Scenes[idx]
-}
-
-// decideRate: an exception for the program, then the game rate, then the
-// normal rate. 0 means each mouse's highest rate.
-func decideRate(c SmartPoll, exe string, game bool) (int, string) {
-	for _, r := range c.Exceptions {
-		if r.Exe == exe {
-			return r.Rate, reasonRule
-		}
-	}
-	if game {
-		return c.GameRate, reasonGame
-	}
-	return c.NormalRate, reasonDefault
 }
 
 // debouncer settles on a target only after it was seen twice in a row, so
