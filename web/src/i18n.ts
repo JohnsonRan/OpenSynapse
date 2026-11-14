@@ -358,6 +358,8 @@ const zh = {
   "auto.rate": "回报率: {rate}",
   "auto.gpu": "GPU {pct}%",
   "auto.scene": "情景: {name}",
+  "auto.sceneLocked": "情景: {name} (已锁定)",
+  "auto.unlock": "解除锁定",
 
   "smart.title": "智能回报率",
   "smart.intro": "游戏时提高回报率，平时降低以节省电量和 CPU",
@@ -793,6 +795,8 @@ const en: Record<Key, string> = {
   "auto.rate": "polling rate: {rate}",
   "auto.gpu": "GPU {pct}%",
   "auto.scene": "scene: {name}",
+  "auto.sceneLocked": "scene: {name} (locked)",
+  "auto.unlock": "Unlock",
 
   "smart.title": "Smart polling rate",
   "smart.intro": "Raise the polling rate while gaming, lower it otherwise to save battery and CPU",
@@ -1228,6 +1232,8 @@ const ja: Record<Key, string> = {
   "auto.rate": "ポーリングレート: {rate}",
   "auto.gpu": "GPU {pct}%",
   "auto.scene": "シーン: {name}",
+  "auto.sceneLocked": "シーン: {name} (ロック中)",
+  "auto.unlock": "ロックを解除",
 
   "smart.title": "スマート ポーリングレート",
   "smart.intro": "ゲーム中はポーリングレートを上げ、それ以外は下げてバッテリーと CPU を節約します。",

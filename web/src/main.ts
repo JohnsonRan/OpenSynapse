@@ -2253,6 +2253,8 @@ async function autoStatus() {
   const st = await Scenes.status().catch(() => undefined);
   const on = $<HTMLInputElement>("#smart-on").checked || $<HTMLInputElement>("#scenes-on").checked;
   document.querySelector("#view-scenes .status-line")!.classList.toggle("live", on);
+  const locked = on && st?.sceneWhy === "lock"; // from the tray menu
+  $("#auto-unlock").hidden = !locked;
   $("#auto-status").textContent = !on
     ? t("auto.allOff")
     : st && st.foreground
@@ -2262,12 +2264,18 @@ async function autoStatus() {
           st.gpu >= 0 ? t("auto.gpu", { pct: st.gpu.toFixed(0) }) : "",
           st.game ? t("auto.game") : "",
           st.rate >= 0 ? t("auto.rate", { rate: rateText(st.rate) }) : "",
-          st.scene ? t("auto.scene", { name: st.scene }) : "",
+          st.scene ? t(locked ? "auto.sceneLocked" : "auto.scene", { name: st.scene }) : "",
         ]
           .filter(Boolean)
           .join(" · ")
       : t("auto.waiting");
 }
+
+$("#auto-unlock").onclick = async () => {
+  if (!(await attempt(() => Scenes.unlock()))) return;
+  document.querySelector<HTMLElement>("#view-scenes h1")!.focus(); // the button goes away
+  autoStatus();
+};
 
 // ---------- settings ----------
 

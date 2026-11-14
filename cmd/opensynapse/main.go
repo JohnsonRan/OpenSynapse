@@ -167,6 +167,7 @@ func trayMenu() *mygo.Menu {
 					log.Println("scenes:", err)
 				}
 			}},
+		lockMenu(),
 		mygo.Separator(),
 		&mygo.MenuItem{Label: tr("tray.quit"), Role: mygo.RoleQuit},
 	))

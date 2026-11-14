@@ -263,7 +263,7 @@ func TestLoadConfigOlderFileHasNoTitles(t *testing.T) {
 	if !sc.Enabled || len(sc.Scenes) != 1 || sc.Scenes[0].Name != "Work" || len(sc.Scenes[0].Apps) != 1 || len(sc.Game.Apps) != 1 {
 		t.Fatalf("scenes %+v; want them as the file has them", sc)
 	}
-	if sc.Scenes[0].Titles != nil || sc.Game.Titles != nil || wantTitle(sc, sp) {
+	if sc.Scenes[0].Titles != nil || sc.Game.Titles != nil || wantTitle(sc, sp, noScene) {
 		t.Fatalf("scenes %+v; want no title rule", sc)
 	}
 	if len(sp.Exceptions) != 1 || sp.Exceptions[0] != (Rule{Exe: "osu!.exe", Rate: 4000}) {

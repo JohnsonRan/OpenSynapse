@@ -17,17 +17,20 @@ func TestWantTitle(t *testing.T) {
 	cases := map[string]struct {
 		sc   ScenesConfig
 		sp   SmartPoll
+		lock int
 		want bool
 	}{
-		"no rules":               {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byProgram, false},
-		"a custom scene's title": {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, true},
-		"the game scene's title": {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, SmartPoll{}, true},
-		"scenes off":             {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, byProgram, false},
-		"a rate by title":        {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byTitle, true},
-		"smart polling off":      {ScenesConfig{}, SmartPoll{Exceptions: byTitle.Exceptions}, false},
+		"no rules":                {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byProgram, noScene, false},
+		"a custom scene's title":  {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, noScene, true},
+		"the game scene's title":  {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, SmartPoll{}, noScene, true},
+		"scenes off":              {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, byProgram, noScene, false},
+		"a rate by title":         {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byTitle, noScene, true},
+		"smart polling off":       {ScenesConfig{}, SmartPoll{Exceptions: byTitle.Exceptions}, noScene, false},
+		"a locked scene":          {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, desktop, false},
+		"locked, a rate by title": {ScenesConfig{Enabled: true, Scenes: titled}, byTitle, 0, true},
 	}
 	for name, k := range cases {
-		if got := wantTitle(k.sc, k.sp); got != k.want {
+		if got := wantTitle(k.sc, k.sp, k.lock); got != k.want {
 			t.Errorf("%s: got %v", name, got)
 		}
 	}

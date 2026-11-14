@@ -152,7 +152,12 @@ after a release.
 | The page still fades colors: the device card's border and glow, the DPI stage border and the switch background (`style.css`); `web/AGENTS.md` animates only transform and opacity | page accessibility pass, 2026-11-14 | Low; 0.15 s color fades, already off under reduced motion; an opacity overlay per control is more code than the fade |
 | Rotation and the sensitivity clutch are offered only on the DeathAdder V4 Pro (1532:00BE, 1532:00BF) | plan review of the rotation and clutch change, 2026-11-14 | the commands are known only from Synapse's module for that mouse, and no other model was tried; widen after reports from owners of other models |
 | The three HID port readers (`via`, `walkplay`, `evision`) and the five device hubs repeat the same code | code survey, 2026-11-14 | a refactor without a behaviour change |
-| Feature ideas: per-key colors, music lighting and scene lighting for Razer keyboards; scenes matched by window title, and a scene locked from the tray; text and launch steps in macros | survey, 2026-11-14 | features; the owner decides after release |
+| Feature ideas: per-key colors, music lighting and scene lighting for Razer keyboards; text and launch steps in macros | survey, 2026-11-14 | features; the owner decides after release |
+| A title rule limited to one program (a scene or a polling-rate exception with both a title and a program) | plan of scenes by window title, 2026-11-14 | nobody asked for it; a rule with both keeps the program today, which is how 0.9.1 reads it |
+| Locking a scene from the page, next to the tray's "Lock scene" | plan of scenes by window title, 2026-11-14 | the owner approved the tray; the page only unlocks |
+| A scene lock that survives a restart | plan of scenes by window title, 2026-11-14 | scenes have no ID that a saved lock could name; the owner chose a lock for the session |
+| Keeping the keys of a settings file that this version does not know across a load and a save, so that going back to an older version loses nothing | plan of scenes by window title, 2026-11-14 | releases up to 0.9.1 drop `titles` and `title` at their next save, and no later change reaches them; it would only help from this version on |
+| A window title that blinks about once a second can line up with the 1 s look of the scene switcher and switch the scene, where a faster or slower blink would not | review of the plan of scenes by window title, 2026-11-14 | Low; no such title is known; the debouncer needs two equal looks in a row |
 
 ## Not yet enforced
 

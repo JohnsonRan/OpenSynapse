@@ -79,6 +79,7 @@ func replaceConfig(next config) error {
 	next.Keyboards = cfg.Keyboards // what the keyboards here hold, not the other PC's
 	next.ViaKeys, next.ViaModels = cfg.ViaKeys, cfg.ViaModels
 	cfg = next
+	sceneLock = noScene // the scenes are other scenes now
 	cfgMu.Unlock()
 	return saveConfig()
 }

@@ -949,7 +949,9 @@ input[type="range"] {
   margin: 4px 0 0;
 }
 
+/* As tall as the unlock button, so the page does not move when a scene is locked. */
 #view-scenes .status-line {
+  min-height: var(--control-h);
   margin: 0 0 16px;
 }
 

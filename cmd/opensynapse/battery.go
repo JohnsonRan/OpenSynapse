@@ -53,7 +53,10 @@ func setTrayStatus(st AutoStatus) {
 	if st.Rate >= 0 {
 		parts = append(parts, tr("tray.rate", rateLabel(st.Rate)))
 	}
-	if st.Scene != "" {
+	switch {
+	case st.Scene != "" && st.SceneWhy == reasonLock:
+		parts = append(parts, tr("tray.sceneLocked", st.Scene))
+	case st.Scene != "":
 		parts = append(parts, tr("tray.scene", st.Scene))
 	}
 	text := strings.Join(parts, " · ")

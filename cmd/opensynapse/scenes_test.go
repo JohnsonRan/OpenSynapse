@@ -216,8 +216,15 @@ func TestDecideScene(t *testing.T) {
 		{"elden.exe", "ELDEN RING", true, gameScene, reasonGame},
 	}
 	for _, k := range cases {
-		if s, why := decideScene(c, k.exe, k.title, k.game); s != k.scene || why != k.why {
+		if s, why := decideScene(c, noScene, k.exe, k.title, k.game); s != k.scene || why != k.why {
 			t.Errorf("%+v: got %d %s", k, s, why)
+		}
+		// A locked scene stays whatever is in front: the desktop under a
+		// detected game, a custom scene under another scene's title.
+		for _, lock := range []int{desktop, gameScene, 2} {
+			if s, why := decideScene(c, lock, k.exe, k.title, k.game); s != lock || why != reasonLock {
+				t.Errorf("%+v, locked to %d: got %d %s", k, lock, s, why)
+			}
 		}
 	}
 }
@@ -256,7 +263,7 @@ func TestDecideRate(t *testing.T) {
 			t.Errorf("empty rule, title %q: got %d %s", title, r, why)
 		}
 	}
-	if wantTitle(ScenesConfig{}, loaded.Smart) {
+	if wantTitle(ScenesConfig{}, loaded.Smart, noScene) {
 		t.Error("the title is read for a rule without a text")
 	}
 }

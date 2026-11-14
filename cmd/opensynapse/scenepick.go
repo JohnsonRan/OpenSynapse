@@ -12,6 +12,7 @@ const (
 	reasonDefault = "default"
 	reasonRule    = "rule"
 	reasonGame    = "game"
+	reasonLock    = "lock" // the tray locked the scene (scenelock.go)
 )
 
 // Scene indexes besides custom scenes (0…).
@@ -29,19 +30,24 @@ func titleHas(lowTitle, text string) bool {
 }
 
 // wantTitle reports whether a round needs the foreground window's title: a
-// switched-on feature has a title rule. Without one no title is ever read.
-func wantTitle(sc ScenesConfig, sp SmartPoll) bool {
-	if sc.Enabled && (len(sc.Game.Titles) > 0 || slices.ContainsFunc(sc.Scenes, func(s Scene) bool { return len(s.Titles) > 0 })) {
+// switched-on feature has a title rule. Without one no title is ever read,
+// and a locked scene asks for none.
+func wantTitle(sc ScenesConfig, sp SmartPoll, lock int) bool {
+	if sc.Enabled && lock == noScene && (len(sc.Game.Titles) > 0 || slices.ContainsFunc(sc.Scenes, func(s Scene) bool { return len(s.Titles) > 0 })) {
 		return true
 	}
 	return sp.Enabled && slices.ContainsFunc(sp.Exceptions, func(r Rule) bool { return r.Exe == "" && r.Title != "" })
 }
 
-// decideScene: a custom scene by window title, the game scene by title, a
-// custom scene listing the program, then the game scene (the programs it
-// lists and detected games), then the desktop. A title goes first because it
-// is the narrower rule: it picks one tab or document of a program.
-func decideScene(c ScenesConfig, exe, title string, game bool) (int, string) {
+// decideScene: the locked scene; else a custom scene by window title, the
+// game scene by title, a custom scene listing the program, then the game
+// scene (the programs it lists and detected games), then the desktop. A title
+// goes first because it is the narrower rule: it picks one tab or document
+// of a program.
+func decideScene(c ScenesConfig, lock int, exe, title string, game bool) (int, string) {
+	if lock != noScene {
+		return lock, reasonLock
+	}
 	title = strings.ToLower(title)
 	titled := func(s Scene) bool {
 		return slices.ContainsFunc(s.Titles, func(t string) bool { return titleHas(title, t) })

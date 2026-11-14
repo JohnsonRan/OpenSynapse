@@ -170,7 +170,7 @@ type AutoStatus struct {
 	GPU        float64 `json:"gpu"`  // 3D load of the foreground app, -1 if not measured
 	Game       bool    `json:"game"` // recognized as a game
 	Scene      string  `json:"scene"`
-	SceneWhy   string  `json:"sceneWhy"` // default, rule or game
+	SceneWhy   string  `json:"sceneWhy"` // default, rule, game or lock
 	Rate       int     `json:"rate"`     // target polling rate, 0 = highest, -1 = off
 	RateWhy    string  `json:"rateWhy"`
 }
@@ -248,7 +248,7 @@ func runAuto() {
 // config changes.
 func (a *auto) round() (idle bool) {
 	cfgMu.Lock()
-	sc, sp := cfg.Scenes, cfg.Smart
+	sc, sp, lock := cfg.Scenes, cfg.Smart, sceneLock
 	cfgMu.Unlock()
 	if !sc.Enabled {
 		a.scenes = newSwitcher("scene")
@@ -267,7 +267,7 @@ func (a *auto) round() (idle bool) {
 		// lighting: the next rounds try it again.
 		return !sceneAudioPending() && !sceneKeyboards.pending()
 	}
-	f := getForeground(wantTitle(sc, sp))
+	f := getForeground(wantTitle(sc, sp, lock))
 	if f.exe == "" {
 		return false // lock screen, UAC prompt, protected process: keep the current settings
 	}
@@ -289,7 +289,7 @@ func (a *auto) round() (idle bool) {
 	devs := devices.list()
 	st := AutoStatus{Foreground: f.exe, Fullscreen: f.fullscreen, GPU: load, Game: game, Rate: -1}
 	if sc.Enabled {
-		idx, why := decideScene(sc, f.exe, f.title, game)
+		idx, why := decideScene(sc, lock, f.exe, f.title, game)
 		s := sc.scene(idx)
 		name := s.Name
 		switch idx {
@@ -337,6 +337,7 @@ func (Scenes) SetConfig(c ScenesConfig) error {
 		return err
 	}
 	cfgMu.Lock()
+	releaseLockFor(c)
 	cfg.Scenes = c
 	cfgMu.Unlock()
 	resetAuto()

@@ -51,7 +51,7 @@ export interface AutoStatus {
   /** recognized as a game */
   game: boolean;
   scene: string;
-  /** default, rule or game */
+  /** default, rule, game or lock */
   sceneWhy: string;
   /** target polling rate, 0 = highest, -1 = off */
   rate: number;
@@ -820,6 +820,10 @@ export const Scenes = {
   /** Status returns the foreground app, the active scene and the target rate. */
   status(): Promise<AutoStatus> {
     return call("Scenes.Status");
+  },
+  /** Unlock goes back to switching scenes automatically. */
+  unlock(): Promise<void> {
+    return call("Scenes.Unlock");
   },
 } as const;
 
