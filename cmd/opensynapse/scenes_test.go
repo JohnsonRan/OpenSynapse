@@ -232,6 +232,7 @@ func TestDecideScene(t *testing.T) {
 func TestDecideRate(t *testing.T) {
 	c := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{
 		{Exe: "osu!.exe", Rate: 4000}, {Exe: "overwatch.exe", Rate: 1000}, {Title: "GeForce NOW", Rate: 8000}, {Title: "Sheets", Rate: 125},
+		{Exe: "both.exe", Title: "ELDEN", Rate: 500}, // only in a file normalize refused: the program's rule
 	}}
 	cases := []struct {
 		exe, title string
@@ -246,6 +247,7 @@ func TestDecideRate(t *testing.T) {
 		{"chrome.exe", "Play on geforce now", false, 8000, reasonRule}, // by title, without case
 		{"osu!.exe", "osu! - Google Sheets", false, 125, reasonRule},   // a title beats a program
 		{"elden.exe", "ELDEN RING", true, 0, reasonGame},
+		{"both.exe", "Notepad", false, 500, reasonRule},
 	}
 	for _, k := range cases {
 		if r, why := decideRate(c, k.exe, k.title, k.game); r != k.rate || why != k.why {
@@ -287,9 +289,9 @@ func TestNormalize(t *testing.T) {
 	}
 	p := SmartPoll{GameRate: 0, NormalRate: 1000, Exceptions: []Rule{
 		{Exe: ` D:\osu!.EXE`, Rate: 4000}, {Exe: "osu!.exe", Rate: 500}, {Rate: 8000}, {Title: "  ", Rate: 8000},
-		{Title: " GeForce NOW ", Rate: 8000}, {Title: "geforce now", Rate: 125}, {Exe: "a.exe", Title: "both", Rate: 500},
+		{Title: " GeForce NOW ", Rate: 8000}, {Title: "geforce now", Rate: 125}, {Exe: "a.exe", Title: "both", Rate: 500}, {Title: "Sheets", Rate: 125},
 	}}
-	want := []Rule{{Exe: "osu!.exe", Rate: 4000}, {Title: "GeForce NOW", Rate: 8000}, {Exe: "a.exe", Rate: 500}}
+	want := []Rule{{Exe: "osu!.exe", Rate: 4000}, {Title: "GeForce NOW", Rate: 8000}, {Exe: "a.exe", Rate: 500}, {Title: "Sheets", Rate: 125}}
 	if err := p.normalize(); err != nil || !slices.Equal(p.Exceptions, want) {
 		t.Fatalf("%v %+v; want %+v", err, p.Exceptions, want)
 	}

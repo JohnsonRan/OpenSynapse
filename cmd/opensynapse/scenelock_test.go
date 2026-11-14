@@ -141,6 +141,7 @@ func TestSceneLock(t *testing.T) {
 	// A click on a menu built before the list changed locks nothing.
 	c.Scenes = []Scene{{Name: "Work"}, {Name: "Play"}}
 	set(c)
+	drainAutoReset()
 	Scenes{}.Unlock()
 	if lockIs() != noScene || !drainAutoReset() {
 		t.Fatal("unlocking did not release the lock and wake the switcher")

@@ -20,14 +20,15 @@ func TestWantTitle(t *testing.T) {
 		lock int
 		want bool
 	}{
-		"no rules":                {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byProgram, noScene, false},
-		"a custom scene's title":  {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, noScene, true},
-		"the game scene's title":  {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, SmartPoll{}, noScene, true},
-		"scenes off":              {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, byProgram, noScene, false},
-		"a rate by title":         {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byTitle, noScene, true},
-		"smart polling off":       {ScenesConfig{}, SmartPoll{Exceptions: byTitle.Exceptions}, noScene, false},
-		"a locked scene":          {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, desktop, false},
-		"locked, a rate by title": {ScenesConfig{Enabled: true, Scenes: titled}, byTitle, 0, true},
+		"no rules":               {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byProgram, noScene, false},
+		"a custom scene's title": {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, noScene, true},
+		"the game scene's title": {ScenesConfig{Enabled: true, Game: Scene{Titles: []string{"x"}}}, SmartPoll{}, noScene, true},
+		"scenes off":             {ScenesConfig{Scenes: titled, Game: Scene{Titles: []string{"x"}}}, byProgram, noScene, false},
+		"a rate by title":        {ScenesConfig{Enabled: true, Scenes: titled[:1]}, byTitle, noScene, true},
+		"smart polling off":      {ScenesConfig{}, SmartPoll{Exceptions: byTitle.Exceptions}, noScene, false},
+		"a locked scene":         {ScenesConfig{Enabled: true, Scenes: titled}, byProgram, desktop, false},
+		"a rate by program with a title left over": {ScenesConfig{}, SmartPoll{Enabled: true, Exceptions: []Rule{{Exe: "a.exe", Title: "x"}}}, noScene, false},
+		"locked, a rate by title":                  {ScenesConfig{Enabled: true, Scenes: titled}, byTitle, 0, true},
 	}
 	for name, k := range cases {
 		if got := wantTitle(k.sc, k.sp, k.lock); got != k.want {
@@ -100,5 +101,26 @@ func TestAutoStatusCarriesNoTitle(t *testing.T) {
 	}
 	if !strings.Contains(tray, "Books") || !strings.Contains(string(file), "secret-7F3A") {
 		t.Fatalf("tray %q, settings file %s; want the scene and its rule there, or the check above saw nothing", tray, file)
+	}
+}
+
+// A round gives the polling rate of an exception by window title, with
+// scenes off.
+func TestAutoRoundRateByTitle(t *testing.T) {
+	offConfig(t)
+	asked := foregroundIs(t, foreground{pid: 4242, exe: "chrome.exe", title: "Play on GeForce NOW"})
+	t.Cleanup(func() {
+		cfgMu.Lock()
+		cfg.Smart.Enabled = false
+		cfgMu.Unlock()
+		newAuto().round() // the tray forgets the rate
+	})
+	cfgMu.Lock()
+	cfg.Smart = SmartPoll{Enabled: true, NormalRate: 1000, Exceptions: []Rule{{Title: "geforce now", Rate: 8000}}}
+	cfgMu.Unlock()
+
+	newAuto().round()
+	if st := (Scenes{}).Status(); st.Rate != 8000 || st.RateWhy != reasonRule || len(*asked) != 1 || !(*asked)[0] {
+		t.Fatalf("status %+v, title asked for %v; want the rate of the title's exception", st, *asked)
 	}
 }
