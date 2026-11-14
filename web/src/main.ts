@@ -1565,6 +1565,13 @@ const MODES = ["once", "repeat", "toggle", "hold"] as const;
 let macros: Macro[] = [];
 let macro: Macro | undefined; // being edited
 let recording = false;
+// A text or launch step just added. It joins the macro once it has something
+// to type or open: Go refuses an empty one, so saving it earlier would fail.
+let draft: MacroEvent | undefined;
+
+const launches = (m: Macro) => m.events.some((e) => e.kind === "launch");
+// As Go tells a link from a path: a scheme of two characters or more.
+const isLink = (target: string) => !/^[A-Za-z]:[\\/]/.test(target) && /^[A-Za-z][A-Za-z0-9+.-]+:/.test(target);
 
 // A macro's saves run one after another, so later ones carry the ID the first assigns.
 const macroSaves = new WeakMap<Macro, Promise<unknown>>();
@@ -1604,6 +1611,11 @@ function renderMacroList() {
       b.className = "macro-item" + (m === macro ? " on" : "");
       if (m === macro) b.setAttribute("aria-current", "true");
       b.textContent = m.name;
+      if (m.imported && launches(m)) {
+        b.classList.add("blocked");
+        b.title = t("macros.imported");
+        b.ariaLabel = `${m.name}: ${t("macros.imported")}`;
+      }
       b.onclick = () => {
         if (recording) return;
         macro = m;
@@ -1630,16 +1642,15 @@ function renderMacro() {
     renderMacroList();
     saveMacro(m);
   };
+  draft = undefined;
   const mode = $<HTMLSelectElement>("#macro-mode");
-  mode.innerHTML = MODES.map((k) => option(k, t(`mode.${k}` as "mode.once"), m.mode === k)).join("");
   const count = $<HTMLInputElement>("#macro-count");
-  const syncCount = () => ($("#macro-count-row").style.visibility = m.mode === "repeat" ? "" : "hidden");
   count.value = String(m.count || 1);
-  syncCount();
+  syncMode(m);
   mode.onchange = () => {
     m.mode = mode.value;
     if (m.mode === "repeat" && !m.count) m.count = 1;
-    syncCount();
+    syncMode(m);
     saveMacro(m);
   };
   count.onchange = () => {
@@ -1652,15 +1663,45 @@ function renderMacro() {
   renderSteps();
 }
 
+// The playback choices of the macro shown. A macro that opens a program or
+// link plays once per press: looping would start the program on every pass,
+// and Go refuses it.
+function syncMode(m: Macro) {
+  const once = launches(m);
+  if (once) m.mode = "once";
+  $("#macro-mode").innerHTML = MODES.filter((k) => !once || k === "once")
+    .map((k) => option(k, t(`mode.${k}` as "mode.once"), m.mode === k))
+    .join("");
+  $("#macro-once").hidden = !once;
+  $("#macro-count-row").style.visibility = m.mode === "repeat" ? "" : "hidden";
+}
+
+// A macro from a backup file opens nothing until the user has seen what it
+// would open and allowed it. Go keeps that answer; the page shows the targets
+// in full and asks. They are set as text, never as markup: a file wrote them.
+function renderImported(m: Macro) {
+  const targets = m.events.filter((e) => e.kind === "launch");
+  $("#macro-imported").hidden = !(m.imported && targets.length);
+  $("#macro-targets").replaceChildren(
+    ...targets.map((e) => {
+      const li = document.createElement("li");
+      li.append(...[e.target, e.args].filter(Boolean).map((s) => Object.assign(document.createElement("span"), { textContent: s })));
+      return li;
+    }),
+  );
+}
+
 function renderSteps() {
   const m = macro!;
   const box = $("#macro-steps");
-  if (!m.events.length) {
+  renderImported(m);
+  const steps = draft ? [...m.events, draft] : m.events;
+  if (!steps.length) {
     box.replaceChildren(Object.assign(document.createElement("p"), { className: "muted small", textContent: t("macros.noSteps") }));
     return;
   }
   box.replaceChildren(
-    ...m.events.map((e, i) => {
+    ...steps.map((e, i) => {
       const row = document.createElement("div");
       row.className = "step";
       row.innerHTML = `
@@ -1670,6 +1711,9 @@ function renderSteps() {
       const what = row.querySelector<HTMLElement>(".step-what")!;
       if (e.kind === "key" || e.kind === "mouse") {
         what.textContent = t(e.down ? "macros.down" : "macros.up", { key: inputName(e) });
+      } else if (e.kind === "text" || e.kind === "launch") {
+        what.className = "step-what fields";
+        what.append(Object.assign(document.createElement("span"), { textContent: t(e.kind === "text" ? "macros.text" : "macros.launch") }), stepFields(m, e));
       } else {
         what.className = `step-what amount ${e.kind}`;
         what.append(stepAmount(m, e));
@@ -1682,14 +1726,103 @@ function renderSteps() {
         saveMacro(m);
       };
       row.querySelector<HTMLButtonElement>(".x")!.onclick = () => {
-        m.events.splice(i, 1);
+        if (e === draft) draft = undefined;
+        else {
+          m.events.splice(i, 1);
+          saveMacro(m);
+        }
         renderSteps();
-        saveMacro(m);
+        syncMode(m);
+        renderMacroList();
       };
       return row;
     }),
   );
 }
+
+// The fields of a text or launch step. What a file may have written into the
+// step is shown through value and title properties only.
+function stepFields(m: Macro, e: MacroEvent) {
+  const box = document.createElement("span");
+  box.className = "step-fields";
+  // A draft joins the macro at the end, where its row already is.
+  const join = () => {
+    if (e !== draft) return;
+    draft = undefined;
+    m.events.push(e);
+  };
+  if (e.kind === "text") {
+    const area = Object.assign(document.createElement("textarea"), { maxLength: 1000, value: e.text ?? "", ariaLabel: t("macros.text") });
+    area.onchange = () => {
+      e.text = area.value;
+      if (!e.text && e === draft) return;
+      join();
+      saveMacro(m);
+    };
+    box.append(area, Object.assign(document.createElement("span"), { className: "muted small", textContent: t("macros.textNote") }));
+    return box;
+  }
+  const field = (label: "macros.target" | "macros.args", value: string) =>
+    Object.assign(document.createElement("input"), { value, maxLength: 2000, placeholder: t(label), ariaLabel: t(label) });
+  const target = field("macros.target", e.target ?? "");
+  const args = field("macros.args", e.args ?? "");
+  target.className = "target";
+  const browse = Object.assign(document.createElement("button"), { className: "ghost", textContent: t("macros.browse") });
+  // A long value is cut in its field: the title shows all of it.
+  const sync = () => {
+    target.title = target.value;
+    args.title = args.value;
+    args.hidden = isLink(target.value.trim()); // a link takes no arguments
+  };
+  const changed = () => {
+    e.target = target.value.trim();
+    e.args = args.hidden ? "" : args.value;
+    sync();
+    if (!e.target && e === draft) return;
+    const looped = m.mode !== "once";
+    join();
+    syncMode(m); // before the save: Go refuses a launch step in a looping macro
+    if (looped) toast(t("macros.onceOnly"));
+    saveMacro(m);
+    renderImported(m);
+    renderMacroList();
+  };
+  target.onchange = args.onchange = changed;
+  browse.onclick = () =>
+    attempt(async () => {
+      const path = await Macros.pickTarget();
+      if (!path) return;
+      target.value = path;
+      changed();
+    });
+  sync();
+  box.append(target, browse, args);
+  return box;
+}
+
+// A text or launch step starts as a draft row, with the focus in its first field.
+function addDraft(kind: "text" | "launch") {
+  if (!macro || recording) return;
+  draft = { ...step(kind, 0, false), text: "", target: "", args: "" };
+  if (!macro.events.length) draft.delay = 0;
+  renderSteps();
+  $("#macro-steps").querySelector<HTMLElement>(".step:last-child .step-fields > :first-child")?.focus();
+}
+$("#add-text").onclick = () => addDraft("text");
+$("#add-launch").onclick = () => addDraft("launch");
+
+$("#macro-allow").onclick = () => {
+  const m = macro;
+  if (!m) return;
+  attempt(async () => {
+    await macroSaves.get(m); // Go allows what it has stored: the edits shown above go first
+    m.imported = (await Macros.allow(m.id)).imported;
+    renderMacroList();
+    if (m !== macro) return;
+    renderImported(m);
+    $("#macro-name").focus(); // the button that had the focus is gone
+  });
+};
 
 // The editable amount of a move or wheel step: X and Y, or notches.
 function stepAmount(m: Macro, e: MacroEvent) {

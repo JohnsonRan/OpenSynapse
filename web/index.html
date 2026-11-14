@@ -383,6 +383,12 @@
               <label><span class="muted small" data-i18n="macros.mode"></span><select id="macro-mode"></select></label>
               <label id="macro-count-row"><span class="muted small" data-i18n="macros.count"></span><input id="macro-count" type="number" min="1" max="999" /></label>
             </div>
+            <p id="macro-once" class="muted small" data-i18n="macros.onceOnly" hidden></p>
+            <div id="macro-imported" class="imported" role="group" aria-labelledby="macro-imported-text" hidden>
+              <p id="macro-imported-text" data-i18n="macros.imported"></p>
+              <ul id="macro-targets"></ul>
+              <button id="macro-allow" class="ghost" data-i18n="macros.allow"></button>
+            </div>
             <div class="card-head sub-head">
               <h3 data-i18n="macros.steps"></h3>
               <div class="row-actions">
@@ -395,6 +401,8 @@
             <div class="row macro-add">
               <button id="add-key" class="ghost" data-i18n="macros.addKey"></button>
               <select id="add-mouse" class="ghost"></select>
+              <button id="add-text" class="ghost" data-i18n="macros.addText"></button>
+              <button id="add-launch" class="ghost" data-i18n="macros.addLaunch"></button>
             </div>
           </div>
           <div id="macro-none" class="empty" hidden><p class="muted" data-i18n="macros.none"></p></div>
@@ -496,6 +504,7 @@
             <div>
               <div class="row-title" data-i18n="backup.title"></div>
               <div class="muted small" data-i18n="backup.hint"></div>
+              <div class="muted small" data-i18n="backup.warning"></div>
             </div>
             <div class="row-actions">
               <button id="import" class="ghost" data-i18n="backup.import"></button>

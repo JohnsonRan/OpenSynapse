@@ -85,7 +85,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -634,7 +635,8 @@ button:disabled {
 
 input[type="number"],
 input:not([type]),
-select {
+select,
+textarea {
   width: 100%;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -645,7 +647,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--accent);
 }
 
@@ -1578,6 +1581,83 @@ button.ghost.x {
 
 .macro-add {
   margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* Text and launch steps: a label, then fields that wrap at a narrow window. */
+.step-what.fields {
+  align-items: baseline;
+  padding: var(--label-gap) 0;
+}
+
+.step-what.fields > :first-child {
+  flex: none;
+}
+
+.step-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--label-gap) var(--inline-gap);
+}
+
+.step-fields input {
+  flex: 1 1 140px;
+  width: auto;
+  text-overflow: ellipsis;
+}
+
+.step-fields input.target {
+  flex-grow: 3;
+}
+
+.step-fields textarea,
+.step-fields .small {
+  flex: 1 1 100%;
+}
+
+/* Two lines, growing with the text up to six. */
+.step-fields textarea {
+  box-sizing: border-box;
+  field-sizing: content;
+  min-height: calc(2lh + 14px);
+  max-height: calc(6lh + 14px);
+  line-height: var(--leading-title);
+  resize: none;
+}
+
+.macro-item.blocked::before {
+  content: "! ";
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* A macro from a backup file that opens something: what it opens, in full. */
+.imported {
+  display: grid;
+  justify-items: start;
+  gap: var(--inline-gap);
+  margin: var(--field-gap) 0;
+  padding: var(--field-gap);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+}
+
+.imported p,
+.imported ul {
+  margin: 0;
+}
+
+.imported ul {
+  padding-left: 18px;
+}
+
+.imported li span {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: text;
 }
 
 /* Rows of label and control. */
@@ -1620,7 +1700,8 @@ button.ghost.x {
   margin: 0;
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   font-size: var(--text-control);
   font-weight: 400;
   color: var(--muted);
