@@ -194,7 +194,8 @@ func shellOpen(target, args, dir string) error {
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		if err := windows.CoInitializeEx(0, windows.COINIT_APARTMENTTHREADED|windows.COINIT_DISABLE_OLE1DDE); err == nil {
+		// S_FALSE, COM already set up on this thread, also needs its CoUninitialize.
+		if err := windows.CoInitializeEx(0, windows.COINIT_APARTMENTTHREADED|windows.COINIT_DISABLE_OLE1DDE); err == nil || err == windows.Errno(windows.S_FALSE) {
 			defer windows.CoUninitialize()
 		}
 		if ok, _, err := procShellExecuteEx.Call(uintptr(unsafe.Pointer(&info))); ok == 0 {
