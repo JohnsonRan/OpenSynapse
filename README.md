@@ -101,7 +101,7 @@ A program needs to stay in front for about 2 seconds before OpenSynapse switches
 
 - **Low-battery notification:** a Windows notification when a wireless device reaches its warning level (20% if the device has none). You're notified once per discharge.
 - Hover over the tray icon to see the active scene and the battery level of each device.
-- **Lock scene** in the tray menu keeps one scene on whatever program is in front, until you pick **Automatic** there, select **Unlock** on the **Scenes** page, or quit OpenSynapse. Renaming or deleting the locked scene, turning Scenes off or importing settings also unlocks it. Smart polling rate keeps following the program in front.
+- **Lock scene** in the tray menu keeps one scene on whatever program is in front, until you pick **Automatic** there, select **Unlock** on the **Scenes** page, or quit OpenSynapse. Renaming the locked scene, adding or deleting any scene, turning Scenes off or importing settings also unlocks it. Smart polling rate keeps following the program in front.
 - **Start at login** starts OpenSynapse in the tray when you sign in to Windows.
 - The app is available in English, Simplified Chinese and Japanese, and follows your Windows language by default. Change it under **Settings** > **Language**.
 - **Glass effect** (under **Settings**, Windows 11 22H2 or later) makes the window translucent, blurring the desktop and windows behind it.
